@@ -3286,6 +3286,37 @@ function generateDecorations(zoneId,type){
     for(let i=0;i<15;i++){decorations.push({type:'rock',x:rng()*WORLD_W,y:rng()*WORLD_H,size:.4+rng()*.4})}
     // Mushrooms
     for(let i=0;i<12;i++){decorations.push({type:'mushroom',x:rng()*WORLD_W,y:rng()*WORLD_H,color:rng()>.5?'#ff4444':'#c084fc'})}
+    // ═══ FOREST BOSS ARENA (top-left corner, tiles 3-17) ═══
+    if(zoneId==='forest'){
+      const T=TILE_SIZE;
+      // Warning skulls at entrances
+      decorations.push({type:'skull',x:10*T,y:17.5*T}); // south entrance
+      decorations.push({type:'skull',x:17.5*T,y:10*T}); // east entrance
+      // Torches around the arena perimeter (inside the walls)
+      decorations.push({type:'wall_torch',x:5.5*T,y:5.5*T});
+      decorations.push({type:'wall_torch',x:14.5*T,y:5.5*T});
+      decorations.push({type:'wall_torch',x:5.5*T,y:14.5*T});
+      decorations.push({type:'wall_torch',x:14.5*T,y:14.5*T});
+      decorations.push({type:'wall_torch',x:10*T,y:5.5*T});
+      decorations.push({type:'wall_torch',x:5.5*T,y:10*T});
+      decorations.push({type:'wall_torch',x:14.5*T,y:10*T});
+      decorations.push({type:'wall_torch',x:10*T,y:14.5*T});
+      // Bone piles scattered (battle remnants)
+      decorations.push({type:'rock',x:6.5*T,y:7*T,size:.6});
+      decorations.push({type:'rock',x:13.5*T,y:7*T,size:.5});
+      decorations.push({type:'rock',x:6.5*T,y:13*T,size:.5});
+      decorations.push({type:'rock',x:13.5*T,y:13*T,size:.6});
+      // Dead trees flanking the entrances
+      decorations.push({type:'tree',x:8.5*T,y:17*T,size:.5,variant:2,col:{ox:0,oy:0,w:14,h:14}});
+      decorations.push({type:'tree',x:11.5*T,y:17*T,size:.5,variant:2,col:{ox:0,oy:0,w:14,h:14}});
+      decorations.push({type:'tree',x:17*T,y:8.5*T,size:.5,variant:2,col:{ox:0,oy:0,w:14,h:14}});
+      decorations.push({type:'tree',x:17*T,y:11.5*T,size:.5,variant:2,col:{ox:0,oy:0,w:14,h:14}});
+      // Mushrooms around the arena (corrupted growth)
+      decorations.push({type:'mushroom',x:7*T,y:8.5*T,color:'#8b0000'});
+      decorations.push({type:'mushroom',x:13*T,y:8.5*T,color:'#8b0000'});
+      decorations.push({type:'mushroom',x:7*T,y:11.5*T,color:'#8b0000'});
+      decorations.push({type:'mushroom',x:13*T,y:11.5*T,color:'#8b0000'});
+    }
   }else if(type==='mine'){
     // Stalagmites
     for(let i=0;i<25;i++){decorations.push({type:'stalagmite',x:rng()*WORLD_W,y:rng()*WORLD_H,size:.5+rng()*.6})}
@@ -6139,8 +6170,17 @@ function drawBoss(b){
   // Arena circle (faint)
   if(b.arenaRadius){
     const as=worldToScreen(b.homeX,b.homeY);
-    ctx.strokeStyle='rgba(45,90,30,0.15)';ctx.lineWidth=2;
-    ctx.beginPath();ctx.arc(as.x,as.y,b.arenaRadius*ISO_S,0,Math.PI*2);ctx.stroke();ctx.lineWidth=1;
+    // Outer glow ring
+    ctx.strokeStyle='rgba(45,90,30,0.25)';ctx.lineWidth=4;
+    ctx.beginPath();ctx.arc(as.x,as.y,b.arenaRadius*ISO_S,0,Math.PI*2);ctx.stroke();
+    // Inner dashed ring
+    ctx.strokeStyle='rgba(139,69,19,0.3)';ctx.lineWidth=2;ctx.setLineDash([8,6]);
+    ctx.beginPath();ctx.arc(as.x,as.y,(b.arenaRadius-20)*ISO_S,0,Math.PI*2);ctx.stroke();
+    ctx.setLineDash([]);ctx.lineWidth=1;
+    // Boss zone label
+    ctx.font='bold 11px sans-serif';ctx.textAlign='center';
+    ctx.fillStyle='rgba(200,50,50,0.55)';
+    ctx.fillText('⚔ BOSS ARENA ⚔',as.x,as.y-b.arenaRadius*ISO_S-8);
   }
 
   // Shadow

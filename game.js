@@ -2054,6 +2054,47 @@ class Game {
           for (let dx = 0; dx < 4; dx++)
             if (wy + dy < MAP_H - 2 && wx + dx < MAP_W - 2) map[wy + dy][wx + dx] = TILE.WATER;
       }
+
+      // ═══ BOSS ARENA (top-left corner) ═══
+      if (zoneId === 'forest') {
+        // Arena bounds in tiles (centered around arenaX:360, arenaY:360 → tile 9,9)
+        const ax1 = 3, ay1 = 3, ax2 = 17, ay2 = 17;
+        // Outer wall border (thick tree/stone perimeter)
+        for (let y = ay1; y <= ay2; y++)
+          for (let x = ax1; x <= ax2; x++) {
+            if (y <= ay1 + 1 || y >= ay2 - 1 || x <= ax1 + 1 || x >= ax2 - 1)
+              map[y][x] = TILE.WALL;
+          }
+        // Inner arena floor (cleared grass with stone accents)
+        for (let y = ay1 + 2; y <= ay2 - 2; y++)
+          for (let x = ax1 + 2; x <= ax2 - 2; x++)
+            map[y][x] = TILE.GRASS;
+        // Stone ring around the center (decorative circular pattern)
+        const acx = 10, acy = 10; // arena center tile
+        for (let y = ay1 + 2; y <= ay2 - 2; y++)
+          for (let x = ax1 + 2; x <= ax2 - 2; x++) {
+            const dist = Math.sqrt((x - acx) * (x - acx) + (y - acy) * (y - acy));
+            if (dist >= 4.5 && dist <= 5.5) map[y][x] = TILE.STONE;
+            if (dist <= 1.5) map[y][x] = TILE.SAND; // center marking
+          }
+        // Corner stone pillars inside the arena
+        map[ay1 + 2][ax1 + 2] = TILE.WALL;
+        map[ay1 + 2][ax2 - 2] = TILE.WALL;
+        map[ay2 - 2][ax1 + 2] = TILE.WALL;
+        map[ay2 - 2][ax2 - 2] = TILE.WALL;
+        // Entrance path from the south (gap in the wall)
+        for (let y = ay2 - 1; y <= ay2 + 2; y++) {
+          map[y][acx - 1] = TILE.STONE;
+          map[y][acx] = TILE.STONE;
+          map[y][acx + 1] = TILE.STONE;
+        }
+        // Entrance path from the east (gap in the wall)
+        for (let x = ax2 - 1; x <= ax2 + 2; x++) {
+          map[acy - 1][x] = TILE.STONE;
+          map[acy][x] = TILE.STONE;
+          map[acy + 1][x] = TILE.STONE;
+        }
+      }
     }
 
     // Ensure spawn area (center) is always walkable
@@ -2981,8 +3022,8 @@ const RPG_ZONES = {
       goldReward: 150,
       xpReward: 200,
       color: '#2d5a1e',
-      arenaX: 1200, arenaY: 400,
-      arenaRadius: 350,
+      arenaX: 360, arenaY: 360,
+      arenaRadius: 280,
       chaseSpeed: 1.2,
       respawnTime: 120000,
       attacks: [
