@@ -2,7 +2,9 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-const DATA_FILE = path.join(__dirname, 'gamedata.json');
+// Use /data volume on Railway for persistence, fallback to local file
+const DATA_DIR = process.env.RAILWAY_ENVIRONMENT ? '/data' : __dirname;
+const DATA_FILE = path.join(DATA_DIR, 'gamedata.json');
 
 // ═══════════════════════════════════════════
 // Configuration
