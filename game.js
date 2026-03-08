@@ -233,6 +233,7 @@ class Game {
 
     this.admin = 'mikeydamike';
     this.rpgEnabled = false;
+    this.gamblingEnabled = false;
     this.wheelRewards = ['1500g Gold Rain','Double / Re-spin','750g Jackpot','Re-spin!','Random Viewer Pick'];
     this.prizeMultiplier = 1;
     this.comboCount = 0;
@@ -299,6 +300,7 @@ class Game {
         this.discordWebhook = d.discordWebhook || null;
         this.discordBotConfig = d.discordBotConfig || null;
         if (d.rpgEnabled !== undefined) this.rpgEnabled = d.rpgEnabled;
+        if (d.gamblingEnabled !== undefined) this.gamblingEnabled = d.gamblingEnabled;
         this.authAccounts = d.authAccounts || {};
         this.linkTokens = d.linkTokens || {};
       }
@@ -313,6 +315,7 @@ class Game {
         discordWebhook: this.discordWebhook, discordBotConfig: this.discordBotConfig,
         authAccounts: this.authAccounts, linkTokens: this.linkTokens,
         rpgEnabled: this.rpgEnabled,
+        gamblingEnabled: this.gamblingEnabled,
       }, null, 2));
     } catch (e) { console.error('Save failed:', e.message); }
   }
@@ -901,6 +904,7 @@ class Game {
   emitLeaderboard() { this.emit('leaderboard', this.handleLeaderboard()); }
 
   handleGamble(username, amount) {
+    if (!this.gamblingEnabled) return { error: 'gambling_disabled' };
     const p = this.player(username);
     const bet = parseInt(amount);
     if (isNaN(bet) || bet < 1) return { error: 'invalid' };
@@ -922,6 +926,7 @@ class Game {
   }
 
   handleDiceRoll(username, amount) {
+    if (!this.gamblingEnabled) return { error: 'gambling_disabled' };
     const p = this.player(username);
     const bet = parseInt(amount);
     if (isNaN(bet) || bet < 1) return { error: 'invalid' };
@@ -949,6 +954,7 @@ class Game {
   }
 
   handleSlots(username, amount) {
+    if (!this.gamblingEnabled) return { error: 'gambling_disabled' };
     const p = this.player(username);
     const bet = parseInt(amount);
     if (isNaN(bet) || bet < 1) return { error: 'invalid' };
@@ -1064,7 +1070,7 @@ class Game {
   }
 
   getFullState() {
-    return { state: this.state, boss: this.boss, bossNumber: this.bossNumber, leaderboard: this.handleLeaderboard(), wheelRewards: this.wheelRewards, rpgEnabled: this.rpgEnabled };
+    return { state: this.state, boss: this.boss, bossNumber: this.bossNumber, leaderboard: this.handleLeaderboard(), wheelRewards: this.wheelRewards, rpgEnabled: this.rpgEnabled, gamblingEnabled: this.gamblingEnabled };
   }
 
   spinWheel() {

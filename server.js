@@ -320,6 +320,16 @@ app.post('/api/admin/rpg-toggle', (req, res) => {
   res.json({ success: true, enabled: game.rpgEnabled });
 });
 
+app.post('/api/admin/gambling-toggle', (req, res) => {
+  game.gamblingEnabled = !!req.body.enabled;
+  game.saveData();
+  res.json({ success: true, enabled: game.gamblingEnabled });
+});
+
+app.get('/api/gambling-status', (req, res) => {
+  res.json({ enabled: game.gamblingEnabled });
+});
+
 // ═══════════════════════════════════════════
 // WebSocket Server (overlay communication)
 // ═══════════════════════════════════════════
