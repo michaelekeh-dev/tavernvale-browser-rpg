@@ -672,8 +672,8 @@ function toast(msg, isError) {
 /* ── Payout Queue ── */
 function loadPayouts() {
   fetch('/api/admin/payouts').then(r => r.json()).then(data => {
-    if (!data.queue) return;
-    renderPayouts(data.queue);
+    if (!Array.isArray(data)) return;
+    renderPayouts(data);
   }).catch(() => {
     document.getElementById('payoutQueue').innerHTML = '<div style="color:#f87171;text-align:center;padding:10px">Failed to load payouts</div>';
   });
