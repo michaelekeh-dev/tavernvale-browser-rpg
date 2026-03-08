@@ -1187,6 +1187,7 @@ class Game {
     delete this.pendingLinkCodes[username];
     const token = crypto.randomBytes(16).toString('hex');
     this.linkTokens[username] = { token, created: Date.now() };
+    this.saveData();
     return { success: true, username, token };
   }
 

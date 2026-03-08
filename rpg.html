@@ -615,6 +615,7 @@ function lighten(hex,amt){let r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice
 // =============================================
 // Auth + Connect
 // =============================================
+let rpgAuthFailed=false;
 function init(){
   const savedUser=localStorage.getItem('mmo_last_user');
   if(!savedUser){document.querySelector('#login-screen .info').innerHTML='You need to log in via the <a href="/play" style="color:var(--accent)">Player Portal</a> first.';return}
@@ -627,7 +628,7 @@ function connectWS(){
   ws=new WebSocket(`${proto}://${location.host}`);
   ws.onopen=()=>ws.send(JSON.stringify({type:'rpg_join',username,token:authToken}));
   ws.onmessage=e=>{try{handleMessage(JSON.parse(e.data))}catch{}};
-  ws.onclose=()=>setTimeout(connectWS,3000);
+  ws.onclose=()=>{if(!rpgAuthFailed)setTimeout(connectWS,3000);};
 }
 function send(type,data){if(ws&&ws.readyState===1)ws.send(JSON.stringify({type,...data}))}
 
@@ -680,11 +681,12 @@ function handleMessage(msg){
     case'rpg_duel_turn':onDuelTurn(d);break;
     case'rpg_duel_end':onDuelEnd(d);break;
     case'rpg_error':
-      // Token expired or invalid — redirect to portal
-      localStorage.removeItem('mmo_token_'+username);
+      // Token invalid — stop reconnecting, show error, but keep localStorage token
+      // (another tab may have refreshed it)
+      rpgAuthFailed=true;
       document.getElementById('login-screen').style.display='flex';
       document.getElementById('game-app').style.display='none';
-      document.querySelector('#login-screen .info').innerHTML='<span style="color:var(--red)">'+(d.error||'Session expired.')+'</span><br><a href="/play" style="color:var(--accent)">Go to Player Portal</a>';
+      document.querySelector('#login-screen .info').innerHTML='<span style="color:var(--red)">'+(d.error||'Session expired.')+'</span><br><a href="/play" style="color:var(--accent)">Re-link on Player Portal</a>';
       if(ws){try{ws.close()}catch{}}ws=null;
       break;
   }
