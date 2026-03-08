@@ -119,6 +119,7 @@ body{font-family:'Segoe UI',sans-serif;background:#0a0a0f;color:#e0e0e0;min-heig
       <button class="btn btn-gray" onclick="adminCmd('!reset')">🔄 Reset Game</button>
       <button class="btn btn-red" onclick="fullReset()" style="background:linear-gradient(90deg,#ff0000,#880000)">🔥 WIPE ALL DATA</button>
       <button class="btn btn-red" onclick="adminCmd('!bossattack')" style="grid-column:1/-1;background:linear-gradient(90deg,#dc2626,#9a1c1c)">🐉 BOSS ATTACK (viewers must !dodge)</button>
+      <button class="btn" id="rpgToggleBtn" onclick="toggleRPG()" style="grid-column:1/-1;font-size:13px">🗡️ Loading RPG status...</button>
     </div>
     <div class="input-row">
       <input type="number" id="sethpInput" placeholder="New HP value...">
@@ -531,11 +532,22 @@ function refreshPlayers() {
 }
 
 /* ── Game State Display ── */
+let rpgEnabled = false;
+function updateRPGBtn() {
+  const btn = document.getElementById('rpgToggleBtn');
+  if (rpgEnabled) { btn.textContent = '🗡️ RPG: ENABLED — Click to Disable'; btn.style.background = 'linear-gradient(90deg,#16a34a,#15803d)'; }
+  else { btn.textContent = '🗡️ RPG: DISABLED — Click to Enable'; btn.style.background = 'linear-gradient(90deg,#dc2626,#9a1c1c)'; }
+}
+function toggleRPG() {
+  fetch('/api/admin/rpg-toggle', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled: !rpgEnabled }) })
+    .then(r => r.json()).then(r => { if (r.success) { rpgEnabled = r.enabled; updateRPGBtn(); addLog('RPG ' + (rpgEnabled ? 'ENABLED' : 'DISABLED'), 'success'); } });
+}
 function updateGameState(data) {
   const el = document.getElementById('gameState');
   el.textContent = data.state;
   el.className = 'state-value ' + (data.state === 'boss_active' ? 'active' : data.state === 'wheel_ready' ? 'wheel' : 'idle');
   document.getElementById('prizeMultiplier').textContent = (data.prizeMultiplier || 1) + 'x';
+  if (data.rpgEnabled !== undefined) { rpgEnabled = data.rpgEnabled; updateRPGBtn(); }
   document.getElementById('bossNumber').textContent = data.bossNumber || '—';
   if (data.boss) updateBossDisplay(data.boss);
   else {

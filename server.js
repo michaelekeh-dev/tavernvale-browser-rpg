@@ -30,7 +30,10 @@ app.use('/overlay', (req, res, next) => {
 }, express.static(path.join(__dirname, 'Overlay')));
 app.get('/', (req, res) => res.redirect('/play'));
 app.get('/play', (req, res) => res.sendFile(path.join(__dirname, 'player.html')));
-app.get('/rpg', (req, res) => res.sendFile(path.join(__dirname, 'rpg.html')));
+app.get('/rpg', (req, res) => {
+  if (!game.rpgEnabled) return res.send('<html><body style="background:#0a0a0f;color:#ffd700;display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;text-align:center"><div><h1>\u2694\ufe0f RPG Coming Soon</h1><p style="color:#888">The RPG is currently disabled. Check back later!</p><a href="/play" style="color:#4ecdc4">\u2190 Back to Player Portal</a></div></body></html>');
+  res.sendFile(path.join(__dirname, 'rpg.html'));
+});
 app.get('/admin', (req, res) => {
   const pw = req.query.pw;
   if (pw !== ADMIN_PASSWORD) return res.status(403).send('Access denied.');
@@ -310,6 +313,13 @@ app.post('/api/admin/discord-bot/disconnect', (req, res) => {
   res.json({ success: true });
 });
 
+// RPG toggle
+app.post('/api/admin/rpg-toggle', (req, res) => {
+  game.rpgEnabled = !!req.body.enabled;
+  game.saveData();
+  res.json({ success: true, enabled: game.rpgEnabled });
+});
+
 // ═══════════════════════════════════════════
 // WebSocket Server (overlay communication)
 // ═══════════════════════════════════════════
@@ -565,6 +575,10 @@ wss.on('connection', (ws) => {
 
       if (msg.type === 'rpg_join' && msg.username && msg.token) {
         const u = msg.username.toLowerCase();
+        if (!game.rpgEnabled) {
+          ws.send(JSON.stringify({ type: 'rpg_error', data: { error: 'RPG is currently disabled.' } }));
+          return;
+        }
         if (!game.validateToken(u, msg.token)) {
           ws.send(JSON.stringify({ type: 'rpg_error', data: { error: 'Invalid token. Link your account first.' } }));
           return;

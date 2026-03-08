@@ -232,6 +232,7 @@ class Game {
     this.doubleDmgUntil = 0;
 
     this.admin = 'mikeydamike';
+    this.rpgEnabled = false;
     this.wheelRewards = ['1500g Gold Rain','Double / Re-spin','750g Jackpot','Re-spin!','Random Viewer Pick'];
     this.prizeMultiplier = 1;
     this.comboCount = 0;
@@ -297,6 +298,7 @@ class Game {
         this.payoutIdCounter = d.payoutIdCounter || 1;
         this.discordWebhook = d.discordWebhook || null;
         this.discordBotConfig = d.discordBotConfig || null;
+        if (d.rpgEnabled !== undefined) this.rpgEnabled = d.rpgEnabled;
         this.authAccounts = d.authAccounts || {};
         this.linkTokens = d.linkTokens || {};
       }
@@ -310,6 +312,7 @@ class Game {
         payoutQueue: this.payoutQueue, payoutIdCounter: this.payoutIdCounter,
         discordWebhook: this.discordWebhook, discordBotConfig: this.discordBotConfig,
         authAccounts: this.authAccounts, linkTokens: this.linkTokens,
+        rpgEnabled: this.rpgEnabled,
       }, null, 2));
     } catch (e) { console.error('Save failed:', e.message); }
   }
@@ -1061,7 +1064,7 @@ class Game {
   }
 
   getFullState() {
-    return { state: this.state, boss: this.boss, bossNumber: this.bossNumber, leaderboard: this.handleLeaderboard(), wheelRewards: this.wheelRewards };
+    return { state: this.state, boss: this.boss, bossNumber: this.bossNumber, leaderboard: this.handleLeaderboard(), wheelRewards: this.wheelRewards, rpgEnabled: this.rpgEnabled };
   }
 
   spinWheel() {
