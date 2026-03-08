@@ -29,6 +29,22 @@ app.get('/play', (req, res) => res.sendFile(path.join(__dirname, 'player.html'))
 app.get('/rpg', (req, res) => res.sendFile(path.join(__dirname, 'rpg.html')));
 
 // ═══════════════════════════════════════════
+// Auth API (register / login)
+// ═══════════════════════════════════════════
+app.post('/api/auth/register', (req, res) => {
+  const { username, password } = req.body || {};
+  const r = game.registerAccount(username, password);
+  if (r.error) return res.status(400).json(r);
+  res.json(r);
+});
+app.post('/api/auth/login', (req, res) => {
+  const { username, password } = req.body || {};
+  const r = game.loginAccount(username, password);
+  if (r.error) return res.status(401).json(r);
+  res.json(r);
+});
+
+// ═══════════════════════════════════════════
 // Player Portal REST API
 // ═══════════════════════════════════════════
 // Pending link requests — player visits site, clicks "Link", we store their username here
@@ -547,6 +563,13 @@ wss.on('connection', (ws) => {
       }
 
       // ── RPG WebSocket messages ──
+      // Rate limit: max 30 messages per second per client
+      if (!ws._msgTimes) ws._msgTimes = [];
+      const now_rl = Date.now();
+      ws._msgTimes = ws._msgTimes.filter(t => now_rl - t < 1000);
+      if (ws._msgTimes.length > 30) return;
+      ws._msgTimes.push(now_rl);
+
       if (msg.type === 'rpg_join' && msg.username && msg.token) {
         const u = msg.username.toLowerCase();
         if (!game.validateToken(u, msg.token)) {
@@ -587,10 +610,15 @@ wss.on('connection', (ws) => {
         game.rpgSit(ws.rpgUser, msg.x, msg.y);
       }
       if (msg.type === 'rpg_ghost_defeated' && ws.isRPG && ws.rpgUser) {
-        const p = game.player(ws.rpgUser);
-        p.ghostDefeated = true;
-        game.saveData();
-        ws.send(JSON.stringify({ type: 'rpg_ghost_defeated_ack', data: { success: true } }));
+        // Server validates ghost is actually dead
+        const rp = game.rpgPlayers[ws.rpgUser];
+        const w = rp && game.rpgWorld[rp.zone];
+        if (w && w.boss && w.boss.dead) {
+          const p = game.player(ws.rpgUser);
+          p.ghostDefeated = true;
+          game.saveData();
+          ws.send(JSON.stringify({ type: 'rpg_ghost_defeated_ack', data: { success: true } }));
+        }
       }
       if (msg.type === 'rpg_duel_queue' && ws.isRPG && ws.rpgUser) {
         let r;

@@ -260,6 +260,7 @@ class Game {
     // Link tokens for player portal auth
     this.linkTokens = {};  // { username: { token, created } }
     this.pendingLinkCodes = {};  // { username: { code, created } }
+    this.authAccounts = {};  // { username: { hash, salt } }
 
     // Portal chat (in-memory, last 100 messages)
     this.chatMessages = [];
@@ -294,6 +295,8 @@ class Game {
         this.payoutIdCounter = d.payoutIdCounter || 1;
         this.discordWebhook = d.discordWebhook || null;
         this.discordBotConfig = d.discordBotConfig || null;
+        this.authAccounts = d.authAccounts || {};
+        this.linkTokens = d.linkTokens || {};
       }
     } catch { this.players = {}; this.market = []; }
   }
@@ -304,6 +307,7 @@ class Game {
         players: this.players, market: this.market, marketIdCounter: this.marketIdCounter,
         payoutQueue: this.payoutQueue, payoutIdCounter: this.payoutIdCounter,
         discordWebhook: this.discordWebhook, discordBotConfig: this.discordBotConfig,
+        authAccounts: this.authAccounts, linkTokens: this.linkTokens,
       }, null, 2));
     } catch (e) { console.error('Save failed:', e.message); }
   }
@@ -1191,9 +1195,43 @@ class Game {
   validateToken(username, token) {
     const entry = this.linkTokens[username];
     if (!entry) return false;
-    // Tokens expire after 10 minutes
-    if (Date.now() - entry.created > 600000) { delete this.linkTokens[username]; return false; }
+    // Tokens expire after 7 days
+    if (Date.now() - entry.created > 7 * 24 * 60 * 60 * 1000) { delete this.linkTokens[username]; return false; }
+    if (entry.token.length !== token.length) return false;
     return crypto.timingSafeEqual(Buffer.from(entry.token), Buffer.from(token));
+  }
+
+  registerAccount(username, password) {
+    username = (username || '').toLowerCase().trim();
+    if (!username || username.length < 3 || username.length > 20) return { error: 'Username must be 3-20 characters.' };
+    if (!/^[a-z0-9_]+$/.test(username)) return { error: 'Username: letters, numbers, underscores only.' };
+    if (!password || password.length < 4) return { error: 'Password must be at least 4 characters.' };
+    if (this.authAccounts[username]) return { error: 'Username already taken.' };
+    const salt = crypto.randomBytes(16).toString('hex');
+    const hash = crypto.scryptSync(password, salt, 64).toString('hex');
+    this.authAccounts[username] = { hash, salt };
+    // Create player data
+    this.player(username);
+    // Generate session token
+    const token = crypto.randomBytes(32).toString('hex');
+    this.linkTokens[username] = { token, created: Date.now() };
+    this.saveData();
+    return { success: true, username, token };
+  }
+
+  loginAccount(username, password) {
+    username = (username || '').toLowerCase().trim();
+    if (!username || !password) return { error: 'Username and password required.' };
+    const acct = this.authAccounts[username];
+    if (!acct) return { error: 'Invalid username or password.' };
+    const hash = crypto.scryptSync(password, acct.salt, 64).toString('hex');
+    if (hash.length !== acct.hash.length || !crypto.timingSafeEqual(Buffer.from(hash), Buffer.from(acct.hash))) {
+      return { error: 'Invalid username or password.' };
+    }
+    const token = crypto.randomBytes(32).toString('hex');
+    this.linkTokens[username] = { token, created: Date.now() };
+    this.saveData();
+    return { success: true, username, token };
   }
 
   getPlayerProfile(username) {
@@ -2578,7 +2616,7 @@ class Game {
     if (!rp) return;
     if (rp.sitting) { rp.sitting = null; } // Stand up on move
     x = Math.max(0, Math.min(2400, x));
-    y = Math.max(0, Math.min(1400, y));
+    y = Math.max(0, Math.min(2400, y));
     // Tile collision — reject moves onto blocked tiles
     const w = this.rpgWorld[rp.zone];
     if (w && w.tileMap) {
@@ -2587,10 +2625,7 @@ class Game {
     }
     rp.x = x;
     rp.y = y;
-    // Only broadcast movement in hub (multiplayer)
-    if (rp.zone === 'hub') {
-      this.rpgBroadcastZone(rp.zone, { type: 'rpg_player_move', data: { username, x: rp.x, y: rp.y } }, username);
-    }
+    this.rpgBroadcastZone(rp.zone, { type: 'rpg_player_move', data: { username, x: rp.x, y: rp.y } }, username);
   }
 
   rpgSit(username, benchX, benchY) {
