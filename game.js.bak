@@ -1,0 +1,556 @@
+const fs = require('fs');
+const path = require('path');
+
+const DATA_FILE = path.join(__dirname, 'gamedata.json');
+
+// ═══════════════════════════════════════════
+// Configuration
+// ═══════════════════════════════════════════
+const CONFIG = {
+  attackCooldown: 30000,
+  statsCooldown: 20000,
+  bossCooldown: 15000,
+  theGameCooldown: 300000,
+  dailyCooldown: 86400000,
+
+  boss1BaseHP: 1500,
+  boss1PerPlayer: 60,
+  boss2BaseHP: 5000,
+  boss2PerPlayer: 180,
+
+  baseMinDmg: 8,
+  baseMaxDmg: 12,
+  dmgPerLevel: 1,
+  critLevel: 5,
+  baseCritChance: 0.05,
+  critPerLevel: 0.005,
+  critMultiplier: 2.5,
+
+  baseXP: 25,
+  baseGold: 15,
+  mvpXP: 100,
+  mvpGold: 50,
+  top5XP: 50,
+  top5Gold: 25,
+  lootDropGold: 30,
+  lootDropCount: 3,
+  dailyXP: 20,
+  dailyGold: 10,
+
+  xpPerLevel: 100,
+  breakDuration: 180000,
+  activeWindow: 600000,
+  saveInterval: 60000,
+};
+
+const BOSS1_NAMES = [
+  'Goblin Warchief', 'Shadow Lurker', 'Crystal Golem',
+  'Cursed Knight', 'Flame Imp Lord', 'Toxic Slime King',
+  'Bandit Overlord', 'Frost Wraith', 'Iron Golem', 'Dark Shaman',
+];
+const BOSS2_NAMES = [
+  'Dragon of Chaos', 'The Void King', 'Titan of Flames',
+  'Lich Emperor', 'World Serpent', 'Abyssal Kraken',
+  'Storm Colossus', 'Demon Overlord', 'Phoenix Reborn', 'The Undying',
+];
+
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function rand(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+
+// ═══════════════════════════════════════════
+// Game Class
+// ═══════════════════════════════════════════
+class Game {
+  constructor(emitFn) {
+    this.emit = emitFn || (() => {});
+    this.players = {};
+    this.boss = null;
+    this.bossNumber = 0;
+    this.state = 'idle'; // idle | boss_active | break | wheel_ready
+    this.damageMap = {};
+    this.cooldowns = {};
+    this.globalCD = { thegame: 0 };
+    this.recentAttackers = {};
+    this.breakTimer = null;
+    this.doubleXPUntil = 0;
+    this.doubleDmgUntil = 0;
+
+    this.admin = 'mikeydamike';
+    this.wheelRewards = [
+      '$5 Tip Top 4',
+      'Double / Re-spin',
+      '$10 Giveaway',
+      'Re-spin!',
+      '$20 Buy 50/50',
+    ];
+    this.prizeMultiplier = 1;
+    this.comboCount = 0;
+    this.lastAttacker = null;
+    this.comboTimer = null;
+    this.streaks = {};
+
+    // Shop items: key → { name, cost, desc, type, duration? }
+    this.shopItems = {
+      whetstone: { name: '🗡️ Whetstone', cost: 50, desc: '+3 bonus damage this boss', type: 'dmg_boost', value: 3 },
+      charm:     { name: '🍀 Lucky Charm', cost: 75, desc: '+15% crit chance this boss', type: 'crit_boost', value: 0.15 },
+      boots:     { name: '👟 Swift Boots', cost: 100, desc: 'Half attack cooldown this boss', type: 'speed_boost' },
+      potion:    { name: '💪 Mega Potion', cost: 150, desc: '2x damage this boss', type: 'mega_dmg' },
+      title:     { name: '⭐ Title: Champion', cost: 500, desc: 'Permanent ⭐ on leaderboard', type: 'title' },
+    };
+    // Active buffs per player: { username: { dmg_boost: 3, crit_boost: 0.15, ... } }
+    this.playerBuffs = {};
+
+    this.loadData();
+    this.saveTimer = setInterval(() => this.saveData(), CONFIG.saveInterval);
+  }
+
+  // ── Persistence ──────────────────────────
+  loadData() {
+    try {
+      if (fs.existsSync(DATA_FILE)) {
+        this.players = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')).players || {};
+      }
+    } catch { this.players = {}; }
+  }
+
+  saveData() {
+    try {
+      fs.writeFileSync(DATA_FILE, JSON.stringify({ players: this.players }, null, 2));
+    } catch (e) { console.error('Save failed:', e.message); }
+  }
+
+  // ── Player helpers ───────────────────────
+  player(name) {
+    if (!this.players[name]) {
+      this.players[name] = { xp: 0, gold: 0, level: 1, totalDamage: 0, lastDaily: 0, streak: 0, bestStreak: 0 };
+    }
+    // migrate old players
+    const p = this.players[name];
+    if (p.streak === undefined) { p.streak = 0; p.bestStreak = 0; }
+    return p;
+  }
+
+  minDmg(p) { return CONFIG.baseMinDmg + (p.level - 1) * CONFIG.dmgPerLevel; }
+  maxDmg(p) { return CONFIG.baseMaxDmg + (p.level - 1) * CONFIG.dmgPerLevel; }
+  critChance(p) { return p.level >= CONFIG.critLevel ? CONFIG.baseCritChance + (p.level - CONFIG.critLevel) * CONFIG.critPerLevel : 0; }
+  xpNeeded(p) { return p.level * CONFIG.xpPerLevel; }
+
+  addXP(p, amount) {
+    if (Date.now() < this.doubleXPUntil) amount *= 2;
+    p.xp += amount;
+    let leveled = false;
+    while (p.xp >= this.xpNeeded(p)) { p.xp -= this.xpNeeded(p); p.level++; leveled = true; }
+    return leveled;
+  }
+
+  // ── Cooldowns ────────────────────────────
+  checkCD(user, type) {
+    const key = `${user}:${type}`;
+    const now = Date.now();
+    let dur = { attack: CONFIG.attackCooldown, stats: CONFIG.statsCooldown, boss: CONFIG.bossCooldown, thegame: CONFIG.theGameCooldown }[type] || 0;
+    // Speed boost from shop
+    if (type === 'attack' && this.playerBuffs[user] && this.playerBuffs[user].speed_boost) dur = Math.floor(dur / 2);
+    if (!this.cooldowns[key]) this.cooldowns[key] = 0;
+    const left = this.cooldowns[key] + dur - now;
+    if (left > 0) return left;
+    this.cooldowns[key] = now;
+    return 0;
+  }
+
+  checkGlobalCD(type) {
+    const now = Date.now();
+    const dur = { thegame: CONFIG.theGameCooldown }[type] || 0;
+    if (!this.globalCD[type]) this.globalCD[type] = 0;
+    const left = this.globalCD[type] + dur - now;
+    if (left > 0) return left;
+    this.globalCD[type] = now;
+    return 0;
+  }
+
+  // ── Active attacker count ────────────────
+  activeCount() {
+    const cutoff = Date.now() - CONFIG.activeWindow;
+    return Object.values(this.recentAttackers).filter(t => t > cutoff).length;
+  }
+
+  // ── Boss management ──────────────────────
+  spawnBoss(number) {
+    const a = this.activeCount();
+    const hp = number === 1
+      ? CONFIG.boss1BaseHP + a * CONFIG.boss1PerPlayer
+      : CONFIG.boss2BaseHP + a * CONFIG.boss2PerPlayer;
+    const name = pick(number === 1 ? BOSS1_NAMES : BOSS2_NAMES);
+
+    this.boss = { name, hp, maxHP: hp, number, phases: { 50: false, 25: false, 10: false } };
+    this.bossNumber = number;
+    this.damageMap = {};
+    this.state = 'boss_active';
+    this.emit('boss_spawn', { name, hp, maxHP: hp, number });
+    console.log(`⚔️  Boss #${number} "${name}" spawned — HP: ${hp}`);
+  }
+
+  // ── Commands ─────────────────────────────
+  handleAttack(username) {
+    if (this.state !== 'boss_active' || !this.boss) return null;
+    const cd = this.checkCD(username, 'attack');
+    if (cd > 0) return { error: 'cooldown', remaining: cd };
+
+    const p = this.player(username);
+    this.recentAttackers[username] = Date.now();
+
+    let lo = this.minDmg(p), hi = this.maxDmg(p);
+    if (Date.now() < this.doubleDmgUntil) { lo *= 2; hi *= 2; }
+
+    // Shop buffs
+    const buffs = this.playerBuffs[username] || {};
+    if (buffs.dmg_boost) { lo += buffs.dmg_boost; hi += buffs.dmg_boost; }
+    if (buffs.mega_dmg) { lo *= 2; hi *= 2; }
+
+    let damage = rand(lo, hi);
+    let isCrit = false;
+    const extraCrit = buffs.crit_boost || 0;
+    if (Math.random() < this.critChance(p) + extraCrit) { damage = Math.floor(damage * CONFIG.critMultiplier); isCrit = true; }
+
+    this.boss.hp = Math.max(0, this.boss.hp - damage);
+    this.damageMap[username] = (this.damageMap[username] || 0) + damage;
+    p.totalDamage += damage;
+
+    const pct = (this.boss.hp / this.boss.maxHP) * 100;
+    const phases = [];
+    for (const t of [50, 25, 10]) {
+      if (!this.boss.phases[t] && pct <= t) { this.boss.phases[t] = true; phases.push(t); }
+    }
+
+    this.emit('hit', { username, damage, isCrit, bossHP: this.boss.hp, bossMaxHP: this.boss.maxHP, bossName: this.boss.name });
+    for (const phase of phases) this.emit('boss_phase', { phase, bossHP: this.boss.hp, bossMaxHP: this.boss.maxHP, bossName: this.boss.name });
+
+    // Combo system: different attackers in quick succession
+    if (this.lastAttacker !== username) {
+      this.comboCount++;
+      this.lastAttacker = username;
+      if (this.comboTimer) clearTimeout(this.comboTimer);
+      this.comboTimer = setTimeout(() => { this.comboCount = 0; this.lastAttacker = null; }, 10000);
+      if (this.comboCount >= 3) {
+        this.emit('combo', { count: this.comboCount, username });
+      }
+    }
+
+    // Attack streak
+    p.streak = (p.streak || 0) + 1;
+    if (p.streak > (p.bestStreak || 0)) p.bestStreak = p.streak;
+    const streakBonus = Math.floor(p.streak / 5);
+    if (streakBonus > 0) p.gold += streakBonus;
+
+    this.emitLeaderboard();
+
+    if (this.boss.hp <= 0) this.bossDeath();
+    return { damage, isCrit, phases, bossHP: this.boss.hp };
+  }
+
+  bossDeath() {
+    const num = this.bossNumber;
+    const name = this.boss.name;
+    const sorted = Object.entries(this.damageMap).sort((a, b) => b[1] - a[1]);
+    const mvp = sorted[0] ? sorted[0][0] : null;
+    const top5 = sorted.slice(0, 5).map(([u, d]) => ({ username: u, damage: d }));
+    const all = sorted.map(([u]) => u);
+
+    // Random loot drops
+    const shuffled = [...all].sort(() => Math.random() - 0.5);
+    const lootDrops = shuffled.slice(0, Math.min(CONFIG.lootDropCount, shuffled.length));
+
+    // Base rewards for everyone
+    for (const u of all) {
+      const p = this.player(u);
+      if (this.addXP(p, CONFIG.baseXP)) this.emit('level_up', { username: u, level: p.level });
+      p.gold += CONFIG.baseGold;
+    }
+    // MVP bonus
+    if (mvp) { const p = this.player(mvp); this.addXP(p, CONFIG.mvpXP); p.gold += CONFIG.mvpGold; }
+    // Top 2-5 bonus
+    for (let i = 1; i < Math.min(5, sorted.length); i++) {
+      const p = this.player(sorted[i][0]); this.addXP(p, CONFIG.top5XP); p.gold += CONFIG.top5Gold;
+    }
+    // Loot drops
+    for (const u of lootDrops) { this.player(u).gold += CONFIG.lootDropGold; }
+
+    this.saveData();
+    this.state = num === 1 ? 'break' : 'wheel_ready';
+    this.boss = null;
+    this.comboCount = 0;
+    this.lastAttacker = null;
+    this.playerBuffs = {}; // Clear all shop buffs between bosses
+
+    // Reset streaks
+    for (const u of all) { this.player(u).streak = 0; }
+
+    // Pick 1 random attacker (not in top 3) for bonus
+    const nonTop3 = all.filter(u => !sorted.slice(0, 3).map(s => s[0]).includes(u));
+    const randomWinner = nonTop3.length > 0 ? nonTop3[Math.floor(Math.random() * nonTop3.length)] : (all[all.length - 1] || null);
+
+    this.emit('boss_dead', { bossNumber: num, bossName: name, mvp, top5, lootDrops, isRaidBoss: num === 2, allAttackers: all, randomWinner, prizeMultiplier: this.prizeMultiplier });
+
+    if (num === 1) {
+      this.emit('break_start', { duration: CONFIG.breakDuration });
+      this.breakTimer = setTimeout(() => this.spawnBoss(2), CONFIG.breakDuration);
+    } else {
+      this.emit('wheel_ready', { rewards: this.wheelRewards, mvp });
+    }
+    console.log(`💀 Boss #${num} "${name}" defeated! MVP: ${mvp}`);
+  }
+
+  handleStats(username) {
+    const cd = this.checkCD(username, 'stats');
+    if (cd > 0) return { error: 'cooldown', remaining: cd };
+    const p = this.player(username);
+    return { username, level: p.level, xp: p.xp, xpNeeded: this.xpNeeded(p), gold: p.gold, totalDamage: p.totalDamage, minDmg: this.minDmg(p), maxDmg: this.maxDmg(p), critChance: Math.round(this.critChance(p) * 100), streak: p.streak || 0, bestStreak: p.bestStreak || 0 };
+  }
+
+  handleDaily(username) {
+    const p = this.player(username);
+    const since = Date.now() - (p.lastDaily || 0);
+    if (since < CONFIG.dailyCooldown) return { error: 'cooldown', remaining: CONFIG.dailyCooldown - since };
+    p.lastDaily = Date.now();
+    const leveled = this.addXP(p, CONFIG.dailyXP);
+    p.gold += CONFIG.dailyGold;
+    this.saveData();
+    return { username, xp: CONFIG.dailyXP, gold: CONFIG.dailyGold, leveled, level: p.level };
+  }
+
+  handleBossInfo(username) {
+    if (username) { const cd = this.checkCD(username, 'boss'); if (cd > 0) return { error: 'cooldown', remaining: cd }; }
+    if (!this.boss) return { active: false, state: this.state };
+    return { active: true, name: this.boss.name, hp: this.boss.hp, maxHP: this.boss.maxHP, number: this.boss.number, percent: Math.round((this.boss.hp / this.boss.maxHP) * 100) };
+  }
+
+  handleLeaderboard() {
+    const sorted = Object.entries(this.damageMap).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    return { top5: sorted.map(([u, d], i) => ({ rank: i + 1, username: u, damage: d })) };
+  }
+
+  handleTheGame(username) {
+    if (this.checkGlobalCD('thegame') > 0) return { error: 'global_cooldown' };
+    if (this.checkCD(username, 'thegame') > 0) return { error: 'cooldown' };
+    return { rules: '⚔️ Chat MMO Rules: !attack (hit boss) | !stats (your info) | !daily (free gold) | !gamble <amount> (risk gold 50/50) | !gift <user> <gold> | Streaks: 5+ hits = bonus gold! | Kill bosses → prizes! 🎡' };
+  }
+
+  emitLeaderboard() { this.emit('leaderboard', this.handleLeaderboard()); }
+
+  // ── Gamble ────────────────────────────────
+  handleGamble(username, amount) {
+    const p = this.player(username);
+    const bet = parseInt(amount);
+    if (isNaN(bet) || bet < 1) return { error: 'invalid' };
+    if (bet > p.gold) return { error: 'broke', gold: p.gold };
+    const win = Math.random() < 0.45; // slight house edge
+    if (win) {
+      p.gold += bet;
+      this.saveData();
+      return { username, win: true, bet, gold: p.gold };
+    } else {
+      p.gold -= bet;
+      this.saveData();
+      return { username, win: false, bet, gold: p.gold };
+    }
+  }
+
+  // ── Gift ──────────────────────────────────
+  handleGift(from, to, amount) {
+    const bet = parseInt(amount);
+    if (isNaN(bet) || bet < 1) return { error: 'invalid' };
+    const pFrom = this.player(from);
+    if (bet > pFrom.gold) return { error: 'broke', gold: pFrom.gold };
+    const pTo = this.player(to);
+    pFrom.gold -= bet;
+    pTo.gold += bet;
+    this.saveData();
+    return { from, to, amount: bet, fromGold: pFrom.gold, toGold: pTo.gold };
+  }
+
+  // ── Admin commands (streamer only) ────────
+  handleAdmin(username, cmd) {
+    if (username !== this.admin) return { error: 'not_admin' };
+    switch (cmd) {
+      case '!kill': {
+        if (!this.boss) return { error: 'no_boss' };
+        // Add admin to damageMap if no one attacked (so allAttackers isn't empty)
+        if (Object.keys(this.damageMap).length === 0) {
+          this.damageMap[this.admin] = 9999;
+        }
+        this.boss.hp = 0;
+        this.emit('hit', { username: '💀 ADMIN', damage: 9999, isCrit: true, bossHP: 0, bossMaxHP: this.boss.maxHP, bossName: this.boss.name });
+        this.bossDeath();
+        return { success: true, action: 'kill' };
+      }
+      case '!spawn1': {
+        if (this.breakTimer) clearTimeout(this.breakTimer);
+        this.boss = null; this.state = 'idle';
+        this.spawnBoss(1);
+        return { success: true, action: 'spawn1' };
+      }
+      case '!spawn2': {
+        if (this.breakTimer) clearTimeout(this.breakTimer);
+        this.boss = null; this.state = 'idle';
+        this.spawnBoss(2);
+        return { success: true, action: 'spawn2' };
+      }
+      case '!wheel': {
+        this.state = 'wheel_ready';
+        this.boss = null;
+        this.emit('wheel_ready', { rewards: this.wheelRewards, mvp: this.admin });
+        return { success: true, action: 'wheel' };
+      }
+      case '!sethp': return 'needs_value';
+      case '!skip': {
+        if (this.breakTimer) { clearTimeout(this.breakTimer); this.breakTimer = null; }
+        if (this.state === 'break') { this.spawnBoss(2); }
+        return { success: true, action: 'skip' };
+      }
+      case '!reset': {
+        this.resetForNewStream();
+        return { success: true, action: 'reset' };
+      }
+      default: return { error: 'unknown' };
+    }
+  }
+
+  handleSetHP(username, value) {
+    if (username !== this.admin) return { error: 'not_admin' };
+    if (!this.boss) return { error: 'no_boss' };
+    const hp = parseInt(value);
+    if (isNaN(hp) || hp < 1) return { error: 'invalid_hp' };
+    this.boss.hp = hp;
+    this.boss.maxHP = Math.max(this.boss.maxHP, hp);
+    this.emit('boss_spawn', { name: this.boss.name, hp: this.boss.hp, maxHP: this.boss.maxHP, number: this.boss.number });
+    return { success: true };
+  }
+
+  getFullState() {
+    return { state: this.state, boss: this.boss, bossNumber: this.bossNumber, leaderboard: this.handleLeaderboard(), wheelRewards: this.wheelRewards };
+  }
+
+  spinWheel() {
+    if (this.state !== 'wheel_ready') return null;
+    const index = Math.floor(Math.random() * this.wheelRewards.length);
+    const reward = this.wheelRewards[index];
+    if (reward === 'Re-spin!') {
+      this.emit('wheel_result', { reward, index });
+      console.log(`🎡 Wheel result: Re-spin!`);
+      return { reward, index };
+    }
+    if (reward === 'Double / Re-spin') {
+      this.prizeMultiplier *= 2;
+      this.emit('wheel_result', { reward, index, newMultiplier: this.prizeMultiplier });
+      console.log(`🎡 Wheel result: DOUBLE! Multiplier now ${this.prizeMultiplier}x`);
+      // Stay in wheel_ready — it's a re-spin with doubled prizes
+      return { reward, index };
+    }
+    this.state = 'idle';
+    this.emit('wheel_result', { reward, index, prizeMultiplier: this.prizeMultiplier });
+    console.log(`🎡 Wheel result: ${reward} (${this.prizeMultiplier}x)`);
+    this.prizeMultiplier = 1; // reset after final reward
+    return { reward, index };
+  }
+
+  resetForNewStream() {
+    if (this.breakTimer) clearTimeout(this.breakTimer);
+    this.boss = null;
+    this.bossNumber = 0;
+    this.state = 'idle';
+    this.damageMap = {};
+    this.recentAttackers = {};
+    this.doubleXPUntil = 0;
+    this.doubleDmgUntil = 0;
+    this.prizeMultiplier = 1;
+    this.comboCount = 0;
+    this.lastAttacker = null;
+    this.spawnBoss(1);
+  }
+
+  applyRewardEffect(effect) {
+    if (effect === 'double_buff') {
+      const duration = 300000; // 5 minutes
+      this.doubleXPUntil = Date.now() + duration;
+      this.doubleDmgUntil = Date.now() + duration;
+      this.emit('buff_active', { type: 'double', duration });
+      console.log('💪 Double buff activated! 2x XP + 2x DMG for 5 minutes');
+    }
+  }
+
+  // ── Shop ──────────────────────────────────
+  handleShop(username) {
+    const items = Object.entries(this.shopItems).map(([key, item]) =>
+      ({ key, name: item.name, cost: item.cost, desc: item.desc })
+    );
+    return { username, items };
+  }
+
+  handleBuy(username, itemKey) {
+    const key = (itemKey || '').toLowerCase();
+    const item = this.shopItems[key];
+    if (!item) return { error: 'not_found', available: Object.keys(this.shopItems) };
+    const p = this.player(username);
+    if (p.gold < item.cost) return { error: 'broke', gold: p.gold, cost: item.cost };
+
+    // Title is permanent, others are per-boss buffs
+    if (item.type === 'title') {
+      if (p.title) return { error: 'already_owned' };
+      p.title = true;
+      p.gold -= item.cost;
+      this.saveData();
+      return { username, item: item.name, cost: item.cost, gold: p.gold, type: 'title' };
+    }
+
+    // Check if already have this buff
+    if (!this.playerBuffs[username]) this.playerBuffs[username] = {};
+    if (this.playerBuffs[username][item.type]) return { error: 'already_active' };
+
+    p.gold -= item.cost;
+    this.playerBuffs[username][item.type] = item.value || true;
+    this.saveData();
+    return { username, item: item.name, cost: item.cost, gold: p.gold, type: item.type };
+  }
+
+  // ── Admin API ─────────────────────────────
+  getPlayers() { return { ...this.players }; }
+
+  setPlayer(username, data) {
+    const p = this.player(username);
+    if (data.level !== undefined) p.level = Math.max(1, data.level);
+    if (data.xp !== undefined) p.xp = Math.max(0, data.xp);
+    if (data.gold !== undefined) p.gold = Math.max(0, data.gold);
+    if (data.totalDamage !== undefined) p.totalDamage = Math.max(0, data.totalDamage);
+    this.saveData();
+    return { username, player: p };
+  }
+
+  getConfig() { return { ...CONFIG }; }
+
+  setConfig(updates) {
+    for (const [key, val] of Object.entries(updates)) {
+      if (CONFIG.hasOwnProperty(key) && typeof val === 'number' && isFinite(val)) {
+        CONFIG[key] = val;
+      }
+    }
+    return { ...CONFIG };
+  }
+
+  getAdminState() {
+    return {
+      state: this.state,
+      boss: this.boss,
+      bossNumber: this.bossNumber,
+      prizeMultiplier: this.prizeMultiplier,
+      activePlayers: this.activeCount(),
+      leaderboard: this.handleLeaderboard(),
+    };
+  }
+
+  shutdown() {
+    this.saveData();
+    if (this.saveTimer) clearInterval(this.saveTimer);
+    if (this.breakTimer) clearTimeout(this.breakTimer);
+  }
+}
+
+module.exports = { Game, CONFIG };

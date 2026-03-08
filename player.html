@@ -1,0 +1,2535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>⚔️ Kickstream MMO — Player Portal</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;600;700&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #0a0a0f; --bg2: #12121a; --bg3: #1a1a28;
+    --text: #e8e6e3; --dim: #888; --accent: #60a5fa;
+    --gold: #fbbf24; --green: #4ade80; --red: #f87171;
+    --purple: #c084fc; --border: #2a2a3a;
+    --common: #aaa; --uncommon: #4ade80; --rare: #60a5fa; --epic: #c084fc; --legendary: #fbbf24;
+  }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; min-height: 100vh; }
+  h1, h2, h3 { font-family: 'Press Start 2P', monospace; }
+
+  /* Login Screen */
+  #login-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+  #login-screen h1 { font-size: 24px; color: var(--gold); margin-bottom: 8px; text-shadow: 0 0 20px rgba(251,191,36,0.3); }
+  #login-screen .subtitle { color: var(--dim); margin-bottom: 40px; font-size: 14px; }
+  .login-box { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 32px; width: 100%; max-width: 400px; }
+  .login-box label { display: block; color: var(--dim); font-size: 12px; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 1px; }
+  .login-box input { width: 100%; padding: 12px 16px; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 16px; outline: none; transition: border-color 0.2s; }
+  .login-box input:focus { border-color: var(--accent); }
+  .login-box .hint { color: var(--dim); font-size: 11px; margin-top: 6px; }
+
+  /* Buttons */
+  .btn { display: inline-block; padding: 10px 20px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+  .btn-primary { background: var(--accent); color: #000; }
+  .btn-primary:hover { background: #93c5fd; transform: translateY(-1px); }
+  .btn-gold { background: var(--gold); color: #000; }
+  .btn-gold:hover { background: #fcd34d; }
+  .btn-danger { background: var(--red); color: #000; }
+  .btn-danger:hover { background: #fca5a5; }
+  .btn-sm { padding: 6px 12px; font-size: 12px; }
+  .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+  .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+  .btn-full { width: 100%; margin-top: 16px; }
+
+  /* Dashboard */
+  #dashboard { display: none; }
+  .topbar { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+  .topbar-left { display: flex; align-items: center; gap: 12px; }
+  .topbar h2 { font-size: 12px; color: var(--gold); }
+  .topbar .user-info { display: flex; align-items: center; gap: 12px; }
+  .topbar .username { font-weight: 700; color: var(--accent); }
+  .topbar .gold-display { color: var(--gold); font-weight: 700; }
+  .auth-badge { font-size: 10px; padding: 3px 8px; border-radius: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+  .auth-badge.linked { background: rgba(74,222,128,0.15); color: var(--green); }
+  .auth-badge.readonly { background: rgba(136,136,136,0.15); color: var(--dim); }
+  .rank-badge-display { font-size: 14px; padding: 2px 8px; border-radius: 8px; background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.2); display: inline-flex; align-items: center; gap: 4px; }
+  .rank-badge-display .rank-emoji { font-size: 16px; }
+  .rank-badge-display .rank-label { font-size: 10px; color: var(--gold); font-weight: 700; letter-spacing: 0.5px; }
+  .cosmetic-filter { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+  .cosmetic-filter-btn { padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg3); color: var(--dim); font-size: 11px; cursor: pointer; transition: all 0.2s; }
+  .cosmetic-filter-btn:hover, .cosmetic-filter-btn.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 2px; background: var(--bg2); border-bottom: 1px solid var(--border); overflow-x: auto; padding: 4px 12px 0; }
+  .tab { padding: 14px 18px; cursor: pointer; color: var(--dim); font-size: 14px; font-weight: 700; border-bottom: 3px solid transparent; transition: all 0.15s; white-space: nowrap; letter-spacing: 0.3px; }
+  .tab:hover { color: var(--text); background: rgba(255,255,255,0.03); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); background: rgba(255,255,255,0.03); }
+  .sub-tabs { display: flex; gap: 2px; background: var(--bg); border-bottom: 1px solid var(--border); overflow-x: auto; padding: 2px 12px 0; animation: slideDown .2s ease; }
+  .sub-tab { padding: 10px 18px; cursor: pointer; color: var(--dim); font-size: 12px; font-weight: 600; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+  .sub-tab:hover { color: var(--text); }
+  .sub-tab.active { color: var(--gold); border-bottom-color: var(--gold); }
+  @keyframes slideDown { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  .panel.active { animation: fadeIn .15s ease; }
+
+  .main { padding: 24px; max-width: 1200px; margin: 0 auto; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* Cards */
+  .card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+  .card-header { font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; font-weight: 700; }
+
+  /* Stats grid */
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+  .stat-item { background: var(--bg3); border-radius: 8px; padding: 14px; text-align: center; }
+  .stat-value { font-size: 22px; font-weight: 700; color: var(--text); }
+  .stat-label { font-size: 11px; color: var(--dim); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  /* XP Bar */
+  .xp-bar-wrap { background: var(--bg3); border-radius: 8px; height: 24px; overflow: hidden; position: relative; margin-top: 12px; }
+  .xp-bar-fill { height: 100%; background: linear-gradient(90deg, #6366f1, #8b5cf6); border-radius: 8px; transition: width 0.5s; }
+  .xp-bar-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 11px; font-weight: 700; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+
+  /* Equipment slots */
+  .equip-slots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+  .equip-slot { background: var(--bg3); border: 2px dashed var(--border); border-radius: 10px; padding: 16px; text-align: center; min-height: 120px; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: border-color 0.2s; }
+  .equip-slot.filled { border-style: solid; }
+  .equip-slot .slot-label { font-size: 10px; color: var(--dim); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+  .equip-slot .slot-item { font-weight: 700; font-size: 14px; }
+  .equip-slot .slot-desc { font-size: 11px; color: var(--dim); margin-top: 4px; }
+
+  /* Inventory grid */
+  .inv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+  .inv-item { background: var(--bg3); border-radius: 8px; padding: 12px; border-left: 3px solid var(--common); display: flex; flex-direction: column; gap: 4px; }
+  .inv-item .item-name { font-weight: 700; font-size: 13px; }
+  .inv-item .item-desc { font-size: 11px; color: var(--dim); }
+  .inv-item .item-meta { font-size: 10px; color: var(--dim); display: flex; justify-content: space-between; align-items: center; margin-top: 4px; }
+  .inv-item .item-rarity { text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; }
+  .inv-item .item-actions { display: flex; gap: 6px; margin-top: 6px; }
+
+  /* Cosmetics */
+  .cosmetic-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+  .cosmetic-card { background: var(--bg3); border-radius: 8px; padding: 14px; position: relative; }
+  .cosmetic-card.owned { border: 1px solid var(--green); }
+  .cosmetic-card.active { border: 1px solid var(--gold); box-shadow: 0 0 12px rgba(251,191,36,0.15); }
+  .cosmetic-name { font-weight: 700; font-size: 14px; margin-bottom: 4px; }
+  .cosmetic-desc { font-size: 12px; color: var(--dim); margin-bottom: 8px; }
+  .cosmetic-cost { color: var(--gold); font-weight: 700; font-size: 13px; }
+  .cosmetic-badge { position: absolute; top: 8px; right: 8px; font-size: 9px; padding: 2px 6px; border-radius: 6px; font-weight: 700; text-transform: uppercase; }
+  .cosmetic-badge.owned-badge { background: rgba(74,222,128,0.15); color: var(--green); }
+  .cosmetic-badge.active-badge { background: rgba(251,191,36,0.15); color: var(--gold); }
+
+  /* Market */
+  .market-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+  .market-item { background: var(--bg3); border-radius: 8px; padding: 14px; }
+  .market-item .seller { font-size: 11px; color: var(--dim); }
+  .market-item .item-name { font-weight: 700; margin: 4px 0; }
+  .market-item .price { color: var(--gold); font-weight: 700; font-size: 16px; }
+
+  /* Achievements */
+  .ach-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; }
+  .ach-item { background: var(--bg3); border-radius: 8px; padding: 14px; display: flex; align-items: center; gap: 12px; opacity: 0.4; }
+  .ach-item.earned { opacity: 1; border-left: 3px solid var(--gold); }
+  .ach-icon { font-size: 24px; }
+  .ach-info .ach-name { font-weight: 700; font-size: 13px; }
+  .ach-info .ach-desc { font-size: 11px; color: var(--dim); }
+
+  /* Boss panel */
+  .boss-card { text-align: center; padding: 30px; }
+  .boss-name { font-family: 'Press Start 2P', monospace; font-size: 18px; color: var(--red); margin-bottom: 16px; }
+  .boss-hp-bar { background: var(--bg3); border-radius: 10px; height: 32px; overflow: hidden; position: relative; max-width: 500px; margin: 0 auto; }
+  .boss-hp-fill { height: 100%; background: linear-gradient(90deg, #dc2626, #ef4444); border-radius: 10px; transition: width 0.5s; }
+  .boss-hp-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); font-weight: 700; font-size: 13px; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.7); }
+  .boss-idle { color: var(--dim); font-size: 14px; }
+  .boss-tier { font-size: 12px; color: var(--dim); margin-top: 8px; }
+
+  /* Link modal */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1000; align-items: center; justify-content: center; }
+  .modal-overlay.show { display: flex; }
+  .modal { background: var(--bg2); border: 1px solid var(--border); border-radius: 16px; padding: 32px; max-width: 440px; width: 90%; text-align: center; }
+  .modal h3 { font-size: 14px; color: var(--gold); margin-bottom: 16px; }
+  .modal p { color: var(--dim); font-size: 13px; margin-bottom: 12px; line-height: 1.6; }
+  .modal .cmd-highlight { display: inline-block; background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; padding: 6px 16px; font-family: 'Press Start 2P', monospace; font-size: 16px; color: var(--accent); margin: 12px 0; }
+  .modal .spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 8px; vertical-align: middle; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .modal .status { margin-top: 12px; font-size: 13px; }
+  .modal .status.waiting { color: var(--gold); }
+  .modal .status.success { color: var(--green); }
+  .modal .status.error { color: var(--red); }
+
+  /* Sell modal */
+  .sell-modal input { width: 100%; padding: 10px; background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 14px; margin: 8px 0; text-align: center; }
+
+  /* Toast */
+  .toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 2000; display: flex; flex-direction: column; gap: 8px; }
+  .toast { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 20px; font-size: 13px; animation: slideIn 0.3s ease; box-shadow: 0 4px 20px rgba(0,0,0,0.4); }
+  .toast.success { border-color: var(--green); }
+  .toast.error { border-color: var(--red); }
+  @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+  /* Gamble section */
+  .gamble-section { text-align: center; padding: 20px; }
+  .gamble-section input { width: 120px; padding: 10px; background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 16px; text-align: center; margin: 0 8px; }
+
+  /* Character Creator */
+  .char-preview { display: flex; justify-content: center; margin-bottom: 20px; position: relative; }
+  .char-preview canvas { border: 2px solid var(--border); border-radius: 12px; background: var(--bg3); image-rendering: pixelated; }
+  .char-equip-display { display: flex; gap: 8px; justify-content: center; margin-top: 12px; flex-wrap: wrap; }
+  .char-equip-tag { background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; font-size: 11px; color: var(--dim); }
+  .char-equip-tag.filled { border-color: var(--accent); color: var(--accent); }
+  .customize-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+  .customize-option { background: var(--bg3); border-radius: 8px; padding: 14px; }
+  .customize-option label { display: block; font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; font-weight: 700; }
+  .customize-option select, .customize-option input[type=color] { width: 100%; padding: 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 13px; cursor: pointer; }
+  .customize-option input[type=color] { height: 36px; cursor: pointer; }
+  .option-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .option-chip { padding: 6px 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; font-size: 12px; cursor: pointer; transition: all 0.15s; color: var(--text); }
+  .option-chip:hover { border-color: var(--accent); }
+  .option-chip.active { border-color: var(--gold); color: var(--gold); background: rgba(251,191,36,0.1); }
+  .color-row { display: flex; gap: 4px; flex-wrap: wrap; }
+  .color-swatch { width: 28px; height: 28px; border-radius: 6px; cursor: pointer; border: 2px solid transparent; transition: all 0.15s; }
+  .color-swatch:hover { transform: scale(1.15); }
+  .color-swatch.active { border-color: #fff; box-shadow: 0 0 8px rgba(255,255,255,0.3); }
+
+  /* Gambling Tab */
+  .gamble-tab-content { text-align: center; max-width: 520px; margin: 0 auto; }
+  .gamble-card { background: var(--bg3); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 16px; }
+  .gamble-result { font-size: 48px; margin: 20px 0; min-height: 60px; }
+  .gamble-history { max-height: 200px; overflow-y: auto; }
+  .gamble-history-item { padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 12px; display: flex; justify-content: space-between; }
+  .gamble-history-item.win { color: var(--green); }
+  .gamble-history-item.loss { color: var(--red); }
+  .gamble-bet-input { width: 140px; padding: 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 16px; text-align: center; }
+  .gamble-bet-input:focus { border-color: var(--accent); outline: none; }
+  .gamble-game-tab { cursor: pointer; transition: all 0.2s; }
+  .gamble-game-tab.active { background: var(--gold) !important; color: #000 !important; border-color: var(--gold) !important; }
+  .gamble-game { display: none; }
+  .gamble-game.active { display: block; }
+
+  /* Arena */
+  .arena-fight { max-width: 600px; margin: 0 auto; }
+  #arena-canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
+  .arena-log { max-height: 250px; overflow-y: auto; margin-top: 12px; padding: 12px; background: var(--bg); border-radius: 8px; font-size: 12px; line-height: 1.8; }
+  .arena-log .round-line { padding: 2px 0; }
+  .arena-log .crit-line { color: var(--red); font-weight: 700; }
+  .arena-log .dodge-line { color: var(--green); font-style: italic; }
+  .arena-log .dragon-line { color: #ff8c00; }
+  .arena-result { text-align: center; margin-top: 16px; font-size: 20px; font-weight: 700; min-height: 40px; }
+  .arena-result .winner { color: var(--gold); }
+  .arena-result .loser { color: var(--red); }
+  .duel-pending-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; background: var(--bg); border-radius: 8px; margin-bottom: 8px; }
+  .duel-pending-item .duel-info { font-size: 13px; }
+  .duel-pending-item .duel-bet-tag { color: var(--gold); font-weight: 700; }
+
+  /* Prestige */
+  .prestige-current { text-align: center; padding: 20px; }
+  .prestige-icon { font-size: 64px; margin-bottom: 12px; }
+  .prestige-rank-name { font-family: 'Press Start 2P', monospace; font-size: 16px; color: var(--gold); margin-bottom: 8px; }
+  .prestige-level-req { color: var(--dim); font-size: 13px; margin-bottom: 16px; }
+  .prestige-bonus { color: var(--green); font-size: 14px; margin-bottom: 16px; }
+  .prestige-rank-list { display: grid; grid-template-columns: 1fr; gap: 8px; }
+  .prestige-rank-item { display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--bg); border-radius: 8px; border: 1px solid var(--border); }
+  .prestige-rank-item.current { border-color: var(--gold); background: rgba(251,191,36,0.05); }
+  .prestige-rank-item.locked { opacity: 0.5; }
+  .prestige-rank-item .rank-icon { font-size: 24px; width: 40px; text-align: center; }
+  .prestige-rank-item .rank-info { flex: 1; }
+  .prestige-rank-item .rank-name { font-weight: 700; font-size: 14px; }
+  .prestige-rank-item .rank-details { color: var(--dim); font-size: 11px; margin-top: 2px; }
+
+  /* Leaderboard */
+  .lb-table { width: 100%; border-collapse: collapse; }
+  .lb-table th { text-align: left; padding: 8px 12px; color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+  .lb-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .lb-table tr:hover { background: var(--bg3); }
+  .lb-rank { font-weight: 700; color: var(--gold); min-width: 30px; }
+
+  /* Chat */
+  .chat-container { display: flex; flex-direction: column; height: 400px; }
+  .chat-messages { flex: 1; overflow-y: auto; padding: 12px; background: var(--bg3); border-radius: 8px; margin-bottom: 8px; }
+  .chat-msg { margin-bottom: 6px; font-size: 13px; line-height: 1.4; }
+  .chat-msg .chat-user { font-weight: 700; color: var(--accent); }
+  .chat-msg .chat-time { color: var(--dim); font-size: 10px; margin-left: 6px; }
+  .chat-msg .chat-text { color: var(--text); }
+  .chat-input-row { display: flex; gap: 8px; }
+  .chat-input-row input { flex: 1; padding: 10px 14px; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 14px; }
+  .chat-input-row input:focus { border-color: var(--accent); outline: none; }
+  .chat-system { color: var(--gold); font-style: italic; font-size: 12px; }
+
+  /* Redeem */
+  .redeem-form { max-width: 500px; }
+  .redeem-form label { display: block; color: var(--dim); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin: 12px 0 4px; }
+  .redeem-form input, .redeem-form select { width: 100%; padding: 10px; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 14px; }
+  .redeem-form select { cursor: pointer; }
+  .redeem-form input:focus, .redeem-form select:focus { border-color: var(--accent); outline: none; }
+  .redeem-history { margin-top: 20px; }
+  .redeem-item { background: var(--bg3); border-radius: 8px; padding: 12px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+  .redeem-item .redeem-status { padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+  .redeem-status.pending { background: rgba(251,191,36,0.15); color: var(--gold); }
+  .redeem-status.approved { background: rgba(74,222,128,0.15); color: var(--green); }
+  .redeem-status.denied { background: rgba(248,113,113,0.15); color: var(--red); }
+
+  /* Responsive */
+  @media (max-width: 600px) {
+    .equip-slots { grid-template-columns: 1fr; }
+    .stat-grid { grid-template-columns: repeat(2, 1fr); }
+    .topbar { flex-direction: column; gap: 8px; }
+    .tabs { padding: 2px 6px 0; }
+    .tab { padding: 12px 12px; font-size: 13px; }
+    .sub-tabs { padding: 0 6px; }
+    .sub-tab { padding: 8px 12px; font-size: 11px; }
+    .main { padding: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══ LOGIN ═══ -->
+<div id="login-screen">
+  <h1>⚔️ KICKSTREAM MMO</h1>
+  <div class="subtitle">Player Portal — kick.com/mikeydamike</div>
+  <div class="login-box">
+    <label>Kick Username</label>
+    <input type="text" id="login-username" placeholder="Enter your Kick username" autocomplete="off" />
+    <div class="hint">Enter the same username you use in Kick chat</div>
+    <button class="btn btn-primary btn-full" id="login-btn" onclick="doLogin()">View Profile</button>
+    <div id="login-error" style="color:var(--red);font-size:12px;margin-top:8px;display:none;"></div>
+  </div>
+</div>
+
+<!-- ═══ DASHBOARD ═══ -->
+<div id="dashboard">
+  <div class="topbar">
+    <div class="topbar-left">
+      <h2>⚔️ MMO</h2>
+      <span class="username" id="top-username"></span>
+      <span class="rank-badge-display" id="top-rank-badge" style="display:none;"><span class="rank-emoji" id="top-rank-emoji"></span><span class="rank-label" id="top-rank-label"></span></span>
+      <span class="auth-badge readonly" id="top-auth">READ ONLY</span>
+    </div>
+    <div class="user-info">
+      <span class="gold-display" id="top-gold">🪙 0</span>
+      <button class="btn btn-sm btn-gold" onclick="showTipModal()" style="padding:4px 12px;">💸 Tip</button>
+      <button class="btn btn-sm btn-primary" onclick="openRPG()" style="padding:4px 14px;background:#c084fc;border-color:#c084fc;">🗡️ Play RPG</button>
+      <button class="btn btn-sm btn-gold" id="link-btn" onclick="showLinkModal()">🔗 Link Account</button>
+      <button class="btn btn-sm btn-outline" id="relink-btn" onclick="doRelink()" style="display:none;">🔄 Re-link</button>
+      <button class="btn btn-sm btn-outline" onclick="doLogout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="tabs" id="main-tabs">
+    <div class="tab active" data-tab="player">👤 Player</div>
+    <div class="tab" data-tab="battle">⚔️ Battle</div>
+    <div class="tab" data-tab="market">🏪 Market</div>
+    <div class="tab" data-tab="games">🎰 Games</div>
+    <div class="tab" data-tab="achievements">🏆 Achievements</div>
+    <div class="tab" data-tab="prestige">🏅 Prestige</div>
+    <div class="tab" data-tab="chat">💬 Chat</div>
+    <div class="tab" data-tab="redeem">💰 Redeem</div>
+  </div>
+  <div class="sub-tabs" id="sub-tabs" style="display:none"></div>
+
+  <div class="main">
+    <!-- CHARACTER PANEL -->
+    <div class="panel active" id="panel-character">
+      <div class="card">
+        <div class="card-header">🧑 Your Character</div>
+        <div class="char-preview">
+          <canvas id="char-canvas" width="160" height="240"></canvas>
+        </div>
+        <div class="char-equip-display" id="char-equip-tags"></div>
+        <div style="text-align:center;margin-top:8px;">
+          <button class="btn btn-sm btn-outline" onclick="randomizeAppearance()">🎲 Randomize</button>
+          <button class="btn btn-sm btn-gold" id="save-appearance-btn" onclick="saveAppearance()" style="display:none;">💾 Save</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">Customize</div>
+        <div class="customize-grid">
+          <div class="customize-option">
+            <label>Skin Color</label>
+            <div class="color-row" id="pick-skinColor"></div>
+          </div>
+          <div class="customize-option">
+            <label>Hair Style</label>
+            <div class="option-row" id="pick-hairStyle"></div>
+          </div>
+          <div class="customize-option">
+            <label>Hair Color</label>
+            <div class="color-row" id="pick-hairColor"></div>
+          </div>
+          <div class="customize-option">
+            <label>Eye Style</label>
+            <div class="option-row" id="pick-eyeStyle"></div>
+          </div>
+          <div class="customize-option">
+            <label>Eye Color</label>
+            <div class="color-row" id="pick-eyeColor"></div>
+          </div>
+          <div class="customize-option">
+            <label>Mouth</label>
+            <div class="option-row" id="pick-mouthStyle"></div>
+          </div>
+          <div class="customize-option">
+            <label>Outfit</label>
+            <div class="option-row" id="pick-outfit"></div>
+          </div>
+          <div class="customize-option">
+            <label>Outfit Color</label>
+            <div class="color-row" id="pick-outfitColor"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STATS PANEL -->
+    <div class="panel" id="panel-stats">
+      <div class="card">
+        <div class="card-header">Character Stats</div>
+        <div class="stat-grid" id="stats-grid"></div>
+        <div class="xp-bar-wrap" style="margin-top:16px;">
+          <div class="xp-bar-fill" id="xp-bar" style="width:0%"></div>
+          <div class="xp-bar-text" id="xp-text">0 / 100 XP</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">Quick Actions</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="text" id="gift-target" placeholder="Username" style="width:120px;padding:8px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;" />
+            <input type="number" id="gift-amount" placeholder="Gold" min="1" style="width:80px;padding:8px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;" />
+            <button class="btn btn-primary btn-sm" onclick="doGift()">🎁 Gift</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- EQUIPMENT PANEL -->
+    <div class="panel" id="panel-equip">
+      <div class="card">
+        <div class="card-header">Equipped Gear</div>
+        <div class="equip-slots" id="equip-slots"></div>
+      </div>
+      <div class="card">
+        <div class="card-header">Inventory (<span id="inv-count">0</span> items)</div>
+        <div class="inv-grid" id="inv-grid"></div>
+        <div id="inv-empty" style="text-align:center;color:var(--dim);padding:20px;display:none;">No items yet. Attack bosses on stream to earn loot!</div>
+      </div>
+    </div>
+
+    <!-- COSMETICS PANEL -->
+    <div class="panel" id="panel-cosmetics">
+      <div class="card">
+        <div class="card-header">🏷️ Rank Badge</div>
+        <div id="rank-badge-info" style="text-align:center;padding:12px;"></div>
+      </div>
+      <div class="card">
+        <div class="card-header">Your Cosmetics</div>
+        <div class="cosmetic-filter" id="cosmetic-filter-owned"></div>
+        <div class="cosmetic-grid" id="owned-cosmetics"></div>
+        <div id="owned-cosmetics-empty" style="text-align:center;color:var(--dim);padding:20px;display:none;">No cosmetics owned yet.</div>
+      </div>
+      <div class="card">
+        <div class="card-header">Cosmetic Shop</div>
+        <div class="cosmetic-filter" id="cosmetic-filter-shop"></div>
+        <div class="cosmetic-grid" id="cosmetic-shop"></div>
+      </div>
+    </div>
+
+    <!-- MARKET PANEL -->
+    <div class="panel" id="panel-market">
+      <div class="card">
+        <div class="card-header">Your Listings</div>
+        <div class="market-grid" id="my-listings"></div>
+        <div id="my-listings-empty" style="text-align:center;color:var(--dim);padding:20px;">No active listings.</div>
+      </div>
+      <div class="card">
+        <div class="card-header">Marketplace</div>
+        <div class="market-grid" id="market-grid"></div>
+        <div id="market-empty" style="text-align:center;color:var(--dim);padding:20px;display:none;">Marketplace is empty.</div>
+      </div>
+    </div>
+
+    <!-- GAMBLING PANEL -->
+    <div class="panel" id="panel-gambling">
+      <div class="gamble-tab-content">
+        <!-- Game Selector Tabs -->
+        <div style="display:flex;gap:8px;justify-content:center;margin-bottom:16px;">
+          <button class="btn btn-gold gamble-game-tab active" data-game="coinflip" onclick="switchGambleGame('coinflip')">🪙 Coin Flip</button>
+          <button class="btn btn-outline gamble-game-tab" data-game="dice" onclick="switchGambleGame('dice')">🎲 Dice Roll</button>
+          <button class="btn btn-outline gamble-game-tab" data-game="slots" onclick="switchGambleGame('slots')">🎰 Slots</button>
+        </div>
+
+        <!-- COIN FLIP -->
+        <div class="gamble-card gamble-game active" id="game-coinflip">
+          <div style="font-size:24px;margin-bottom:8px;">🪙 Coin Flip</div>
+          <div style="color:var(--dim);font-size:13px;margin-bottom:16px;">45% chance to win. Heads = 2x your bet.</div>
+          <div class="gamble-result" id="coinflip-result">🪙</div>
+          <div style="display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap;">
+            <input type="number" id="coinflip-input" placeholder="Bet amount" min="1" class="gamble-bet-input" />
+            <button class="btn btn-gold" onclick="doGamble('coinflip')">Flip!</button>
+          </div>
+          <div style="display:flex;gap:6px;justify-content:center;margin-top:12px;">
+            <button class="btn btn-sm btn-outline" onclick="setGambleBet('coinflip',10)">10g</button>
+            <button class="btn btn-sm btn-outline" onclick="setGambleBet('coinflip',50)">50g</button>
+            <button class="btn btn-sm btn-outline" onclick="setGambleBet('coinflip',100)">100g</button>
+            <button class="btn btn-sm btn-outline" onclick="setGambleBet('coinflip',500)">500g</button>
+            <button class="btn btn-sm btn-outline" onclick="setGambleBet('coinflip','all')">ALL IN</button>
+          </div>
+        </div>
+
+        <!-- DICE ROLL -->
+        <div class="gamble-card gamble-game" id="game-dice" style="display:none;">
+          <div style="font-size:24px;margin-bottom:8px;">🎲 Dice Roll</div>
+          <div style="color:var(--dim);font-size:13px;margin-bottom:16px;">
+            Roll 1-50: Lose &nbsp;|&nbsp; 51-75: 2x &nbsp;|&nbsp; 76-90: 3x &nbsp;|&nbsp; 91-98: 5x &nbsp;|&nbsp; 99-100: 10x 🔥
+          </div>
+          <div class="gamble-result" id="dice-result">🎲</div>
+          <div style="display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap;">
+            <input type="number" id="dice-input" placeholder="Bet amount" min="1" class="gamble-bet-input" />
+            <button class="btn btn-gold" onclick="doGamble('dice')">Roll!</button>
+          </div>
+          <div style="display:flex;gap:6px;justify-content:center;margin-top:12px;">
+            <button class="btn btn-sm btn-outline" onclick="setGambleBet('dice',10)">10g</button>
+            <button class="btn btn-sm btn-outline" onclick="setGambleBet('dice',50)">50g</button>
+            <button class="btn btn-sm btn-outline" onclick="setGambleBet('dice',100)">100g</button>
+            <button class="btn btn-sm btn-outline" onclick="setGambleBet('dice',500)">500g</button>
+            <button class="btn btn-sm btn-outline" onclick="setGambleBet('dice','all')">ALL IN</button>
+          </div>
+        </div>
+
+        <!-- SLOTS -->
+        <div class="gamble-card gamble-game" id="game-slots" style="display:none;">
+          <div style="font-size:24px;margin-bottom:8px;">🎰 Slots</div>
+          <div style="color:var(--dim);font-size:13px;margin-bottom:16px;">
+            Pair = 2x &nbsp;|&nbsp; Triple = 5-8x &nbsp;|&nbsp; 💎 Triple = 10x &nbsp;|&nbsp; 7️⃣ Triple = 15x 🎉
+          </div>
+          <div class="gamble-result" id="slots-result" style="letter-spacing:16px;">🎰🎰🎰</div>
+          <div style="display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap;">
+            <input type="number" id="slots-input" placeholder="Bet amount" min="1" class="gamble-bet-input" />
+            <button class="btn btn-gold" onclick="doGamble('slots')">Spin!</button>
+          </div>
+          <div style="display:flex;gap:6px;justify-content:center;margin-top:12px;">
+            <button class="btn btn-sm btn-outline" onclick="setGambleBet('slots',10)">10g</button>
+            <button class="btn btn-sm btn-outline" onclick="setGambleBet('slots',50)">50g</button>
+            <button class="btn btn-sm btn-outline" onclick="setGambleBet('slots',100)">100g</button>
+            <button class="btn btn-sm btn-outline" onclick="setGambleBet('slots',500)">500g</button>
+            <button class="btn btn-sm btn-outline" onclick="setGambleBet('slots','all')">ALL IN</button>
+          </div>
+        </div>
+
+        <div style="margin-top:12px;font-size:12px;color:var(--dim);text-align:center;">Your gold: <span id="gamble-gold" style="color:var(--gold);font-weight:700;">0</span></div>
+
+        <div class="gamble-card" style="margin-top:16px;">
+          <div class="card-header">Recent Bets</div>
+          <div class="gamble-history" id="gamble-history"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ARENA PANEL -->
+    <div class="panel" id="panel-arena">
+      <!-- Arena Stats -->
+      <div class="card">
+        <div class="card-header">⚔️ PvP Arena</div>
+        <div class="arena-stats" id="arena-stats">
+          <div class="stat-grid" id="arena-stat-grid"></div>
+        </div>
+      </div>
+
+      <!-- Challenge a player -->
+      <div class="card">
+        <div class="card-header">🗡️ Challenge a Player</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <input type="text" id="duel-target" placeholder="Opponent username" style="flex:1;min-width:140px;padding:10px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;" />
+          <input type="number" id="duel-bet" placeholder="Bet (gold)" min="0" style="width:120px;padding:10px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;" />
+          <button class="btn btn-gold" onclick="doChallengeDuel()">⚔️ Fight!</button>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:8px;">
+          <button class="btn btn-sm btn-outline" onclick="document.getElementById('duel-bet').value=0">Free</button>
+          <button class="btn btn-sm btn-outline" onclick="document.getElementById('duel-bet').value=50">50g</button>
+          <button class="btn btn-sm btn-outline" onclick="document.getElementById('duel-bet').value=100">100g</button>
+          <button class="btn btn-sm btn-outline" onclick="document.getElementById('duel-bet').value=500">500g</button>
+        </div>
+      </div>
+
+      <!-- Pending Duels -->
+      <div class="card">
+        <div class="card-header">📩 Pending Challenges</div>
+        <div id="pending-duels"></div>
+      </div>
+
+      <!-- Fight Animation — 2D Fighter -->
+      <div class="card" id="duel-fight-card" style="display:none;">
+        <div class="card-header">🏟️ Arena Battle</div>
+        <div class="arena-fight" id="arena-fight">
+          <canvas id="arena-canvas" width="600" height="340" style="width:100%;border-radius:12px;background:#111;display:block;"></canvas>
+          <div class="arena-log" id="arena-log"></div>
+          <div class="arena-result" id="arena-result"></div>
+        </div>
+      </div>
+
+      <!-- Arena Leaderboard -->
+      <div class="card">
+        <div class="card-header">🏆 Arena Leaderboard</div>
+        <div id="arena-lb"></div>
+      </div>
+    </div>
+
+    <!-- PRESTIGE PANEL -->
+    <div class="panel" id="panel-prestige">
+      <div class="card">
+        <div class="card-header">🏅 Prestige System</div>
+        <div id="prestige-info"></div>
+      </div>
+      <div class="card">
+        <div class="card-header">📊 All Prestige Ranks</div>
+        <div id="prestige-ranks"></div>
+      </div>
+    </div>
+
+    <!-- ACHIEVEMENTS PANEL -->
+    <div class="panel" id="panel-achievements">
+      <div class="card">
+        <div class="card-header">Achievements (<span id="ach-progress">0/0</span>)</div>
+        <div class="ach-grid" id="ach-grid"></div>
+      </div>
+    </div>
+
+    <!-- BOSS PANEL -->
+    <div class="panel" id="panel-boss">
+      <div class="card boss-card" id="boss-display"></div>
+    </div>
+
+    <!-- LEADERBOARD PANEL -->
+    <div class="panel" id="panel-leaderboard">
+      <div class="card">
+        <div class="card-header">Top Players</div>
+        <table class="lb-table" id="lb-table">
+          <thead><tr><th>#</th><th>Player</th><th>Level</th><th>Damage</th><th>Gold</th></tr></thead>
+          <tbody id="lb-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- CHAT PANEL -->
+    <div class="panel" id="panel-chat">
+      <div class="card">
+        <div class="card-header">💬 Portal Chat</div>
+        <div class="chat-container">
+          <div class="chat-messages" id="chat-messages"></div>
+          <div class="chat-input-row">
+            <input type="text" id="chat-input" placeholder="Type a message..." maxlength="300" disabled />
+            <button class="btn btn-primary btn-sm" id="chat-send-btn" onclick="sendChat()" disabled>Send</button>
+          </div>
+          <div style="font-size:11px;color:var(--dim);margin-top:4px;" id="chat-auth-hint">Link your account to chat</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- REDEEM PANEL -->
+    <div class="panel" id="panel-redeem">
+      <div class="card">
+        <div class="card-header">💰 Redeem Gold for Cash</div>
+        <div style="background:var(--bg3);border-radius:8px;padding:14px;margin-bottom:16px;">
+          <div style="font-size:14px;font-weight:700;color:var(--gold);margin-bottom:4px;">Exchange Rate: <span id="redeem-rate">150</span>g = $1</div>
+          <div style="font-size:12px;color:var(--dim);">Minimum redeem: $10 (<span id="redeem-min">1500</span>g)</div>
+          <div style="font-size:12px;color:var(--green);margin-top:2px;">Payouts processed quickly by ur boy mikeydamike 🏄‍♂️💨</div>
+          <div style="font-size:11px;color:var(--dim);margin-top:2px;font-style:italic;">"we ain't a bank out here, we move FAST" — mikeydamike</div>
+          <div style="font-size:12px;color:var(--dim);margin-top:2px;">Your gold: <span id="redeem-gold" style="color:var(--gold);font-weight:700;">0</span></div>
+        </div>
+        <div class="redeem-form">
+          <label>Amount (gold)</label>
+          <input type="number" id="redeem-amount" placeholder="e.g. 1500" min="1" oninput="updateRedeemPreview()" />
+          <div style="font-size:12px;color:var(--green);margin-top:4px;" id="redeem-preview"></div>
+
+          <label>Payout Method</label>
+          <select id="redeem-method">
+            <option value="solana">🪙 Solana (Crypto)</option>
+            <option value="discord">👾 Discord (gift/DM)</option>
+          </select>
+
+          <label>Address / Username</label>
+          <input type="text" id="redeem-address" placeholder="Solana wallet address or Discord username" />
+
+          <button class="btn btn-gold btn-full" onclick="submitRedeem()">Submit Redeem Request</button>
+        </div>
+      </div>
+      <div class="card redeem-history">
+        <div class="card-header">Your Redeem History</div>
+        <div id="redeem-history-list"></div>
+        <div id="redeem-history-empty" style="text-align:center;color:var(--dim);padding:16px;">No redeem requests yet.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ LINK MODAL ═══ -->
+<div class="modal-overlay" id="link-modal">
+  <div class="modal">
+    <h3>🔗 Link Your Account</h3>
+    <p>To perform actions (equip, buy, sell, gamble, etc.) you need to verify you own this account.</p>
+    <p>Type this command in <strong>Kick chat</strong>:</p>
+    <div class="cmd-highlight" id="link-cmd">!link <span id="link-code" style="color:var(--gold);font-size:20px;">...</span></div>
+    <div style="font-size:11px;color:var(--dim);margin-top:4px;">This code is unique to YOUR browser. Nobody else can see it 🔒</div>
+    <div class="status waiting" id="link-status"><span class="spinner"></span>Waiting for you to type the command in chat...</div>
+    <div style="margin-top:16px;">
+      <button class="btn btn-outline btn-sm" onclick="hideLinkModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ SELL MODAL ═══ -->
+<div class="modal-overlay" id="sell-modal">
+  <div class="modal sell-modal">
+    <h3>🏪 List on Market</h3>
+    <p id="sell-item-name" style="font-weight:700;color:var(--text);"></p>
+    <label style="color:var(--dim);font-size:12px;">Asking Price (gold)</label>
+    <input type="number" id="sell-price" placeholder="Enter price" min="1" />
+    <div style="display:flex;gap:8px;justify-content:center;margin-top:12px;">
+      <button class="btn btn-gold btn-sm" onclick="confirmSell()">List Item</button>
+      <button class="btn btn-outline btn-sm" onclick="hideSellModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ TIP MODAL ═══ -->
+<div class="modal-overlay" id="tip-modal">
+  <div class="modal">
+    <h3>💸 Tip Gold</h3>
+    <p style="color:var(--dim);font-size:13px;">Send gold to another player</p>
+    <input type="text" id="tip-target" placeholder="Username" style="width:100%;padding:10px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;margin-bottom:8px;" />
+    <input type="number" id="tip-amount" placeholder="Amount" min="1" style="width:100%;padding:10px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;margin-bottom:8px;" />
+    <div style="display:flex;gap:6px;justify-content:center;margin-bottom:12px;">
+      <button class="btn btn-sm btn-outline" onclick="setTipAmount(10)">10g</button>
+      <button class="btn btn-sm btn-outline" onclick="setTipAmount(50)">50g</button>
+      <button class="btn btn-sm btn-outline" onclick="setTipAmount(100)">100g</button>
+      <button class="btn btn-sm btn-outline" onclick="setTipAmount(500)">500g</button>
+    </div>
+    <div style="font-size:12px;color:var(--dim);margin-bottom:12px;">Your gold: <span id="tip-gold" style="color:var(--gold);font-weight:700;">0</span></div>
+    <div style="display:flex;gap:8px;justify-content:center;">
+      <button class="btn btn-gold btn-sm" onclick="doTip()">💸 Send Tip</button>
+      <button class="btn btn-outline btn-sm" onclick="hideTipModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toasts"></div>
+
+<script>
+// ═══════════════════════════════════════════
+// State
+// ═══════════════════════════════════════════
+let username = '';
+let authToken = null;
+let profile = null;
+let allCosmetics = {};
+let allAchievements = {};
+let rarityColors = {};
+let refreshTimer = null;
+let cosmeticFilterOwned = 'all';
+let cosmeticFilterShop = 'all';
+
+// Sell modal state
+let sellItemUid = null;
+let sellItemType = null; // 'item' or 'cosmetic'
+
+// ═══════════════════════════════════════════
+// Login / Logout
+// ═══════════════════════════════════════════
+function doLogin() {
+  const input = document.getElementById('login-username').value.trim().toLowerCase();
+  if (!input) return;
+  document.getElementById('login-btn').disabled = true;
+  document.getElementById('login-error').style.display = 'none';
+
+  fetch('/api/player/' + encodeURIComponent(input))
+    .then(r => { if (!r.ok) throw r; return r.json(); })
+    .then(data => {
+      username = input;
+      profile = data;
+      // Restore saved token
+      const saved = localStorage.getItem('mmo_token_' + username);
+      if (saved) authToken = saved;
+      // Persist login for page refreshes
+      localStorage.setItem('mmo_last_user', username);
+      enterDashboard();
+    })
+    .catch(async (err) => {
+      let msg = 'Player not found. Attack a boss on stream first!';
+      try { const j = await err.json(); msg = j.error || msg; } catch {}
+      document.getElementById('login-error').textContent = msg;
+      document.getElementById('login-error').style.display = 'block';
+      document.getElementById('login-btn').disabled = false;
+    });
+}
+
+document.getElementById('login-username').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+function openRPG() {
+  if (!authToken) { showLinkModal(); return; }
+  window.open('/rpg', '_blank');
+}
+
+function doLogout() {
+  localStorage.removeItem('mmo_last_user');
+  username = ''; authToken = null; profile = null;
+  if (refreshTimer) clearInterval(refreshTimer);
+  if (chatWs) { chatWs.onclose = null; chatWs.close(); chatWs = null; }
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('dashboard').style.display = 'none';
+  document.getElementById('login-btn').disabled = false;
+}
+
+function enterDashboard() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+  document.getElementById('top-username').textContent = username;
+  updateAuthBadge();
+  // Load reference data then render
+  Promise.all([
+    fetch('/api/cosmetics').then(r => r.json()),
+    fetch('/api/achievements').then(r => r.json()),
+    fetch('/api/rarity-colors').then(r => r.json()),
+  ]).then(([cos, ach, rc]) => {
+    allCosmetics = cos;
+    allAchievements = ach;
+    rarityColors = rc;
+    renderAll();
+  });
+  // Auto-refresh every 10 seconds
+  refreshTimer = setInterval(refreshProfile, 10000);
+}
+
+function updateAuthBadge() {
+  const badge = document.getElementById('top-auth');
+  const linkBtn = document.getElementById('link-btn');
+  const relinkBtn = document.getElementById('relink-btn');
+  if (authToken) {
+    badge.className = 'auth-badge linked';
+    badge.textContent = 'LINKED ✓';
+    linkBtn.style.display = 'none';
+    relinkBtn.style.display = '';
+  } else {
+    badge.className = 'auth-badge readonly';
+    badge.textContent = 'READ ONLY';
+    linkBtn.style.display = '';
+    relinkBtn.style.display = 'none';
+  }
+}
+
+function refreshProfile() {
+  fetch('/api/player/' + encodeURIComponent(username))
+    .then(r => r.ok ? r.json() : null)
+    .then(data => { if (data) { profile = data; renderAll(); } });
+}
+
+// ═══════════════════════════════════════════
+// Tab Navigation (Grouped)
+// ═══════════════════════════════════════════
+const TAB_GROUPS = {
+  player: [
+    { id: 'character', label: '🧑 Character' },
+    { id: 'stats', label: '📊 Stats' },
+    { id: 'equip', label: '🗡️ Equipment' },
+    { id: 'cosmetics', label: '✨ Cosmetics' },
+  ],
+  battle: [
+    { id: 'arena', label: '⚔️ Arena' },
+    { id: 'boss', label: '👹 Boss' },
+    { id: 'leaderboard', label: '📋 Leaderboard' },
+  ],
+  market: [{ id: 'market', label: '🏪 Market' }],
+  games: [{ id: 'gambling', label: '🎰 Gambling' }],
+  achievements: [{ id: 'achievements', label: '🏆 Achievements' }],
+  prestige: [{ id: 'prestige', label: '🏅 Prestige' }],
+  chat: [{ id: 'chat', label: '💬 Chat' }],
+  redeem: [{ id: 'redeem', label: '💰 Redeem' }],
+};
+let currentMainTab = 'player';
+let currentSubTab = 'character';
+
+function switchMainTab(tabId) {
+  currentMainTab = tabId;
+  document.querySelectorAll('#main-tabs .tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tabId));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  const group = TAB_GROUPS[tabId];
+  const subBar = document.getElementById('sub-tabs');
+  if (group.length > 1) {
+    subBar.style.display = 'flex';
+    subBar.innerHTML = group.map(g =>
+      `<div class="sub-tab${g.id === group[0].id ? ' active' : ''}" data-subtab="${g.id}">${g.label}</div>`
+    ).join('');
+    subBar.querySelectorAll('.sub-tab').forEach(st => {
+      st.addEventListener('click', () => switchSubTab(st.dataset.subtab));
+    });
+    switchSubTab(group[0].id);
+  } else {
+    subBar.style.display = 'none';
+    switchSubTab(group[0].id);
+  }
+}
+
+function switchSubTab(subId) {
+  currentSubTab = subId;
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('#sub-tabs .sub-tab').forEach(st => st.classList.toggle('active', st.dataset.subtab === subId));
+  const panel = document.getElementById('panel-' + subId);
+  if (panel) panel.classList.add('active');
+  if (['market', 'boss', 'leaderboard', 'arena', 'prestige'].includes(subId)) refreshTab(subId);
+  if (subId === 'gambling') updateGambleGold();
+  if (subId === 'character') drawCharacter();
+}
+
+document.querySelectorAll('#main-tabs .tab').forEach(tab => {
+  tab.addEventListener('click', () => switchMainTab(tab.dataset.tab));
+});
+
+function refreshTab(tab) {
+  if (tab === 'market') {
+    fetch('/api/market').then(r => r.json()).then(data => renderMarket(data));
+  } else if (tab === 'boss') {
+    fetch('/api/boss').then(r => r.json()).then(data => renderBoss(data));
+  } else if (tab === 'leaderboard') {
+    fetch('/api/leaderboard').then(r => r.json()).then(data => renderLeaderboard(data));
+  } else if (tab === 'arena') {
+    renderArena();
+  } else if (tab === 'prestige') {
+    renderPrestige();
+  }
+}
+
+// ═══════════════════════════════════════════
+// Render Functions
+// ═══════════════════════════════════════════
+function renderAll() {
+  if (!profile) return;
+  document.getElementById('top-gold').textContent = '🪙 ' + profile.gold.toLocaleString();
+  // Update rank badge in topbar
+  if (profile.rankBadge && profile.rankBadge.badge) {
+    document.getElementById('top-rank-badge').style.display = 'inline-flex';
+    document.getElementById('top-rank-emoji').textContent = profile.rankBadge.badge;
+    document.getElementById('top-rank-label').textContent = profile.rankBadge.name;
+  } else {
+    document.getElementById('top-rank-badge').style.display = 'none';
+  }
+  renderStats();
+  renderEquipment();
+  renderCosmetics();
+  renderAchievements();
+  renderCharacter();
+  updateGambleGold();
+  refreshTab('market');
+  refreshTab('boss');
+  refreshTab('leaderboard');
+}
+
+function renderStats() {
+  const p = profile;
+  const grid = document.getElementById('stats-grid');
+  const stats = [
+    { val: p.level, label: 'Level', color: 'var(--accent)' },
+    { val: p.gold.toLocaleString(), label: 'Gold', color: 'var(--gold)' },
+    { val: '$' + p.cashValue, label: 'Cash Value', color: 'var(--green)' },
+    { val: p.totalDamage.toLocaleString(), label: 'Total Damage', color: 'var(--red)' },
+    { val: p.minDmg + '-' + p.maxDmg, label: 'Damage Range', color: 'var(--text)' },
+    { val: (p.critChance * 100).toFixed(1) + '%', label: 'Crit Chance', color: 'var(--purple)' },
+    { val: p.critMultiplier.toFixed(1) + 'x', label: 'Crit Multi', color: 'var(--purple)' },
+    { val: p.mvpCount, label: 'MVP Wins', color: 'var(--gold)' },
+    { val: p.bossKills, label: 'Boss Kills', color: 'var(--red)' },
+    { val: p.bestStreak, label: 'Best Streak', color: 'var(--accent)' },
+    { val: p.dodgeCount, label: 'Dodges', color: 'var(--green)' },
+    { val: p.tradeCount, label: 'Trades', color: 'var(--dim)' },
+    { val: (p.gamblesWon || 0) + '/' + ((p.gamblesWon || 0) + (p.gamblesLost || 0)), label: 'Gambles W/L', color: 'var(--purple)' },
+    { val: (p.totalGambleProfit >= 0 ? '+' : '') + (p.totalGambleProfit || 0).toLocaleString() + 'g', label: 'Gamble Profit', color: (p.totalGambleProfit || 0) >= 0 ? 'var(--green)' : 'var(--red)' },
+    { val: (p.duelsWon || 0) + '/' + (p.duelsLost || 0), label: 'Duels W/L', color: 'var(--accent)' },
+    { val: p.arenaRating || 1000, label: 'Arena Rating', color: 'var(--gold)' },
+    { val: p.prestige || 0, label: 'Prestige', color: 'var(--gold)' },
+  ];
+  grid.innerHTML = stats.map(s => `
+    <div class="stat-item">
+      <div class="stat-value" style="color:${s.color}">${s.val}</div>
+      <div class="stat-label">${s.label}</div>
+    </div>
+  `).join('');
+
+  // XP bar
+  const pct = Math.min(100, (p.xp / p.xpNeeded) * 100);
+  document.getElementById('xp-bar').style.width = pct + '%';
+  document.getElementById('xp-text').textContent = p.xp + ' / ' + p.xpNeeded + ' XP';
+}
+
+function renderEquipment() {
+  const p = profile;
+  const slots = ['weapon', 'armor', 'accessory'];
+  const slotEmoji = { weapon: '🗡️', armor: '🛡️', accessory: '💍' };
+
+  // Render equipped slots
+  const slotsEl = document.getElementById('equip-slots');
+  slotsEl.innerHTML = slots.map(slot => {
+    const item = p.equipped[slot];
+    if (item) {
+      const rColor = rarityColors[item.rarity] || '#aaa';
+      return `<div class="equip-slot filled" style="border-color:${rColor}">
+        <div class="slot-label">${slotEmoji[slot]} ${slot}</div>
+        <div class="slot-item" style="color:${rColor}">${item.name}</div>
+        <div class="slot-desc">${item.desc}</div>
+        ${authToken ? `<button class="btn btn-sm btn-outline" style="margin-top:8px" onclick="doUnequip('${slot}')">Unequip</button>` : ''}
+      </div>`;
+    }
+    return `<div class="equip-slot">
+      <div class="slot-label">${slotEmoji[slot]} ${slot}</div>
+      <div style="color:var(--dim);font-size:12px;">Empty</div>
+    </div>`;
+  }).join('');
+
+  // Render inventory
+  const inv = p.inventory || [];
+  document.getElementById('inv-count').textContent = inv.length;
+  const invGrid = document.getElementById('inv-grid');
+  const invEmpty = document.getElementById('inv-empty');
+
+  if (inv.length === 0) {
+    invGrid.innerHTML = '';
+    invEmpty.style.display = 'block';
+  } else {
+    invEmpty.style.display = 'none';
+    invGrid.innerHTML = inv.map(item => {
+      const rColor = rarityColors[item.rarity] || '#aaa';
+      return `<div class="inv-item" style="border-left-color:${rColor}">
+        <div class="item-name" style="color:${rColor}">${item.name}</div>
+        <div class="item-desc">${item.desc}</div>
+        <div class="item-meta">
+          <span class="item-rarity" style="color:${rColor}">${item.rarity}</span>
+          <span>${item.slot}</span>
+        </div>
+        ${authToken ? `<div class="item-actions">
+          <button class="btn btn-sm btn-primary" onclick="doEquip('${item.uid}')">Equip</button>
+          <button class="btn btn-sm btn-outline" onclick="showSellModal('${item.uid}', '${esc(item.name)}', 'item')">Market</button>
+          <button class="btn btn-sm btn-outline" style="color:var(--gold)" onclick="doVendorSell('${item.uid}', '${esc(item.name)}', '${item.rarity}')">Vendor</button>
+        </div>` : ''}
+      </div>`;
+    }).join('');
+  }
+}
+
+function renderCosmetics() {
+  const p = profile;
+  const ownedSet = new Set(p.cosmetics || []);
+  const active = p.activeCosmetics || {};
+
+  // Rank badge info card
+  const rbInfo = document.getElementById('rank-badge-info');
+  if (rbInfo && p.rankBadge) {
+    const rb = p.rankBadge;
+    rbInfo.innerHTML = `<div style="font-size:32px;">${rb.badge || '—'}</div>
+      <div style="font-size:14px;font-weight:700;color:var(--gold);margin:4px 0;">${rb.name}</div>
+      <div style="font-size:11px;color:var(--dim);">Level ${p.level} — Rank badges unlock as you level up!</div>`;
+  }
+
+  // Cosmetic type labels
+  const typeLabels = { border: '🖼️ Borders', title: '🏷️ Titles', hitEffect: '💥 Hit Effects', badge: '📛 Badges', killEffect: '☠️ Kill Effects' };
+  const typeKeys = Object.keys(typeLabels);
+
+  function getType(key) {
+    const cos = allCosmetics[key];
+    return cos ? cos.type : 'border';
+  }
+
+  function renderFilterBar(containerId, items, filterState) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    const types = [...new Set(items.map(([k]) => getType(k)))];
+    container.innerHTML = '<button class="cosmetic-filter-btn active" data-filter="all">All</button>' +
+      types.map(t => `<button class="cosmetic-filter-btn" data-filter="${t}">${typeLabels[t] || t}</button>`).join('');
+    container.querySelectorAll('.cosmetic-filter-btn').forEach(btn => {
+      btn.onclick = () => {
+        container.querySelectorAll('.cosmetic-filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        filterState.current = btn.dataset.filter;
+        renderCosmetics();
+      };
+    });
+  }
+
+  // Owned cosmetics
+  const ownedEl = document.getElementById('owned-cosmetics');
+  const ownedEmptyEl = document.getElementById('owned-cosmetics-empty');
+  const owned = Object.entries(allCosmetics).filter(([k]) => ownedSet.has(k));
+  const ownedFiltered = cosmeticFilterOwned === 'all' ? owned : owned.filter(([k]) => getType(k) === cosmeticFilterOwned);
+
+  renderFilterBar('cosmetic-filter-owned', owned, { get current() { return cosmeticFilterOwned; }, set current(v) { cosmeticFilterOwned = v; } });
+
+  if (ownedFiltered.length === 0) {
+    ownedEl.innerHTML = '';
+    ownedEmptyEl.style.display = owned.length === 0 ? 'block' : 'none';
+    if (owned.length > 0 && ownedFiltered.length === 0) ownedEl.innerHTML = '<div style="text-align:center;color:var(--dim);padding:12px;">No cosmetics in this category.</div>';
+  } else {
+    ownedEmptyEl.style.display = 'none';
+    ownedEl.innerHTML = ownedFiltered.map(([key, cos]) => {
+      const isActive = Object.values(active).includes(key);
+      const typeTag = typeLabels[cos.type] || cos.type;
+      return `<div class="cosmetic-card owned${isActive ? ' active' : ''}">
+        ${isActive ? '<span class="cosmetic-badge active-badge">ACTIVE</span>' : '<span class="cosmetic-badge owned-badge">OWNED</span>'}
+        <div style="font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px;">${typeTag}</div>
+        <div class="cosmetic-name">${cos.name}</div>
+        <div class="cosmetic-desc">${cos.desc}</div>
+        ${authToken ? `<div style="display:flex;gap:6px;margin-top:8px;">
+          ${!isActive ? `<button class="btn btn-sm btn-primary" onclick="doEquipCosmetic('${key}')">Equip</button>` : ''}
+          <button class="btn btn-sm btn-outline" onclick="showSellModal('${key}', '${esc(cos.name)}', 'cosmetic')">Sell</button>
+        </div>` : ''}
+      </div>`;
+    }).join('');
+  }
+
+  // Shop
+  const shopEl = document.getElementById('cosmetic-shop');
+  const allShopItems = Object.entries(allCosmetics);
+  const shopFiltered = cosmeticFilterShop === 'all' ? allShopItems : allShopItems.filter(([k]) => getType(k) === cosmeticFilterShop);
+
+  renderFilterBar('cosmetic-filter-shop', allShopItems, { get current() { return cosmeticFilterShop; }, set current(v) { cosmeticFilterShop = v; } });
+
+  shopEl.innerHTML = shopFiltered.map(([key, cos]) => {
+    const isOwned = ownedSet.has(key);
+    const typeTag = typeLabels[cos.type] || cos.type;
+    return `<div class="cosmetic-card${isOwned ? ' owned' : ''}">
+      ${isOwned ? '<span class="cosmetic-badge owned-badge">OWNED</span>' : ''}
+      <div style="font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px;">${typeTag}</div>
+      <div class="cosmetic-name">${cos.name}</div>
+      <div class="cosmetic-desc">${cos.desc}</div>
+      <div class="cosmetic-cost">🪙 ${cos.cost}</div>
+      ${authToken && !isOwned ? `<button class="btn btn-sm btn-gold" style="margin-top:8px" onclick="doBuyCosmetic('${key}')">Buy</button>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function renderMarket(listings) {
+  const myListings = listings.filter(l => l.seller === username);
+  const otherListings = listings.filter(l => l.seller !== username);
+
+  // My listings
+  const myEl = document.getElementById('my-listings');
+  const myEmpty = document.getElementById('my-listings-empty');
+  if (myListings.length === 0) {
+    myEl.innerHTML = '';
+    myEmpty.style.display = 'block';
+  } else {
+    myEmpty.style.display = 'none';
+    myEl.innerHTML = myListings.map(l => {
+      const isCosmetic = l.type === 'cosmetic';
+      const rColor = isCosmetic ? 'var(--purple)' : (rarityColors[l.itemData?.rarity] || '#aaa');
+      const name = l.itemData?.name || 'Unknown';
+      return `<div class="market-item" style="border-left:3px solid ${rColor}">
+        <div class="item-name" style="color:${rColor}">${name}</div>
+        <div class="price">🪙 ${l.price}</div>
+        ${authToken ? `<button class="btn btn-sm btn-danger" style="margin-top:8px" onclick="doCancel('${l.id}')">Cancel</button>` : ''}
+      </div>`;
+    }).join('');
+  }
+
+  // Other listings
+  const marketEl = document.getElementById('market-grid');
+  const marketEmpty = document.getElementById('market-empty');
+  if (otherListings.length === 0) {
+    marketEl.innerHTML = '';
+    marketEmpty.style.display = 'block';
+  } else {
+    marketEmpty.style.display = 'none';
+    marketEl.innerHTML = otherListings.map(l => {
+      const isCosmetic = l.type === 'cosmetic';
+      const rColor = isCosmetic ? 'var(--purple)' : (rarityColors[l.itemData?.rarity] || '#aaa');
+      const name = l.itemData?.name || 'Unknown';
+      const desc = l.itemData?.desc || '';
+      return `<div class="market-item">
+        <div class="seller">Sold by ${l.seller}</div>
+        <div class="item-name" style="color:${rColor}">${name}</div>
+        <div style="font-size:11px;color:var(--dim)">${desc}</div>
+        <div class="price">🪙 ${l.price}</div>
+        ${authToken ? `<button class="btn btn-sm btn-gold" style="margin-top:8px" onclick="doBuyMarket('${l.id}')">Buy</button>` : ''}
+      </div>`;
+    }).join('');
+  }
+}
+
+function renderAchievements() {
+  const p = profile;
+  const earned = new Set(p.achievements || []);
+  const achEl = document.getElementById('ach-grid');
+  const entries = Object.entries(allAchievements);
+  const earnedCount = entries.filter(([k]) => earned.has(k)).length;
+  document.getElementById('ach-progress').textContent = earnedCount + '/' + entries.length;
+
+  achEl.innerHTML = entries.map(([key, ach]) => {
+    const isEarned = earned.has(key);
+    // Extract emoji from name
+    const emoji = ach.name.match(/^(\S+)/)?.[1] || '🏅';
+    const name = ach.name.replace(/^(\S+)\s*/, '');
+    return `<div class="ach-item${isEarned ? ' earned' : ''}">
+      <div class="ach-icon">${emoji}</div>
+      <div class="ach-info">
+        <div class="ach-name">${name}</div>
+        <div class="ach-desc">${ach.desc}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderBoss(data) {
+  const el = document.getElementById('boss-display');
+  if (!data.alive) {
+    el.innerHTML = `<div class="boss-idle">No boss currently active. Watch the stream to join the fight!</div>`;
+    return;
+  }
+  const pct = Math.max(0, (data.hp / data.maxHP) * 100);
+  el.innerHTML = `
+    <div class="boss-name">${data.bossAttackActive ? '⚠️ ' : ''}${data.name}${data.bossAttackActive ? ' ⚠️' : ''}</div>
+    <div class="boss-tier">Boss #${data.number} — Tier ${data.tier}</div>
+    <div class="boss-hp-bar" style="margin-top:16px">
+      <div class="boss-hp-fill" style="width:${pct}%"></div>
+      <div class="boss-hp-text">${data.hp.toLocaleString()} / ${data.maxHP.toLocaleString()} HP</div>
+    </div>
+    ${data.bossAttackActive ? '<div style="margin-top:12px;color:var(--red);font-weight:700;">⚠️ BOSS ATTACK IN PROGRESS — Type !dodge in chat!</div>' : ''}
+  `;
+}
+
+function renderLeaderboard(data) {
+  const body = document.getElementById('lb-body');
+  if (!data || !data.entries) { body.innerHTML = ''; return; }
+  body.innerHTML = data.entries.map((e, i) => `
+    <tr${e.username === username ? ' style="background:rgba(96,165,250,0.08)"' : ''}>
+      <td class="lb-rank">${i < 3 ? ['🥇','🥈','🥉'][i] : '#' + (i + 1)}</td>
+      <td style="font-weight:${e.username === username ? '700' : '400'}">${e.rankBadge || ''}${e.username}</td>
+      <td>${e.level}</td>
+      <td>${e.totalDamage.toLocaleString()}</td>
+      <td style="color:var(--gold)">${e.gold.toLocaleString()}</td>
+    </tr>
+  `).join('');
+}
+
+// ═══════════════════════════════════════════
+// Actions (require auth)
+// ═══════════════════════════════════════════
+function authHeaders() {
+  return { 'Content-Type': 'application/json' };
+}
+
+function authBody(extra = {}) {
+  return JSON.stringify({ username, token: authToken, ...extra });
+}
+
+function requireLink(action) {
+  if (!authToken) { showLinkModal(); return false; }
+  return true;
+}
+
+function doEquip(uid) {
+  if (!requireLink()) return;
+  fetch('/api/equip', { method: 'POST', headers: authHeaders(), body: authBody({ itemUid: uid }) })
+    .then(r => r.json()).then(r => { if (r.error) toast(r.error, 'error'); else { toast('Item equipped!', 'success'); refreshProfile(); }});
+}
+
+function doUnequip(slot) {
+  if (!requireLink()) return;
+  fetch('/api/unequip', { method: 'POST', headers: authHeaders(), body: authBody({ slot }) })
+    .then(r => r.json()).then(r => { if (r.error) toast(r.error, 'error'); else { toast('Item unequipped!', 'success'); refreshProfile(); }});
+}
+
+function doBuyCosmetic(key) {
+  if (!requireLink()) return;
+  fetch('/api/buycosmetic', { method: 'POST', headers: authHeaders(), body: authBody({ key }) })
+    .then(r => r.json()).then(r => { if (r.error) toast(r.error, 'error'); else { toast('Cosmetic purchased!', 'success'); refreshProfile(); }});
+}
+
+function doEquipCosmetic(key) {
+  if (!requireLink()) return;
+  fetch('/api/equipcosmetic', { method: 'POST', headers: authHeaders(), body: authBody({ key }) })
+    .then(r => r.json()).then(r => { if (r.error) toast(r.error, 'error'); else { toast('Cosmetic equipped!', 'success'); refreshProfile(); }});
+}
+
+function doBuyMarket(lid) {
+  if (!requireLink()) return;
+  fetch('/api/buymarket', { method: 'POST', headers: authHeaders(), body: authBody({ listingId: lid }) })
+    .then(r => r.json()).then(r => { if (r.error) toast(r.error, 'error'); else { toast('Purchased from market!', 'success'); refreshProfile(); refreshTab('market'); }});
+}
+
+function doCancel(lid) {
+  if (!requireLink()) return;
+  fetch('/api/cancel', { method: 'POST', headers: authHeaders(), body: authBody({ listingId: lid }) })
+    .then(r => r.json()).then(r => { if (r.error) toast(r.error, 'error'); else { toast('Listing cancelled', 'success'); refreshProfile(); refreshTab('market'); }});
+}
+
+let gambleHistory = [];
+
+function switchGambleGame(game) {
+  document.querySelectorAll('.gamble-game').forEach(el => { el.classList.remove('active'); el.style.display = 'none'; });
+  document.querySelectorAll('.gamble-game-tab').forEach(el => { el.classList.remove('active'); el.classList.add('btn-outline'); el.classList.remove('btn-gold'); });
+  const panel = document.getElementById('game-' + game);
+  if (panel) { panel.classList.add('active'); panel.style.display = 'block'; }
+  const tab = document.querySelector(`.gamble-game-tab[data-game="${game}"]`);
+  if (tab) { tab.classList.add('active'); tab.classList.remove('btn-outline'); tab.classList.add('btn-gold'); }
+}
+
+function setGambleBet(game, amt) {
+  const input = document.getElementById(game + '-input');
+  if (amt === 'all') input.value = profile ? profile.gold : 0;
+  else input.value = amt;
+}
+
+function updateGambleGold() {
+  const el = document.getElementById('gamble-gold');
+  if (el && profile) el.textContent = profile.gold.toLocaleString();
+}
+
+function doGamble(game) {
+  if (!requireLink()) return;
+  const input = document.getElementById(game + '-input');
+  const amt = input.value;
+  if (!amt) return;
+  const resultEl = document.getElementById(game + '-result');
+
+  if (game === 'coinflip') {
+    resultEl.textContent = '🪙';
+    resultEl.style.animation = 'spin 0.5s ease';
+    fetch('/api/gamble', { method: 'POST', headers: authHeaders(), body: authBody({ amount: amt }) })
+      .then(r => r.json()).then(r => {
+        setTimeout(() => {
+          resultEl.style.animation = '';
+          if (r.error) { toast(r.error === 'broke' ? "You don't have enough gold!" : r.error, 'error'); resultEl.textContent = '❌'; return; }
+          if (r.won) {
+            resultEl.textContent = '🤑'; resultEl.style.color = 'var(--green)';
+            toast(`Won ${r.payout}g! 🎉`, 'success');
+          } else {
+            resultEl.textContent = '💀'; resultEl.style.color = 'var(--red)';
+            toast(`Lost ${r.bet}g 😢`, 'error');
+          }
+          setTimeout(() => { resultEl.style.color = ''; }, 2000);
+          gambleHistory.unshift({ game: '🪙', won: r.won, bet: r.bet, payout: r.won ? r.payout : 0, time: Date.now() });
+          if (gambleHistory.length > 30) gambleHistory.length = 30;
+          renderGambleHistory(); refreshProfile();
+        }, 500);
+      });
+
+  } else if (game === 'dice') {
+    resultEl.textContent = '🎲';
+    resultEl.style.animation = 'spin 0.5s ease';
+    fetch('/api/dice', { method: 'POST', headers: authHeaders(), body: authBody({ amount: amt }) })
+      .then(r => r.json()).then(r => {
+        setTimeout(() => {
+          resultEl.style.animation = '';
+          if (r.error) { toast(r.error === 'broke' ? "You don't have enough gold!" : r.error, 'error'); resultEl.textContent = '❌'; return; }
+          resultEl.textContent = r.roll;
+          if (r.won) {
+            resultEl.style.color = 'var(--green)';
+            const labels = { jackpot: '🔥 JACKPOT', big: '💰 BIG WIN', nice: '✨ Nice', win: '👍 Win' };
+            toast(`Rolled ${r.roll}! ${labels[r.tier]} ${r.mult}x = +${r.payout - r.bet}g`, 'success');
+          } else {
+            resultEl.style.color = 'var(--red)';
+            toast(`Rolled ${r.roll}... Lost ${r.bet}g 😢`, 'error');
+          }
+          setTimeout(() => { resultEl.style.color = ''; }, 2000);
+          gambleHistory.unshift({ game: '🎲', won: r.won, bet: r.bet, payout: r.won ? r.payout : 0, time: Date.now(), detail: `Roll: ${r.roll}` });
+          if (gambleHistory.length > 30) gambleHistory.length = 30;
+          renderGambleHistory(); refreshProfile();
+        }, 500);
+      });
+
+  } else if (game === 'slots') {
+    resultEl.textContent = '❓❓❓';
+    resultEl.style.animation = 'spin 0.6s ease';
+    fetch('/api/slots', { method: 'POST', headers: authHeaders(), body: authBody({ amount: amt }) })
+      .then(r => r.json()).then(r => {
+        setTimeout(() => {
+          resultEl.style.animation = '';
+          if (r.error) { toast(r.error === 'broke' ? "You don't have enough gold!" : r.error, 'error'); resultEl.textContent = '❌'; return; }
+          resultEl.textContent = r.reels.join(' ');
+          if (r.won) {
+            resultEl.style.color = 'var(--green)';
+            toast(`${r.reels.join('')} ${r.mult}x = +${r.payout - r.bet}g! 🎉`, 'success');
+          } else {
+            resultEl.style.color = 'var(--red)';
+            toast(`${r.reels.join('')} No match! Lost ${r.bet}g`, 'error');
+          }
+          setTimeout(() => { resultEl.style.color = ''; }, 2000);
+          gambleHistory.unshift({ game: '🎰', won: r.won, bet: r.bet, payout: r.won ? r.payout : 0, time: Date.now(), detail: r.reels.join('') });
+          if (gambleHistory.length > 30) gambleHistory.length = 30;
+          renderGambleHistory(); refreshProfile();
+        }, 600);
+      });
+  }
+}
+
+function renderGambleHistory() {
+  const el = document.getElementById('gamble-history');
+  if (!el) return;
+  if (gambleHistory.length === 0) { el.innerHTML = '<div style="color:var(--dim);text-align:center;padding:12px;">No bets yet. Try your luck!</div>'; return; }
+  el.innerHTML = gambleHistory.map(h => {
+    const time = new Date(h.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return `<div class="gamble-history-item ${h.won ? 'win' : 'loss'}">
+      <span>${h.game} ${h.won ? '✅ Won' : '❌ Lost'} ${h.bet}g</span>
+      <span>${h.won ? '+' + h.payout + 'g' : '-' + h.bet + 'g'}</span>
+      <span style="color:var(--dim)">${time}</span>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════
+// PvP Arena
+// ═══════════════════════════════════════════
+function renderArena() {
+  renderArenaStats();
+  loadPendingDuels();
+  loadArenaLeaderboard();
+}
+
+function renderArenaStats() {
+  const p = profile;
+  const grid = document.getElementById('arena-stat-grid');
+  if (!grid) return;
+  const ratingColor = (p.arenaRating || 1000) >= 1500 ? 'var(--gold)' : (p.arenaRating || 1000) >= 1200 ? 'var(--green)' : 'var(--text)';
+  const stats = [
+    { val: p.arenaRating || 1000, label: 'Arena Rating', color: ratingColor },
+    { val: p.duelsWon || 0, label: 'Wins', color: 'var(--green)' },
+    { val: p.duelsLost || 0, label: 'Losses', color: 'var(--red)' },
+    { val: p.duelWinStreak || 0, label: 'Win Streak', color: 'var(--gold)' },
+    { val: p.bestDuelStreak || 0, label: 'Best Streak', color: 'var(--purple)' },
+    { val: p.prestige || 0, label: 'Prestige', color: 'var(--gold)' },
+  ];
+  grid.innerHTML = stats.map(s => `<div class="stat-item"><div class="stat-value" style="color:${s.color}">${s.val}</div><div class="stat-label">${s.label}</div></div>`).join('');
+}
+
+function doChallengeDuel() {
+  if (!requireLink()) return;
+  const target = document.getElementById('duel-target').value.trim().toLowerCase();
+  const bet = document.getElementById('duel-bet').value || 0;
+  if (!target) { toast('Enter an opponent username', 'error'); return; }
+  fetch('/api/duel/challenge', { method: 'POST', headers: authHeaders(), body: authBody({ defender: target, bet }) })
+    .then(r => r.json()).then(r => {
+      if (r.error) {
+        const msgs = {
+          self_duel: "You can't fight yourself!",
+          not_found: "Player not found",
+          broke: "You don't have enough gold!",
+          defender_broke: "They don't have enough gold!",
+          cooldown: `Wait ${Math.ceil(r.remaining/1000)}s`,
+          already_pending: "You already have a pending duel",
+        };
+        toast(msgs[r.error] || r.error, 'error');
+      } else {
+        toast(`⚔️ Challenge sent to ${target}!`, 'success');
+        loadPendingDuels();
+      }
+    });
+}
+
+function loadPendingDuels() {
+  fetch(`/api/duel/pending/${username}`).then(r => r.json()).then(duels => {
+    const el = document.getElementById('pending-duels');
+    if (!el) return;
+    if (duels.length === 0) { el.innerHTML = '<div style="color:var(--dim);text-align:center;padding:12px;">No pending challenges</div>'; return; }
+    el.innerHTML = duels.map(d => {
+      const isDefender = d.defender === username;
+      const opponent = isDefender ? d.challenger : d.defender;
+      const timeLeft = Math.max(0, Math.ceil((d.expires - Date.now()) / 1000));
+      return `<div class="duel-pending-item">
+        <div class="duel-info">
+          ${isDefender ? '📩' : '📤'} <strong>${opponent}</strong> ${isDefender ? 'challenges you' : '(waiting...)'}
+          ${d.bet > 0 ? ` — <span class="duel-bet-tag">${d.bet}g bet</span>` : ' — Free duel'}
+          <span style="color:var(--dim);font-size:11px;margin-left:8px;">${timeLeft}s left</span>
+          <div style="color:var(--dim);font-size:11px;margin-top:2px;">🏟️ ${d.arena.name}</div>
+        </div>
+        <div style="display:flex;gap:6px;">
+          ${isDefender ? `<button class="btn btn-sm btn-gold" onclick="acceptDuel(${d.id})">✅ Accept</button>` : ''}
+          <button class="btn btn-sm btn-danger" onclick="declineDuel(${d.id})">❌ ${isDefender ? 'Decline' : 'Cancel'}</button>
+        </div>
+      </div>`;
+    }).join('');
+  });
+}
+
+function acceptDuel(duelId) {
+  if (!requireLink()) return;
+  window._duelAcceptedLocally = true;
+  fetch('/api/duel/accept', { method: 'POST', headers: authHeaders(), body: authBody({ duelId }) })
+    .then(r => r.json()).then(r => {
+      if (r.error) { window._duelAcceptedLocally = false; toast(r.error, 'error'); return; }
+      playDuelAnimation(r.result);
+      loadPendingDuels();
+      refreshProfile();
+      setTimeout(() => { window._duelAcceptedLocally = false; }, 1000);
+    });
+}
+
+function declineDuel(duelId) {
+  if (!requireLink()) return;
+  fetch('/api/duel/decline', { method: 'POST', headers: authHeaders(), body: authBody({ duelId }) })
+    .then(r => r.json()).then(r => {
+      if (r.error) toast(r.error, 'error');
+      else toast('Duel cancelled', 'success');
+      loadPendingDuels();
+    });
+}
+
+function playDuelAnimation(result) {
+  // Switch to arena tab so the user sees the fight
+  switchMainTab('battle');
+  switchSubTab('arena');
+
+  const card = document.getElementById('duel-fight-card');
+  card.style.display = 'block';
+  card.scrollIntoView({ behavior: 'smooth' });
+
+  const canvas = document.getElementById('arena-canvas');
+  const ctx = canvas.getContext('2d');
+  const W = 600, H = 340;
+  ctx.imageSmoothingEnabled = false;
+
+  const log = document.getElementById('arena-log');
+  const resultEl = document.getElementById('arena-result');
+  log.innerHTML = `<div style="text-align:center;color:var(--gold);font-weight:700;margin-bottom:8px;">🏟️ ${result.arena.name}<br><span style="font-size:11px;color:var(--dim);">${result.arena.desc}</span></div>`;
+  resultEl.innerHTML = '';
+
+  // Arena backgrounds
+  const ARENA_BG = {
+    colosseum: { sky: '#1a0a00', ground: '#5c3a1a', accent: '#ffd700' },
+    volcano: { sky: '#1a0000', ground: '#5c1a00', accent: '#ff4400' },
+    ice_cavern: { sky: '#001a33', ground: '#004466', accent: '#88ddff' },
+    shadow_realm: { sky: '#000011', ground: '#1a0033', accent: '#aa00ff' },
+    sky_platform: { sky: '#003366', ground: '#4488aa', accent: '#66ccff' },
+    dragons_lair: { sky: '#1a0000', ground: '#661a00', accent: '#ff8800' },
+  };
+  const bg = ARENA_BG[result.arena?.id] || ARENA_BG.colosseum;
+
+  // Fighter state
+  const cData = result.challengerData || {};
+  const dData = result.defenderData || {};
+  const S = 3; // pixel scale for fighters
+  const fighters = {
+    left: { name: result.challenger, x: 100, baseX: 100, y: 160, hp: 1, maxHP: 1, appearance: cData.appearance || {}, equipped: cData.equipped || {}, state: 'idle', stateTimer: 0, flash: 0 },
+    right: { name: result.defender, x: 430, baseX: 430, y: 160, hp: 1, maxHP: 1, appearance: dData.appearance || {}, equipped: dData.equipped || {}, state: 'idle', stateTimer: 0, flash: 0 },
+  };
+  // Set initial HP from first round data
+  if (result.rounds.length > 0) {
+    const r0 = result.rounds[0];
+    if (r0.attacker === result.challenger) {
+      fighters.right.maxHP = r0.defenderMaxHP; fighters.right.hp = r0.defenderMaxHP;
+      fighters.left.maxHP = r0.defenderMaxHP; fighters.left.hp = r0.defenderMaxHP; // approx
+    }
+  }
+  // Calculate actual max HPs
+  fighters.left.maxHP = 100 + (cData.level || 1) * 5 + (cData.prestige || 0) * 10;
+  fighters.left.hp = fighters.left.maxHP;
+  fighters.right.maxHP = 100 + (dData.level || 1) * 5 + (dData.prestige || 0) * 10;
+  fighters.right.hp = fighters.right.maxHP;
+
+  // Floating damage numbers
+  let floatingDmg = [];
+
+  // Draw a mini character on canvas
+  function drawFighter(f, flip) {
+    const a = f.appearance;
+    const eq = f.equipped;
+    const ox = Math.round(f.x), oy = Math.round(f.y);
+    const skin = a.skinColor || '#f5d0a9';
+    const hair = a.hairColor || '#2c1b0e';
+    const eye = a.eyeColor || '#3498db';
+    const outfitC = a.outfitColor || '#3498db';
+    const outfit = a.outfit || 'tshirt';
+    function px(x, y, w, h, color) {
+      const fx = flip ? ox + 24*S - (x + w) * S : ox + x * S;
+      ctx.fillStyle = color;
+      ctx.fillRect(fx, oy + y * S, w * S, h * S);
+    }
+    function darker(hex, amt) {
+      const num = parseInt((hex || '#888888').replace('#',''), 16);
+      return `rgb(${Math.max(0,(num>>16)-amt)},${Math.max(0,((num>>8)&0xff)-amt)},${Math.max(0,(num&0xff)-amt)})`;
+    }
+    const skinShade = darker(skin, 30);
+    const outfitShade = darker(outfitC, 40);
+
+    // If hit flash, tint white
+    if (f.flash > 0) {
+      ctx.globalAlpha = 0.5 + Math.sin(f.flash * 10) * 0.3;
+    }
+
+    // Head
+    const hx=6, hy=0;
+    px(hx+1,hy,8,8,skin); px(hx,hy+1,10,6,skin);
+    px(hx+1,hy+6,2,1,skinShade); px(hx+7,hy+6,2,1,skinShade);
+    // Hair
+    const hs = a.hairStyle || 'spiky';
+    if (hs==='spiky'){px(hx,hy-1,10,2,hair);px(hx+1,hy-2,2,1,hair);px(hx+4,hy-3,2,1,hair);px(hx+7,hy-2,2,1,hair);}
+    else if(hs==='flat'){px(hx,hy-1,10,2,hair);}
+    else if(hs==='mohawk'){px(hx+3,hy-3,4,4,hair);}
+    else if(hs==='long'){px(hx,hy-1,10,2,hair);px(hx-1,hy+1,2,7,hair);px(hx+9,hy+1,2,7,hair);}
+    else if(hs==='curly'){px(hx-1,hy-1,12,2,hair);px(hx-1,hy+1,2,4,hair);px(hx+9,hy+1,2,4,hair);}
+    else if(hs==='messy'){px(hx-1,hy-2,12,3,hair);px(hx+1,hy-3,2,1,hair);px(hx+6,hy-3,3,1,hair);}
+    // Eyes
+    const lex=hx+2, rex=hx+6, eey=hy+3;
+    px(lex,eey,2,1,'#fff');px(lex+1,eey,1,1,eye);
+    px(rex,eey,2,1,'#fff');px(rex,eey,1,1,eye);
+    // Mouth
+    px(hx+3,hy+5,4,1,darker(skin,60));
+    // Neck
+    px(hx+3,hy+8,4,2,skin);
+    // Body
+    const bx=4, by=10;
+    px(bx,by,16,12,outfitC); px(bx+1,by,14,12,outfitC);
+    if(outfit==='hoodie'){px(bx-2,by,2,8,outfitC);px(bx+16,by,2,8,outfitC);px(bx+5,by,6,3,outfitShade);}
+    else if(outfit==='armor_light'){px(bx-2,by,2,6,'#888');px(bx+16,by,2,6,'#888');px(bx+5,by+1,6,4,'#aaa');}
+    else {px(bx-2,by,2,5,outfitC);px(bx+16,by,2,5,outfitC);}
+    // Arms
+    const armY = by + (outfit==='hoodie'?8:5);
+    px(bx-2,armY,2,5,skin);px(bx+16,armY,2,5,skin);
+    px(bx-2,armY+5,2,2,skin);px(bx+16,armY+5,2,2,skin);
+    // Weapon
+    if(eq.weapon){
+      const wRar=eq.weapon.rarity||'common';
+      const wCol=wRar==='legendary'?'#fbbf24':wRar==='epic'?'#c084fc':wRar==='rare'?'#60a5fa':wRar==='uncommon'?'#4ade80':'#aaa';
+      const wy=armY+3, wx=flip?bx-4:bx+18;
+      px(wx,wy-6,1,7,wCol);px(wx-1,wy-7,3,1,wCol);px(wx-1,wy+1,3,1,'#8b4513');px(wx,wy+2,1,2,'#654321');
+    }
+    // Armor overlay
+    if(eq.armor){
+      const aCol=eq.armor.rarity==='legendary'?'#fbbf24':eq.armor.rarity==='epic'?'#c084fc':'#aaa';
+      px(bx-1,by-1,4,2,aCol);px(bx+13,by-1,4,2,aCol);px(bx+2,by+9,12,1,aCol);
+    }
+    // Legs
+    px(bx+2,by+12,5,6,'#2c3e50');px(bx+9,by+12,5,6,'#2c3e50');
+    px(bx+1,by+18,6,2,'#1a1a2e');px(bx+9,by+18,6,2,'#1a1a2e');
+
+    ctx.globalAlpha = 1;
+  }
+
+  // Draw HP bar above fighter
+  function drawHPBar(f) {
+    const barW = 70, barH = 8;
+    const bx = f.x + 12*S - barW/2, by = f.y - 20;
+    ctx.fillStyle = '#222';
+    ctx.fillRect(bx-1, by-1, barW+2, barH+2);
+    const pct = Math.max(0, f.hp / f.maxHP);
+    ctx.fillStyle = pct > 0.5 ? '#44ff44' : pct > 0.2 ? '#ffaa00' : '#ff4444';
+    ctx.fillRect(bx, by, barW * pct, barH);
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 9px "Press Start 2P", monospace'; ctx.textAlign = 'center';
+    ctx.fillText(f.name, f.x + 12*S, by - 6);
+  }
+
+  // Draw background
+  function drawBG() {
+    // Sky gradient
+    const grd = ctx.createLinearGradient(0, 0, 0, H);
+    grd.addColorStop(0, bg.sky);
+    grd.addColorStop(0.6, bg.ground);
+    grd.addColorStop(1, bg.ground);
+    ctx.fillStyle = grd;
+    ctx.fillRect(0, 0, W, H);
+    // Ground line
+    ctx.fillStyle = bg.accent;
+    ctx.globalAlpha = 0.3;
+    ctx.fillRect(0, 280, W, 2);
+    ctx.globalAlpha = 1;
+    // Ground texture
+    ctx.fillStyle = bg.ground;
+    ctx.fillRect(0, 282, W, 60);
+    // Arena name
+    ctx.fillStyle = bg.accent; ctx.globalAlpha = 0.7;
+    ctx.font = 'bold 11px "Press Start 2P", monospace'; ctx.textAlign = 'center';
+    ctx.fillText(result.arena?.name || 'Arena', W/2, 24);
+    ctx.globalAlpha = 1;
+    // Arena particles
+    if (result.arena?.id === 'volcano') {
+      for (let i = 0; i < 4; i++) {
+        ctx.fillStyle = `rgba(255,${68+Math.random()*100|0},0,${0.3+Math.random()*0.4})`;
+        ctx.fillRect(Math.random()*W, H-60-Math.random()*200, 2, 2);
+      }
+    } else if (result.arena?.id === 'ice_cavern') {
+      for (let i = 0; i < 3; i++) {
+        ctx.fillStyle = `rgba(136,221,255,${0.2+Math.random()*0.3})`;
+        ctx.fillRect(Math.random()*W, Math.random()*H*0.6, 2, 2);
+      }
+    } else if (result.arena?.id === 'dragons_lair') {
+      ctx.fillStyle = 'rgba(255,136,0,0.15)';
+      ctx.fillRect(W/2-30, H-80, 60, 20);
+    }
+  }
+
+  // Render frame
+  let animFrame = null;
+  function render() {
+    ctx.clearRect(0, 0, W, H);
+    drawBG();
+    // Update state timers
+    ['left','right'].forEach(side => {
+      const f = fighters[side];
+      if (f.stateTimer > 0) f.stateTimer--;
+      else f.state = 'idle';
+      if (f.flash > 0) f.flash -= 0.1;
+      // Idle bobbing
+      if (f.state === 'idle') {
+        f.y = 160 + Math.sin(Date.now() / 400) * 3;
+        f.x = f.baseX;
+      }
+      // Attack lunge
+      if (f.state === 'attacking') {
+        const prog = 1 - f.stateTimer / 8;
+        const lunge = side === 'left' ? 30 : -30;
+        f.x = f.baseX + (prog < 0.5 ? lunge * prog * 2 : lunge * (1 - prog) * 2);
+      }
+    });
+    drawFighter(fighters.left, false);
+    drawFighter(fighters.right, true);
+    drawHPBar(fighters.left);
+    drawHPBar(fighters.right);
+    // Floating damage
+    floatingDmg = floatingDmg.filter(d => d.life > 0);
+    floatingDmg.forEach(d => {
+      d.y -= 1.2; d.life--;
+      ctx.globalAlpha = Math.min(1, d.life / 15);
+      ctx.font = d.crit ? 'bold 16px "Press Start 2P", monospace' : 'bold 12px "Press Start 2P", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = d.color;
+      ctx.fillText(d.text, d.x, d.y);
+      ctx.globalAlpha = 1;
+    });
+    // VS text in center (fades after rounds start)
+    animFrame = requestAnimationFrame(render);
+  }
+  render();
+
+  // Play rounds
+  const rounds = result.rounds;
+  let i = 0;
+  let leftHP = fighters.left.maxHP, rightHP = fighters.right.maxHP;
+
+  function playRound() {
+    if (i >= rounds.length) {
+      // Show result
+      resultEl.innerHTML = `
+        <div class="winner">🏆 ${result.winner} WINS!</div>
+        ${result.bet > 0 ? `<div style="color:var(--gold);font-size:14px;margin-top:4px;">+${result.bet}g</div>` : ''}
+        <div style="color:var(--dim);font-size:12px;margin-top:4px;">Rating: ${result.ratingChange > 0 ? '+' : ''}${result.ratingChange}</div>
+      `;
+      // Winner celebration — make winner bounce
+      const winSide = result.winner === result.challenger ? 'left' : 'right';
+      fighters[winSide].state = 'idle';
+      renderArenaStats();
+      loadArenaLeaderboard();
+      // Stop animation after a bit
+      setTimeout(() => { if (animFrame) cancelAnimationFrame(animFrame); }, 5000);
+      return;
+    }
+
+    const r = rounds[i];
+    const isLeftAttacking = r.attacker === result.challenger;
+    const attacker = isLeftAttacking ? fighters.left : fighters.right;
+    const defender = isLeftAttacking ? fighters.right : fighters.left;
+
+    // Trigger attack animation
+    attacker.state = 'attacking';
+    attacker.stateTimer = 8;
+
+    setTimeout(() => {
+      if (!r.dodged) {
+        defender.flash = 1.5;
+        // Update HP
+        if (isLeftAttacking) {
+          rightHP = r.defenderHP;
+          fighters.right.hp = r.defenderHP;
+        } else {
+          leftHP = r.defenderHP;
+          fighters.left.hp = r.defenderHP;
+        }
+        // Floating damage number
+        floatingDmg.push({
+          x: defender.baseX + 36, y: defender.y + 20,
+          text: r.isCrit ? `CRIT ${r.damage}!` : `${r.damage}`,
+          color: r.isCrit ? '#ff4444' : r.dragonHit > 0 ? '#ff8800' : '#fff',
+          crit: r.isCrit, life: 40,
+        });
+        if (r.dragonHit > 0) {
+          floatingDmg.push({
+            x: defender.baseX + 50, y: defender.y + 40,
+            text: `🐉+${r.dragonHit}`, color: '#ff8800', crit: false, life: 35,
+          });
+        }
+      } else {
+        floatingDmg.push({
+          x: defender.baseX + 36, y: defender.y + 20,
+          text: 'DODGE!', color: '#4ade80', crit: false, life: 35,
+        });
+      }
+    }, 200);
+
+    // Log line
+    let cls = 'round-line', line = '';
+    if (r.dodged) { cls = 'dodge-line'; line = `⚡ ${r.attacker === result.challenger ? result.defender : result.challenger} dodged!`; }
+    else if (r.isCrit) { cls = 'crit-line'; line = `💥 ${r.attacker} CRIT ${r.damage} dmg!`; }
+    else { line = `⚔️ ${r.attacker} hits for ${r.damage} dmg`; }
+    if (r.dragonHit > 0) line += ` <span class="dragon-line">🐉 +${r.dragonHit} dragon fire!</span>`;
+    log.innerHTML += `<div class="${cls}">${line}</div>`;
+    log.scrollTop = log.scrollHeight;
+
+    i++;
+    setTimeout(playRound, 700);
+  }
+
+  setTimeout(playRound, 800);
+}
+
+function loadArenaLeaderboard() {
+  fetch('/api/arena/leaderboard').then(r => r.json()).then(data => {
+    const el = document.getElementById('arena-lb');
+    if (!el) return;
+    if (data.length === 0) { el.innerHTML = '<div style="color:var(--dim);text-align:center;padding:12px;">No duels yet. Be the first!</div>'; return; }
+    el.innerHTML = `<table class="lb-table"><thead><tr><th>#</th><th>Player</th><th>Rating</th><th>W/L</th><th>Streak</th><th>Prestige</th></tr></thead><tbody>` +
+      data.map((p, i) => `<tr${p.username === username ? ' style="background:rgba(251,191,36,0.08)"' : ''}>
+        <td class="lb-rank">${i + 1}</td>
+        <td>${p.rankBadge || ''}${esc(p.username)}</td>
+        <td style="color:var(--gold);font-weight:700;">${p.rating}</td>
+        <td><span style="color:var(--green)">${p.wins}</span>/<span style="color:var(--red)">${p.losses}</span></td>
+        <td>${p.winStreak}🔥</td>
+        <td>${p.prestige > 0 ? '⭐'.repeat(Math.min(p.prestige, 5)) + (p.prestige > 5 ? '+' : '') : '-'}</td>
+      </tr>`).join('') + `</tbody></table>`;
+  });
+}
+
+// ═══════════════════════════════════════════
+// Prestige System
+// ═══════════════════════════════════════════
+function renderPrestige() {
+  fetch(`/api/prestige/${username}`).then(r => r.json()).then(data => {
+    const infoEl = document.getElementById('prestige-info');
+    const ranksEl = document.getElementById('prestige-ranks');
+    if (!infoEl || !ranksEl) return;
+
+    const canDo = data.canPrestige;
+    const pctToReq = data.requiredLevel ? Math.min(100, (data.currentLevel / data.requiredLevel) * 100) : 100;
+
+    infoEl.innerHTML = `
+      <div class="prestige-current">
+        <div class="prestige-icon">${data.currentIcon || '🆕'}</div>
+        <div class="prestige-rank-name">${data.prestige > 0 ? data.currentRank : 'No Prestige'}</div>
+        <div class="prestige-bonus">${data.dmgBonus > 0 ? `+${(data.dmgBonus * 100).toFixed(0)}% Permanent Damage Bonus` : 'Prestige to unlock permanent bonuses!'}</div>
+        ${data.nextRank !== 'MAX' ? `
+          <div class="prestige-level-req">
+            Next: <strong>${data.nextRank}</strong> — Requires Level ${data.requiredLevel}
+            <div style="margin-top:4px;color:var(--dim);">Current Level: ${data.currentLevel}</div>
+            <div style="margin-top:8px;">
+              <div class="xp-bar-wrap"><div class="xp-bar-fill" style="width:${pctToReq}%;background:var(--gold);"></div><div class="xp-bar-text">${data.currentLevel} / ${data.requiredLevel}</div></div>
+            </div>
+            <div style="margin-top:8px;color:var(--dim);font-size:12px;">
+              Reward: <span style="color:var(--gold)">${(data.nextGoldReward || 0).toLocaleString()}g</span> + <span style="color:var(--green)">+${((data.nextDmgBonus || 0) * 100).toFixed(0)}% dmg</span>
+            </div>
+          </div>
+          <button class="btn ${canDo ? 'btn-gold' : 'btn-outline'}" onclick="doPrestige()" ${canDo ? '' : 'disabled'} style="margin-top:16px;font-size:16px;padding:14px 32px;">
+            ${canDo ? '🏅 PRESTIGE NOW!' : `🔒 Reach Level ${data.requiredLevel}`}
+          </button>
+          ${canDo ? '<div style="color:var(--red);font-size:11px;margin-top:8px;">⚠️ This will reset your level to 1!</div>' : ''}
+        ` : '<div style="color:var(--gold);font-size:18px;margin-top:16px;">☀️ MAX PRESTIGE ACHIEVED!</div>'}
+      </div>
+    `;
+
+    ranksEl.innerHTML = '<div class="prestige-rank-list">' + (data.allRanks || []).map((r, i) => {
+      const isCurrent = (i + 1) === data.prestige;
+      const isUnlocked = (i + 1) <= data.prestige;
+      return `<div class="prestige-rank-item ${isCurrent ? 'current' : ''} ${!isUnlocked ? 'locked' : ''}">
+        <div class="rank-icon">${r.icon}</div>
+        <div class="rank-info">
+          <div class="rank-name" style="${isCurrent ? 'color:var(--gold)' : ''}">${r.name} ${isUnlocked ? '✅' : '🔒'}</div>
+          <div class="rank-details">+${(r.dmgBonus * 100).toFixed(0)}% dmg | ${r.goldReward.toLocaleString()}g reward | Req: Lv${r.minLevel}</div>
+        </div>
+      </div>`;
+    }).join('') + '</div>';
+  });
+}
+
+function doPrestige() {
+  if (!requireLink()) return;
+  if (!confirm('⚠️ Prestige will RESET your level to 1 but give you permanent damage bonus + gold. Continue?')) return;
+  fetch('/api/prestige', { method: 'POST', headers: authHeaders(), body: authBody({}) })
+    .then(r => r.json()).then(r => {
+      if (r.error) {
+        const msgs = { max_prestige: "You're already max prestige!", level_too_low: `Need level ${r.required} (currently ${r.current})` };
+        toast(msgs[r.error] || r.error, 'error');
+      } else {
+        toast(`🏅 PRESTIGE ${r.newPrestige}! ${r.prestigeName} — +${r.goldReward}g!`, 'success');
+        refreshProfile();
+        renderPrestige();
+      }
+    });
+}
+
+function doGift() {
+  if (!requireLink()) return;
+  const target = document.getElementById('gift-target').value.trim().toLowerCase();
+  const amount = document.getElementById('gift-amount').value;
+  if (!target || !amount) return;
+  fetch('/api/gift', { method: 'POST', headers: authHeaders(), body: authBody({ target, amount }) })
+    .then(r => r.json()).then(r => { if (r.error) toast(r.error, 'error'); else { toast(`Sent ${amount} gold to ${target}!`, 'success'); refreshProfile(); }});
+}
+
+// ── Tip modal ──
+function showTipModal() {
+  if (!requireLink()) return;
+  document.getElementById('tip-target').value = '';
+  document.getElementById('tip-amount').value = '';
+  const tg = document.getElementById('tip-gold');
+  if (tg && profile) tg.textContent = profile.gold.toLocaleString();
+  document.getElementById('tip-modal').classList.add('show');
+}
+function hideTipModal() { document.getElementById('tip-modal').classList.remove('show'); }
+function setTipAmount(amt) { document.getElementById('tip-amount').value = amt; }
+function doTip() {
+  const target = document.getElementById('tip-target').value.trim().toLowerCase();
+  const amount = document.getElementById('tip-amount').value;
+  if (!target || !amount) { toast('Enter a username and amount', 'error'); return; }
+  fetch('/api/gift', { method: 'POST', headers: authHeaders(), body: authBody({ target, amount }) })
+    .then(r => r.json()).then(r => {
+      if (r.error) toast(r.error, 'error');
+      else { toast(`Tipped ${amount}g to ${target}! 💸`, 'success'); hideTipModal(); refreshProfile(); }
+    });
+}
+
+// ── Sell modal ──
+function showSellModal(uid, name, type) {
+  if (!requireLink()) return;
+  sellItemUid = uid;
+  sellItemType = type;
+  document.getElementById('sell-item-name').textContent = name;
+  document.getElementById('sell-price').value = '';
+  document.getElementById('sell-modal').classList.add('show');
+}
+
+function hideSellModal() {
+  document.getElementById('sell-modal').classList.remove('show');
+  sellItemUid = null; sellItemType = null;
+}
+
+function confirmSell() {
+  const price = document.getElementById('sell-price').value;
+  if (!price || price < 1) return;
+  const endpoint = sellItemType === 'cosmetic' ? '/api/sellcosmetic' : '/api/sell';
+  const bodyData = sellItemType === 'cosmetic' ? { key: sellItemUid, price } : { itemUid: sellItemUid, price };
+  fetch(endpoint, { method: 'POST', headers: authHeaders(), body: authBody(bodyData) })
+    .then(r => r.json()).then(r => {
+      if (r.error) toast(r.error, 'error');
+      else { toast('Listed on market!', 'success'); refreshProfile(); refreshTab('market'); }
+      hideSellModal();
+    });
+}
+
+// ═══════════════════════════════════════════
+// Account Linking
+// ═══════════════════════════════════════════
+let linkAbort = null;
+
+function showLinkModal() {
+  document.getElementById('link-modal').classList.add('show');
+  const statusEl = document.getElementById('link-status');
+  const codeEl = document.getElementById('link-code');
+  statusEl.className = 'status waiting';
+  statusEl.innerHTML = '<span class="spinner"></span>Generating code...';
+  codeEl.textContent = '...';
+
+  // Long-poll the server (also generates & stores the code)
+  linkAbort = new AbortController();
+  fetch('/api/link', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username }),
+    signal: linkAbort.signal,
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (data.token) {
+        authToken = data.token;
+        localStorage.setItem('mmo_token_' + username, authToken);
+        statusEl.className = 'status success';
+        statusEl.textContent = '✅ Account linked successfully!';
+        updateAuthBadge();
+        setTimeout(() => { hideLinkModal(); renderAll(); }, 1500);
+      } else {
+        statusEl.className = 'status error';
+        statusEl.textContent = '❌ ' + (data.error || 'Timed out. Try again.');
+      }
+    })
+    .catch(err => {
+      if (err.name === 'AbortError') return;
+      statusEl.className = 'status error';
+      statusEl.textContent = '❌ Connection error. Try again.';
+    });
+
+  // Fetch the code to display (small delay to let server generate it)
+  setTimeout(() => {
+    fetch('/api/link/code/' + encodeURIComponent(username))
+      .then(r => r.json())
+      .then(data => {
+        if (data.code) {
+          codeEl.textContent = data.code;
+          statusEl.className = 'status waiting';
+          statusEl.innerHTML = '<span class="spinner"></span>Waiting for you to type <b>!link ' + data.code + '</b> in Kick chat...';
+        }
+      });
+  }, 300);
+}
+
+function doRelink() {
+  authToken = null;
+  localStorage.removeItem('mmo_token_' + username);
+  updateAuthBadge();
+  showLinkModal();
+}
+
+function hideLinkModal() {
+  document.getElementById('link-modal').classList.remove('show');
+  if (linkAbort) { linkAbort.abort(); linkAbort = null; }
+}
+
+// ═══════════════════════════════════════════
+// Toast Notifications
+// ═══════════════════════════════════════════
+function toast(message, type = '') {
+  const container = document.getElementById('toasts');
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  el.textContent = message;
+  container.appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, 3500);
+}
+
+// ═══════════════════════════════════════════
+// Helpers
+// ═══════════════════════════════════════════
+function esc(str) {
+  return str.replace(/'/g, "\\'").replace(/"/g, '\\"');
+}
+
+let vendorPrices = {};
+fetch('/api/vendorprices').then(r => r.json()).then(d => vendorPrices = d);
+
+// ═══════════════════════════════════════════
+// Vendor Sell
+// ═══════════════════════════════════════════
+function doVendorSell(uid, name, rarity) {
+  if (!requireLink()) return;
+  const price = vendorPrices[rarity] || 5;
+  if (!confirm(`Vendor sell "${name}" for ${price}g? (instant, no listing)`)) return;
+  fetch('/api/vendorsell', { method: 'POST', headers: authHeaders(), body: authBody({ itemUid: uid }) })
+    .then(r => r.json()).then(r => {
+      if (r.error) toast(r.error, 'error');
+      else { toast(`Sold ${r.item} for ${r.gold}g!`, 'success'); refreshProfile(); }
+    });
+}
+
+// ═══════════════════════════════════════════
+// Pixel Character Renderer
+// ═══════════════════════════════════════════
+let currentAppearance = null;
+let appearanceDirty = false;
+
+const SKIN_COLORS = ['#f5d0a9','#c68642','#8d5524','#ffdbac','#e0ac69','#6b4226','#f1c27d','#d4a574'];
+const HAIR_STYLES = ['spiky','flat','mohawk','long','bald','curly','ponytail','messy'];
+const HAIR_COLORS = ['#2c1b0e','#8b4513','#daa520','#c0392b','#2c3e50','#ecf0f1','#8e44ad','#e67e22','#1abc9c','#e74c3c'];
+const EYE_STYLES = ['normal','angry','happy','cool','sleepy','wide','dot','wink'];
+const EYE_COLORS = ['#3498db','#2ecc71','#8b4513','#2c3e50','#e74c3c','#9b59b6','#f39c12'];
+const MOUTH_STYLES = ['smile','neutral','open','smirk','frown','teeth','tiny'];
+const OUTFITS = ['tshirt','tank','hoodie','vest','robe','armor_light'];
+const OUTFIT_COLORS = ['#e74c3c','#3498db','#2ecc71','#9b59b6','#f39c12','#1abc9c','#e67e22','#34495e','#ecf0f1'];
+
+function renderCharacter() {
+  if (!profile) return;
+  currentAppearance = { ...(profile.appearance || {}) };
+  drawCharacter();
+  buildCustomizeUI();
+  updateEquipTags();
+  appearanceDirty = false;
+  document.getElementById('save-appearance-btn').style.display = 'none';
+}
+
+function buildCustomizeUI() {
+  const a = currentAppearance;
+
+  // Color swatches
+  buildColorPicker('pick-skinColor', SKIN_COLORS, a.skinColor, c => { setAppearance('skinColor', c); });
+  buildColorPicker('pick-hairColor', HAIR_COLORS, a.hairColor, c => { setAppearance('hairColor', c); });
+  buildColorPicker('pick-eyeColor', EYE_COLORS, a.eyeColor, c => { setAppearance('eyeColor', c); });
+  buildColorPicker('pick-outfitColor', OUTFIT_COLORS, a.outfitColor, c => { setAppearance('outfitColor', c); });
+
+  // Option chips
+  buildOptionPicker('pick-hairStyle', HAIR_STYLES, a.hairStyle, v => { setAppearance('hairStyle', v); });
+  buildOptionPicker('pick-eyeStyle', EYE_STYLES, a.eyeStyle, v => { setAppearance('eyeStyle', v); });
+  buildOptionPicker('pick-mouthStyle', MOUTH_STYLES, a.mouthStyle, v => { setAppearance('mouthStyle', v); });
+  buildOptionPicker('pick-outfit', OUTFITS, a.outfit, v => { setAppearance('outfit', v); });
+}
+
+function buildColorPicker(id, colors, active, cb) {
+  const el = document.getElementById(id);
+  el.innerHTML = colors.map(c =>
+    `<div class="color-swatch ${c === active ? 'active' : ''}" style="background:${c}" onclick="this.parentNode.querySelectorAll('.color-swatch').forEach(s=>s.classList.remove('active'));this.classList.add('active')"></div>`
+  ).join('');
+  el.querySelectorAll('.color-swatch').forEach((sw, i) => {
+    sw.addEventListener('click', () => cb(colors[i]));
+  });
+}
+
+function buildOptionPicker(id, options, active, cb) {
+  const el = document.getElementById(id);
+  el.innerHTML = options.map(o =>
+    `<div class="option-chip ${o === active ? 'active' : ''}">${o}</div>`
+  ).join('');
+  el.querySelectorAll('.option-chip').forEach((ch, i) => {
+    ch.addEventListener('click', () => {
+      el.querySelectorAll('.option-chip').forEach(c => c.classList.remove('active'));
+      ch.classList.add('active');
+      cb(options[i]);
+    });
+  });
+}
+
+function setAppearance(key, value) {
+  currentAppearance[key] = value;
+  appearanceDirty = true;
+  document.getElementById('save-appearance-btn').style.display = authToken ? 'inline-block' : 'none';
+  drawCharacter();
+}
+
+function randomizeAppearance() {
+  const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+  currentAppearance = {
+    skinColor: pick(SKIN_COLORS), hairStyle: pick(HAIR_STYLES), hairColor: pick(HAIR_COLORS),
+    eyeStyle: pick(EYE_STYLES), eyeColor: pick(EYE_COLORS), mouthStyle: pick(MOUTH_STYLES),
+    outfit: pick(OUTFITS), outfitColor: pick(OUTFIT_COLORS),
+  };
+  appearanceDirty = true;
+  document.getElementById('save-appearance-btn').style.display = authToken ? 'inline-block' : 'none';
+  buildCustomizeUI();
+  drawCharacter();
+}
+
+function saveAppearance() {
+  if (!authToken || !appearanceDirty) return;
+  fetch('/api/appearance', { method: 'POST', headers: authHeaders(), body: JSON.stringify(currentAppearance) })
+    .then(r => r.json()).then(r => {
+      if (r.success) {
+        toast('Character saved! 🎨', 'success');
+        appearanceDirty = false;
+        document.getElementById('save-appearance-btn').style.display = 'none';
+        if (profile) profile.appearance = { ...currentAppearance };
+      } else toast('Save failed', 'error');
+    });
+}
+
+function updateEquipTags() {
+  const el = document.getElementById('char-equip-tags');
+  if (!el || !profile) return;
+  const eq = profile.equipped || {};
+  const slots = [
+    { key: 'weapon', emoji: '🗡️', label: 'Weapon' },
+    { key: 'armor', emoji: '🛡️', label: 'Armor' },
+    { key: 'accessory', emoji: '💍', label: 'Accessory' },
+  ];
+  el.innerHTML = slots.map(s => {
+    const item = eq[s.key];
+    return `<div class="char-equip-tag ${item ? 'filled' : ''}">${s.emoji} ${item ? item.name : 'None'}</div>`;
+  }).join('');
+}
+
+function drawCharacter() {
+  const canvas = document.getElementById('char-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = 160, H = 240;
+  const S = 4; // pixel scale
+  ctx.clearRect(0, 0, W, H);
+  ctx.imageSmoothingEnabled = false;
+
+  const a = currentAppearance || {};
+  const eq = (profile && profile.equipped) || {};
+
+  // Helper: draw a filled pixel rect
+  function px(x, y, w, h, color) {
+    ctx.fillStyle = color;
+    ctx.fillRect(x * S, y * S, w * S, h * S);
+  }
+
+  // Helper: darker shade
+  function darker(hex, amt) {
+    const num = parseInt(hex.replace('#',''), 16);
+    const r = Math.max(0, (num >> 16) - amt);
+    const g = Math.max(0, ((num >> 8) & 0xff) - amt);
+    const b = Math.max(0, (num & 0xff) - amt);
+    return `rgb(${r},${g},${b})`;
+  }
+
+  const skin = a.skinColor || '#f5d0a9';
+  const skinShade = darker(skin, 30);
+  const hair = a.hairColor || '#2c1b0e';
+  const eye = a.eyeColor || '#3498db';
+  const outfitC = a.outfitColor || '#3498db';
+  const outfitShade = darker(outfitC, 40);
+
+  // ── BODY (centered at x=14, y starts at head top ~8) ──
+
+  // HEAD (10x10 pixels, at x=15, y=8)
+  const hx = 15, hy = 8;
+  // Head shape
+  px(hx+1, hy, 8, 10, skin);
+  px(hx, hy+1, 10, 8, skin);
+  // Cheek shade
+  px(hx+1, hy+7, 2, 1, skinShade);
+  px(hx+7, hy+7, 2, 1, skinShade);
+
+  // ── HAIR ──
+  const hs = a.hairStyle || 'spiky';
+  if (hs === 'spiky') {
+    px(hx, hy-2, 10, 3, hair); px(hx+1, hy-3, 2, 1, hair); px(hx+4, hy-4, 2, 1, hair); px(hx+7, hy-3, 2, 1, hair);
+    px(hx, hy+1, 1, 3, hair); px(hx+9, hy+1, 1, 3, hair);
+  } else if (hs === 'flat') {
+    px(hx, hy-1, 10, 2, hair); px(hx, hy+1, 1, 2, hair); px(hx+9, hy+1, 1, 2, hair);
+  } else if (hs === 'mohawk') {
+    px(hx+3, hy-4, 4, 5, hair); px(hx+4, hy-5, 2, 1, hair);
+  } else if (hs === 'long') {
+    px(hx, hy-1, 10, 2, hair); px(hx-1, hy+1, 2, 9, hair); px(hx+9, hy+1, 2, 9, hair);
+    px(hx, hy+1, 1, 4, hair); px(hx+9, hy+1, 1, 4, hair);
+  } else if (hs === 'curly') {
+    px(hx-1, hy-1, 12, 2, hair); px(hx-1, hy+1, 2, 5, hair); px(hx+9, hy+1, 2, 5, hair);
+    px(hx, hy-2, 3, 1, hair); px(hx+5, hy-2, 3, 1, hair);
+  } else if (hs === 'ponytail') {
+    px(hx, hy-1, 10, 2, hair); px(hx+9, hy+1, 1, 3, hair); px(hx+10, hy+2, 1, 6, hair); px(hx+11, hy+5, 1, 4, hair);
+  } else if (hs === 'messy') {
+    px(hx-1, hy-2, 12, 3, hair); px(hx+1, hy-3, 2, 1, hair); px(hx+6, hy-3, 3, 1, hair);
+    px(hx-1, hy+1, 1, 3, hair); px(hx+10, hy+1, 1, 3, hair);
+  }
+  // bald = no hair drawn
+
+  // ── EYES ──
+  const es = a.eyeStyle || 'normal';
+  const lex = hx+2, rex = hx+6, ey = hy+4;
+  if (es === 'normal') {
+    px(lex, ey, 2, 2, '#fff'); px(lex+1, ey, 1, 2, eye);
+    px(rex, ey, 2, 2, '#fff'); px(rex, ey, 1, 2, eye);
+  } else if (es === 'angry') {
+    px(lex, ey, 2, 1, '#fff'); px(lex+1, ey, 1, 1, eye); px(lex, ey-1, 1, 1, hair);
+    px(rex, ey, 2, 1, '#fff'); px(rex, ey, 1, 1, eye); px(rex+1, ey-1, 1, 1, hair);
+  } else if (es === 'happy') {
+    px(lex, ey, 2, 1, eye); px(lex, ey-1, 2, 1, '#fff');
+    px(rex, ey, 2, 1, eye); px(rex, ey-1, 2, 1, '#fff');
+  } else if (es === 'cool') {
+    px(lex-1, ey, 3, 1, '#1a1a2e'); px(rex-1, ey, 3, 1, '#1a1a2e');
+    px(lex, ey, 1, 1, '#333'); px(rex+1, ey, 1, 1, '#333');
+  } else if (es === 'sleepy') {
+    px(lex, ey, 2, 1, skin); px(lex, ey+1, 2, 1, eye);
+    px(rex, ey, 2, 1, skin); px(rex, ey+1, 2, 1, eye);
+  } else if (es === 'wide') {
+    px(lex, ey-1, 2, 3, '#fff'); px(lex+1, ey, 1, 1, eye);
+    px(rex, ey-1, 2, 3, '#fff'); px(rex, ey, 1, 1, eye);
+  } else if (es === 'dot') {
+    px(lex+1, ey, 1, 1, eye); px(rex, ey, 1, 1, eye);
+  } else if (es === 'wink') {
+    px(lex, ey, 2, 2, '#fff'); px(lex+1, ey, 1, 2, eye);
+    px(rex, ey, 2, 1, eye);
+  }
+
+  // ── MOUTH ──
+  const ms = a.mouthStyle || 'smile';
+  const mx = hx+3, my = hy+7;
+  if (ms === 'smile') { px(mx, my, 4, 1, darker(skin, 60)); px(mx+1, my+1, 2, 1, darker(skin, 60)); }
+  else if (ms === 'neutral') { px(mx, my, 4, 1, darker(skin, 60)); }
+  else if (ms === 'open') { px(mx+1, my, 2, 2, '#2c1b0e'); px(mx+1, my+1, 2, 1, '#c0392b'); }
+  else if (ms === 'smirk') { px(mx+1, my, 3, 1, darker(skin, 60)); px(mx+3, my-1, 1, 1, darker(skin, 60)); }
+  else if (ms === 'frown') { px(mx+1, my+1, 2, 1, darker(skin, 60)); px(mx, my, 4, 1, darker(skin, 40)); }
+  else if (ms === 'teeth') { px(mx, my, 4, 1, darker(skin, 60)); px(mx+1, my, 2, 1, '#fff'); }
+  else if (ms === 'tiny') { px(mx+1, my, 2, 1, darker(skin, 50)); }
+
+  // ── NECK ──
+  px(hx+3, hy+10, 4, 2, skin);
+
+  // ── BODY / OUTFIT ──
+  const bx = 12, by = hy + 12;
+  const outfit = a.outfit || 'tshirt';
+
+  // Body base
+  px(bx, by, 16, 14, outfitC);
+  px(bx+1, by, 14, 14, outfitC);
+
+  if (outfit === 'tshirt') {
+    // Short sleeves
+    px(bx-3, by, 3, 6, outfitC); px(bx+16, by, 3, 6, outfitC);
+    px(bx+6, by+10, 4, 1, outfitShade); // fold line
+  } else if (outfit === 'tank') {
+    // No sleeves, show skin on shoulders
+    px(bx, by, 2, 3, skin); px(bx+14, by, 2, 3, skin);
+    px(bx+2, by, 12, 14, outfitC);
+    px(bx+5, by, 6, 2, outfitShade); // neckline
+  } else if (outfit === 'hoodie') {
+    px(bx-3, by, 3, 10, outfitC); px(bx+16, by, 3, 10, outfitC);
+    px(bx+5, by, 6, 4, outfitShade); // hood shadow
+    px(bx+4, by+6, 8, 3, outfitShade); // pocket
+  } else if (outfit === 'vest') {
+    px(bx-2, by, 2, 5, skin); px(bx+16, by, 2, 5, skin);
+    px(bx+7, by, 2, 14, outfitShade); // center seam
+  } else if (outfit === 'robe') {
+    px(bx-3, by, 3, 14, outfitC); px(bx+16, by, 3, 14, outfitC);
+    px(bx+7, by, 2, 14, outfitShade); // center seam
+    px(bx, by+14, 16, 4, outfitC); // robe extension
+  } else if (outfit === 'armor_light') {
+    px(bx-3, by, 3, 8, '#888'); px(bx+16, by, 3, 8, '#888');
+    px(bx+5, by+1, 6, 5, '#aaa'); // chest plate
+    px(bx+6, by+2, 4, 3, '#ccc'); // plate highlight
+    px(bx, by+10, 16, 2, '#888'); // belt
+  }
+
+  // ── ARMS (skin below outfit) ──
+  const armLen = outfit === 'robe' ? 4 : 8;
+  const armStart = outfit === 'tank' ? by + 3 : by + (outfit === 'hoodie' ? 10 : 6);
+  if (outfit !== 'armor_light') {
+    px(bx-3, armStart, 3, armLen, skin); px(bx+16, armStart, 3, armLen, skin);
+  } else {
+    px(bx-3, by+8, 3, 6, skin); px(bx+16, by+8, 3, 6, skin);
+  }
+  // Hands
+  const handY = outfit === 'robe' ? armStart + armLen : armStart + armLen;
+  px(bx-3, handY, 3, 2, skin); px(bx+16, handY, 3, 2, skin);
+
+  // ── EQUIPPED WEAPON (right hand) ──
+  if (eq.weapon) {
+    const wy = handY - 2;
+    const wx = bx + 18;
+    const wRarity = eq.weapon.rarity || 'common';
+    const wColor = wRarity === 'legendary' ? '#fbbf24' : wRarity === 'epic' ? '#c084fc' : wRarity === 'rare' ? '#60a5fa' : wRarity === 'uncommon' ? '#4ade80' : '#aaa';
+    // Sword blade
+    px(wx+1, wy-8, 1, 8, wColor);
+    px(wx, wy-9, 3, 1, wColor);
+    // Hilt
+    px(wx, wy, 3, 1, '#8b4513');
+    px(wx+1, wy+1, 1, 2, '#654321');
+  }
+
+  // ── EQUIPPED ARMOR VISUAL ──
+  if (eq.armor && outfit !== 'armor_light') {
+    const aRarity = eq.armor.rarity || 'common';
+    const aColor = aRarity === 'legendary' ? '#fbbf24' : aRarity === 'epic' ? '#c084fc' : aRarity === 'rare' ? '#60a5fa' : '#aaa';
+    // Shoulder pads
+    px(bx-1, by-1, 4, 2, aColor); px(bx+13, by-1, 4, 2, aColor);
+    // Belt
+    px(bx+2, by+10, 12, 1, aColor);
+  }
+
+  // ── EQUIPPED ACCESSORY VISUAL ──
+  if (eq.accessory) {
+    const acRarity = eq.accessory.rarity || 'common';
+    const acColor = acRarity === 'legendary' ? '#fbbf24' : acRarity === 'epic' ? '#c084fc' : acRarity === 'rare' ? '#60a5fa' : '#aaa';
+    // Ring on left hand or amulet
+    px(bx-4, handY, 1, 1, acColor);
+    px(bx-4, handY+1, 1, 1, darker(acColor, 40));
+  }
+
+  // ── LEGS ──
+  const ly = by + (outfit === 'robe' ? 18 : 14);
+  px(bx+2, ly, 5, 8, '#2c3e50'); // left leg (pants)
+  px(bx+9, ly, 5, 8, '#2c3e50'); // right leg
+  // Shoes
+  px(bx+1, ly+8, 6, 2, '#1a1a2e'); px(bx+9, ly+8, 6, 2, '#1a1a2e');
+
+  // ── NAME TAG ──
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 10px Inter, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(username || 'Player', W / 2, H - 4);
+}
+
+// ═══════════════════════════════════════════
+// Portal Chat (WebSocket)
+// ═══════════════════════════════════════════
+let chatWs = null;
+
+function connectChat() {
+  if (chatWs && (chatWs.readyState === WebSocket.OPEN || chatWs.readyState === WebSocket.CONNECTING)) return;
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  chatWs = new WebSocket(proto + '://' + location.host);
+  chatWs.onopen = () => {
+    chatWs.send(JSON.stringify({ type: 'portal_register', username }));
+    updateChatUI();
+  };
+  chatWs.onmessage = (e) => {
+    try {
+      const msg = JSON.parse(e.data);
+      if (msg.type === 'chat_history') {
+        const el = document.getElementById('chat-messages');
+        el.innerHTML = '';
+        (msg.data || []).forEach(m => appendChatMsg(m));
+        el.scrollTop = el.scrollHeight;
+      }
+      if (msg.type === 'chat_message') appendChatMsg(msg.data);
+      if (msg.type === 'chat_error') toast(msg.data.error, 'error');
+      // Live game events in chat
+      if (msg.type === 'boss_dead') appendSystemMsg(`💀 ${msg.data.bossName} defeated! MVP: ${msg.data.mvp}`);
+      if (msg.type === 'boss_spawn') appendSystemMsg(`⚔️ ${msg.data.name} appeared! HP: ${msg.data.hp}`);
+      if (msg.type === 'boss_attack') appendSystemMsg(`⚠️ BOSS ATTACK: ${msg.data.attack}! Type !dodge in chat!`);
+      if (msg.type === 'payout_processed' && msg.data.username === username) {
+        const funny = msg.data.status === 'approved' ? 'mikeydamike just blessed your wallet 🙏💸' : 'Denied rip... gold refunded tho dw 😅';
+        toast(funny, msg.data.status === 'approved' ? 'success' : 'error');
+        loadRedeemHistory();
+      }
+      // Live arena updates
+      if (msg.type === 'duel_result') {
+        const dr = msg.data;
+        if ((dr.challenger === username || dr.defender === username) && !window._duelAcceptedLocally) {
+          playDuelAnimation(dr);
+          refreshProfile();
+        }
+        loadPendingDuels();
+        loadArenaLeaderboard();
+      }
+      if (msg.type === 'duel_challenge') {
+        const dc = msg.data;
+        if (dc.defender === username) toast(`⚔️ ${dc.challenger} challenges you to a duel!`, 'info');
+        loadPendingDuels();
+      }
+      if (msg.type === 'duel_declined') {
+        loadPendingDuels();
+      }
+      if (msg.type === 'full_reset') {
+        toast('🔥 SERVER RESET — All data wiped!', 'error');
+        doLogout();
+      }
+    } catch {}
+  };
+  chatWs.onclose = () => { setTimeout(connectChat, 3000); };
+}
+
+function updateChatUI() {
+  const hasAuth = !!authToken;
+  document.getElementById('chat-input').disabled = !hasAuth;
+  document.getElementById('chat-send-btn').disabled = !hasAuth;
+  document.getElementById('chat-auth-hint').style.display = hasAuth ? 'none' : 'block';
+}
+
+function appendChatMsg(msg) {
+  const el = document.getElementById('chat-messages');
+  const time = new Date(msg.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const div = document.createElement('div');
+  div.className = 'chat-msg';
+  const kickLogo = '<svg width="14" height="14" viewBox="0 0 24 24" style="vertical-align:middle;"><path fill="#53fc18" d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm3.2 16.8h-2.4l-2.4-3.2v3.2H8V7.2h2.4v3.2l2.4-3.2h2.4l-3.2 4 3.6 5.6z"/></svg>';
+  const discordLogo = '<svg width="14" height="14" viewBox="0 0 24 24" style="vertical-align:middle;"><path fill="#5865F2" d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.947 2.418-2.157 2.418z"/></svg>';
+  const sourceIcon = msg.source === 'discord' ? `<span title="Discord">${discordLogo}</span> ` : `<span title="Kick">${kickLogo}</span> `;
+  div.innerHTML = `${sourceIcon}<span class="chat-user">${escHtml(msg.username)}</span><span class="chat-time">${time}</span><br><span class="chat-text">${escHtml(msg.message)}</span>`;
+  el.appendChild(div);
+  el.scrollTop = el.scrollHeight;
+}
+
+function appendSystemMsg(text) {
+  const el = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = 'chat-msg chat-system';
+  div.textContent = text;
+  el.appendChild(div);
+  el.scrollTop = el.scrollHeight;
+}
+
+function escHtml(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+function sendChat() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text || !chatWs || chatWs.readyState !== WebSocket.OPEN) return;
+  chatWs.send(JSON.stringify({ type: 'chat_send', message: text, token: authToken }));
+  input.value = '';
+}
+
+document.getElementById('chat-input').addEventListener('keydown', e => { if (e.key === 'Enter') sendChat(); });
+
+// ═══════════════════════════════════════════
+// Redeem System
+// ═══════════════════════════════════════════
+function updateRedeemPreview() {
+  const amt = parseInt(document.getElementById('redeem-amount').value) || 0;
+  const rate = parseInt(document.getElementById('redeem-rate').textContent) || 150;
+  const dollars = (amt / rate).toFixed(2);
+  document.getElementById('redeem-preview').textContent = amt > 0 ? `= $${dollars} USD` : '';
+}
+
+function submitRedeem() {
+  if (!requireLink()) return;
+  const gold = document.getElementById('redeem-amount').value;
+  const method = document.getElementById('redeem-method').value;
+  const address = document.getElementById('redeem-address').value.trim();
+  if (!gold || !address) { toast('Fill in all fields', 'error'); return; }
+  fetch('/api/redeem', { method: 'POST', headers: authHeaders(), body: authBody({ gold, method, address }) })
+    .then(r => r.json()).then(r => {
+      if (r.error) {
+        if (r.error === 'min_redeem') toast(`Minimum redeem is $${r.minDollars} (${r.minimum}g) no cap 💰`, 'error');
+        else if (r.error === 'broke') toast(r.message || "You're down bad rn... go farm some bosses 💀", 'error');
+        else if (r.error === 'already_pending') toast(r.message || "Chill, you already got one cooking 🍳", 'error');
+        else if (r.error === 'invalid_method') toast(r.message || 'Invalid method', 'error');
+        else toast(r.message || r.error, 'error');
+      } else {
+        toast('Request locked in! mikeydamike moves fast 🏄‍♂️💨', 'success');
+        document.getElementById('redeem-amount').value = '';
+        document.getElementById('redeem-address').value = '';
+        document.getElementById('redeem-preview').textContent = '';
+        refreshProfile();
+        loadRedeemHistory();
+      }
+    });
+}
+
+function loadRedeemHistory() {
+  fetch('/api/redeem/status/' + encodeURIComponent(username))
+    .then(r => r.json()).then(data => {
+      const el = document.getElementById('redeem-history-list');
+      const empty = document.getElementById('redeem-history-empty');
+      if (!data || data.length === 0) { el.innerHTML = ''; empty.style.display = 'block'; return; }
+      empty.style.display = 'none';
+      el.innerHTML = data.sort((a, b) => (b.date || b.createdAt) - (a.date || a.createdAt)).map(r => {
+        const date = new Date(r.date || r.createdAt).toLocaleDateString();
+        return `<div class="redeem-item">
+          <div>
+            <div style="font-weight:700;">$${r.dollarValue} (${r.goldAmount}g)</div>
+            <div style="font-size:11px;color:var(--dim);">${r.method} • ${date}</div>
+          </div>
+          <span class="redeem-status ${r.status}">${r.status}</span>
+        </div>`;
+      }).join('');
+    });
+}
+
+// ═══════════════════════════════════════════
+// Override enterDashboard to start chat + redeem
+// ═══════════════════════════════════════════
+const _origEnterDashboard = enterDashboard;
+enterDashboard = function() {
+  _origEnterDashboard();
+  connectChat();
+  loadRedeemHistory();
+  // Update redeem panel info
+  document.getElementById('redeem-rate').textContent = 150;
+  document.getElementById('redeem-min').textContent = 150 * 5;
+};
+
+// Override updateAuthBadge to update chat UI too
+const _origUpdateAuth = updateAuthBadge;
+updateAuthBadge = function() {
+  _origUpdateAuth();
+  updateChatUI();
+};
+
+// Override renderAll to update redeem gold display
+const _origRenderAll = renderAll;
+renderAll = function() {
+  _origRenderAll();
+  if (profile) document.getElementById('redeem-gold').textContent = profile.gold.toLocaleString();
+};
+
+// Auto-login: check URL params first, then localStorage
+const urlParams = new URLSearchParams(window.location.search);
+const autoUser = urlParams.get('user') || localStorage.getItem('mmo_last_user');
+if (autoUser) {
+  document.getElementById('login-username').value = autoUser;
+  setTimeout(doLogin, 100);
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "name": "kickstream-mmo",
+  "version": "1.0.0",
+  "description": "Interactive Kick stream MMO boss game",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.25.1",
+    "express": "^4.21.0",
+    "ws": "^8.18.0"
+  }
+}

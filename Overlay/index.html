@@ -1,0 +1,1835 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>KickStream MMO</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden}
+body{background:transparent;font-family:'Segoe UI',sans-serif;color:#fff}
+.pf{font-family:'Press Start 2P',monospace}
+
+/* ── Boss HP Section ── */
+#boss-section{position:absolute;top:20px;left:50%;transform:translateX(-50%);width:600px;background:rgba(0,0,0,.82);border:2px solid #ffd700;border-radius:12px;padding:16px 22px;display:none;z-index:10}
+#boss-section.show{display:block;animation:fadeSlide .5s ease}
+#boss-name{font-family:'Press Start 2P',monospace;font-size:13px;color:#ffd700;text-align:center;margin-bottom:4px}
+#boss-sub{font-size:11px;color:#999;text-align:center;margin-bottom:10px}
+#hp-wrap{width:100%;height:32px;background:#222;border-radius:16px;overflow:hidden;border:2px solid #555;position:relative}
+#hp-bar{height:100%;width:100%;background:linear-gradient(90deg,#44ff44,#88ff44);border-radius:14px;transition:width .5s ease}
+#hp-bar.med{background:linear-gradient(90deg,#ffaa00,#ffcc00)}
+#hp-bar.low{background:linear-gradient(90deg,#ff4444,#ff6644);animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+#hp-text{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:'Press Start 2P',monospace;font-size:10px;text-shadow:1px 1px 3px #000;z-index:1}
+
+/* ── Boss Sprite ── */
+#boss-sprite-wrap{position:absolute;top:80px;left:50%;transform:translateX(-50%);width:200px;height:200px;z-index:8;pointer-events:none;display:none}
+#boss-sprite-wrap.show{display:block}
+#boss-sprite{width:100%;height:100%;image-rendering:-webkit-optimize-contrast;image-rendering:crisp-edges;image-rendering:pixelated;-webkit-animation:bossIdle 1.2s ease-in-out infinite;animation:bossIdle 1.2s ease-in-out infinite}
+#boss-sprite.hit{animation:bossHit .3s ease}
+@keyframes bossIdle{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+@keyframes bossHit{0%{filter:brightness(3) saturate(0)}25%{transform:translateX(-6px)}50%{transform:translateX(6px)}75%{filter:brightness(1.5)}100%{filter:brightness(1);transform:translateX(0)}}
+#boss-sprite.dying{animation:bossDie 1s ease forwards}
+@keyframes bossDie{0%{opacity:1;filter:brightness(1)}30%{filter:brightness(3) hue-rotate(90deg)}60%{opacity:.5;transform:scale(1.2) rotate(10deg)}100%{opacity:0;transform:scale(0) rotate(180deg)}}
+
+/* ── Leaderboard ── */
+#leaderboard{position:absolute;top:110px;left:20px;width:270px;background:rgba(0,0,0,.82);border:2px solid #ffd700;border-radius:12px;padding:14px;display:none;z-index:10}
+#leaderboard.show{display:block;animation:fadeSlide .5s ease}
+#lb-title{font-family:'Press Start 2P',monospace;font-size:9px;color:#ffd700;margin-bottom:10px;text-align:center}
+.lb-row{display:flex;justify-content:space-between;padding:5px 4px;font-size:13px;border-bottom:1px solid rgba(255,215,0,.15)}
+.lb-row:last-child{border:none}
+.lb-rank{color:#ffd700;font-weight:700;width:28px}
+.lb-name{flex:1}
+.lb-dmg{color:#ff6b6b;font-weight:700}
+.lb-row:first-child .lb-name{color:#ffd700}
+
+/* ── Hit Popups ── */
+#hit-area{position:absolute;top:110px;right:20px;width:300px;height:500px;overflow:hidden;z-index:5;pointer-events:none}
+.hit{position:absolute;bottom:0;right:0;font-weight:700;white-space:nowrap;text-shadow:1px 1px 4px rgba(0,0,0,.9);animation:floatUp 2.5s forwards}
+.hit.crit{color:#ff4444;font-size:22px;text-shadow:0 0 12px #f00,0 0 24px #f40;animation:floatCrit 3s forwards}
+@keyframes floatUp{0%{opacity:1;transform:translateY(0)}80%{opacity:.8}100%{opacity:0;transform:translateY(-220px)}}
+@keyframes floatCrit{0%{opacity:1;transform:translateY(0) scale(1)}15%{transform:translateY(-15px) scale(1.3)}80%{opacity:.9}100%{opacity:0;transform:translateY(-260px) scale(.8)}}
+
+/* ── Center Overlay ── */
+#center{position:absolute;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;pointer-events:none}
+#center.active{pointer-events:auto}
+.hidden{display:none!important}
+@keyframes fadeSlide{from{opacity:0;transform:translateY(-15px)}to{opacity:1;transform:translateY(0)}}
+@keyframes popIn{0%{opacity:0;transform:scale(.4)}60%{transform:scale(1.1)}100%{opacity:1;transform:scale(1)}}
+@keyframes popOut{to{opacity:0;transform:scale(.7)}}
+
+/* ── Idle / Start ── */
+#idle-screen{text-align:center}
+#idle-screen h1{font-family:'Press Start 2P',monospace;font-size:28px;color:#ffd700;text-shadow:0 0 30px rgba(255,215,0,.35);margin-bottom:30px}
+#start-btn{font-family:'Press Start 2P',monospace;font-size:14px;padding:18px 40px;background:linear-gradient(180deg,#ffd700,#ff8c00);border:3px solid #fff;border-radius:10px;color:#000;cursor:pointer;transition:transform .2s,box-shadow .2s}
+#start-btn:hover{transform:scale(1.06);box-shadow:0 0 25px rgba(255,215,0,.5)}
+
+/* ── Announcement ── */
+#announce{animation:popIn .5s ease;text-align:center}
+#announce h2{font-family:'Press Start 2P',monospace;font-size:22px;color:#ffd700;text-shadow:0 0 20px rgba(255,215,0,.5);margin-bottom:12px}
+#announce p{font-size:14px;color:#ccc;line-height:1.8}
+.loot-mvp{color:#ffd700;font-weight:700}.loot-top{color:#4ecdc4}.loot-drop{color:#96ceb4}
+
+/* ── Break Timer ── */
+#break-time{font-family:'Press Start 2P',monospace;font-size:36px;color:#4ecdc4;margin-top:20px;text-shadow:0 0 15px rgba(78,205,196,.4)}
+
+/* ── Wheel ── */
+#wheel-section{text-align:center;animation:popIn .6s ease;display:flex;flex-direction:column;align-items:center}
+#wheel-pointer{width:0;height:0;border-left:18px solid transparent;border-right:18px solid transparent;border-top:28px solid #ff0000;filter:drop-shadow(0 0 6px #f00);margin-bottom:-10px;z-index:102;align-self:center}
+#wheel-canvas{border-radius:50%;box-shadow:0 0 40px rgba(255,215,0,.25)}
+
+/* ── Reward Overlay ── */
+#reward-overlay{position:absolute;top:0;left:0;width:100%;height:100%;z-index:300;display:none;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,.92)}
+#reward-overlay.show{display:flex}
+#reward-overlay .reward-title{font-family:'Press Start 2P',monospace;font-size:24px;color:#ffd700;text-shadow:0 0 30px rgba(255,215,0,.6);animation:popIn .5s ease;margin-bottom:30px}
+
+/* Explosion particles */
+.explosion-particle{position:absolute;width:8px;height:8px;border-radius:50%;animation:explode 1s ease-out forwards;pointer-events:none}
+@keyframes explode{0%{opacity:1;transform:scale(1) translate(0,0)}100%{opacity:0;transform:scale(0) translate(var(--ex),var(--ey))}}
+
+/* Cash reward row */
+.cash-row{display:flex;align-items:center;gap:16px;padding:12px 24px;margin:6px 0;background:rgba(255,215,0,.08);border:2px solid rgba(255,215,0,.25);border-radius:10px;font-size:15px;animation:cashSlide .5s ease both}
+.cash-row .cash-rank{font-family:'Press Start 2P',monospace;font-size:11px;color:#ffd700;width:35px}
+.cash-row .cash-name{flex:1;font-weight:700;font-size:16px}
+.cash-row .cash-amount{font-family:'Press Start 2P',monospace;font-size:14px;color:#44ff44;text-shadow:0 0 10px rgba(68,255,68,.4)}
+
+/* CSGO roll strip */
+#csgo-roll{position:relative;width:600px;height:90px;overflow:hidden;border:3px solid #ffd700;border-radius:8px;background:#111;margin:20px 0}
+#csgo-strip{display:flex;position:absolute;top:0;left:0;height:100%;transition:none}
+.csgo-item{width:120px;height:90px;display:flex;align-items:center;justify-content:center;font-family:'Press Start 2P',monospace;font-size:10px;color:#fff;text-align:center;border-right:2px solid #333;flex-shrink:0}
+.csgo-item:nth-child(odd){background:rgba(255,255,255,.05)}
+.csgo-item:nth-child(even){background:rgba(255,215,0,.05)}
+.csgo-item.winner{background:rgba(255,215,0,.2);color:#ffd700;border:2px solid #ffd700}
+#csgo-pointer{position:absolute;top:-8px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:12px solid transparent;border-right:12px solid transparent;border-top:16px solid #ff0000;z-index:2;filter:drop-shadow(0 0 4px #f00)}
+#csgo-pointer-bot{position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:12px solid transparent;border-right:12px solid transparent;border-bottom:16px solid #ff0000;z-index:2;filter:drop-shadow(0 0 4px #f00)}
+@keyframes cashSlide{from{opacity:0;transform:translateX(-40px)}to{opacity:1;transform:translateX(0)}}
+#spin-btn{font-family:'Press Start 2P',monospace;font-size:16px;padding:18px 50px;background:linear-gradient(180deg,#ff4444,#cc0000);border:4px solid #fff;border-radius:14px;color:#fff;cursor:pointer;margin-top:20px;transition:transform .2s,box-shadow .2s;animation:pulseBtn 2s infinite}
+#spin-btn:hover{transform:scale(1.08);box-shadow:0 0 30px rgba(255,0,0,.5)}
+#spin-btn:disabled{opacity:.5;cursor:not-allowed;animation:none}
+@keyframes pulseBtn{0%,100%{box-shadow:0 0 10px rgba(255,0,0,.25)}50%{box-shadow:0 0 30px rgba(255,0,0,.55)}}
+#wheel-result{font-family:'Press Start 2P',monospace;font-size:18px;color:#ffd700;margin-top:20px;text-shadow:0 0 20px rgba(255,215,0,.5);animation:popIn .5s ease}
+
+/* ── Toasts ── */
+#toasts{position:absolute;bottom:20px;right:20px;width:340px;z-index:50;pointer-events:none}
+.toast{background:rgba(0,0,0,.88);border:1px solid #ffd700;border-radius:8px;padding:10px 14px;margin-top:8px;font-size:12px;animation:toastIn .3s ease,toastOut .4s ease 3.5s forwards}
+@keyframes toastIn{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:translateX(0)}}
+@keyframes toastOut{to{opacity:0;transform:translateY(15px)}}
+
+/* ── Screen Flash ── */
+.flash{position:absolute;top:0;left:0;width:100%;height:100%;background:#fff;-webkit-animation:flashOut .5s ease forwards;animation:flashOut .5s ease forwards;z-index:200;pointer-events:none}
+
+/* ── Admin Kill Banner ── */
+#admin-kill{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:250;font-family:'Press Start 2P',monospace;font-size:28px;color:#ff4444;text-shadow:0 0 30px rgba(255,0,0,.6),0 0 60px rgba(255,0,0,.3);text-align:center;pointer-events:none;animation:popIn .5s ease,popOut .5s ease 2s forwards}
+
+/* ── Buff Indicator ── */
+#buff-bar{position:absolute;top:60px;right:20px;z-index:15;display:flex;flex-direction:column;gap:4px}
+.buff-tag{font-family:'Press Start 2P',monospace;font-size:8px;padding:6px 10px;border-radius:6px;animation:popIn .3s ease}
+
+/* ── Low HP Alarm ── */
+#low-hp-alarm{position:absolute;top:0;left:0;width:100%;height:100%;z-index:95;pointer-events:none;display:none}
+#low-hp-alarm.active{display:block}
+#low-hp-alarm .alarm-overlay{position:absolute;top:0;left:0;width:100%;height:100%;animation:alarmPulse .4s ease-in-out infinite}
+@keyframes alarmPulse{0%,100%{background:rgba(255,0,0,0);border:none}50%{background:rgba(255,0,0,.08);box-shadow:inset 0 0 80px rgba(255,0,0,.3)}}
+#low-hp-alarm .alarm-text{position:absolute;top:55px;left:50%;transform:translateX(-50%);font-family:'Press Start 2P',monospace;font-size:11px;color:#ff0000;text-shadow:0 0 15px #f00,0 0 30px #f00;animation:alarmBlink .3s step-start infinite;white-space:nowrap}
+@keyframes alarmBlink{0%,100%{opacity:1}50%{opacity:0}}
+
+/* ── Combo Counter ── */
+#combo-counter{position:absolute;top:140px;right:20px;z-index:15;font-family:'Press Start 2P',monospace;text-align:right;pointer-events:none;display:none}
+#combo-counter.show{display:block}
+#combo-count{font-size:28px;color:#ffd700;text-shadow:0 0 20px rgba(255,215,0,.5)}
+#combo-label{font-size:8px;color:#ff6b6b;margin-top:2px}
+
+/* ── Multiplier Badge ── */
+#multiplier-badge{position:absolute;top:15px;right:20px;font-family:'Press Start 2P',monospace;font-size:14px;color:#ffd700;background:rgba(0,0,0,.8);border:2px solid #ffd700;border-radius:8px;padding:6px 12px;z-index:15;display:none;animation:popIn .3s ease;text-shadow:0 0 10px rgba(255,215,0,.5)}
+#multiplier-badge.show{display:block}
+@keyframes flashOut{0%{opacity:.7}100%{opacity:0}}
+
+/* ── Boss Attack Dodge Overlay ── */
+#boss-attack-overlay{position:absolute;top:0;left:0;width:100%;height:100%;z-index:200;display:none;pointer-events:none}
+#boss-attack-overlay.active{display:flex;flex-direction:column;align-items:center;justify-content:center}
+#boss-attack-overlay .ba-bg{position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(255,0,0,.12);animation:baPulse .4s ease-in-out infinite}
+@keyframes baPulse{0%,100%{background:rgba(255,0,0,.08)}50%{background:rgba(255,0,0,.18)}}
+#boss-attack-overlay .ba-content{position:relative;z-index:1;text-align:center;animation:popIn .3s ease}
+#boss-attack-overlay .ba-emoji{font-size:80px;animation:baShake .3s ease infinite}
+@keyframes baShake{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}}
+#boss-attack-overlay .ba-name{font-family:'Press Start 2P',monospace;font-size:18px;color:#ff4444;text-shadow:0 0 20px #f00;margin:10px 0}
+#boss-attack-overlay .ba-dodge{font-family:'Press Start 2P',monospace;font-size:24px;color:#ffd700;text-shadow:0 0 20px rgba(255,215,0,.5);animation:alarmBlink .5s step-start infinite;margin-top:10px}
+#boss-attack-overlay .ba-timer{font-family:'Press Start 2P',monospace;font-size:48px;color:#ff4444;margin-top:6px;text-shadow:0 0 30px #f00}
+
+/* ── Loot Drop Reveal ── */
+#loot-reveal{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:210;display:none;text-align:center}
+#loot-reveal.active{display:block;animation:popIn .5s ease}
+.loot-card{display:inline-block;background:rgba(0,0,0,.92);border:3px solid #ffd700;border-radius:12px;padding:20px 30px;margin:5px;animation:lootReveal .6s ease both}
+@keyframes lootReveal{0%{opacity:0;transform:rotateY(90deg) scale(.5)}60%{transform:rotateY(-10deg) scale(1.1)}100%{opacity:1;transform:rotateY(0) scale(1)}}
+.loot-rarity-legendary{border-color:#fbbf24;box-shadow:0 0 25px rgba(251,191,36,.4)}
+.loot-rarity-epic{border-color:#c084fc;box-shadow:0 0 20px rgba(192,132,252,.4)}
+.loot-rarity-rare{border-color:#60a5fa;box-shadow:0 0 15px rgba(96,165,250,.3)}
+.loot-rarity-uncommon{border-color:#4ade80;box-shadow:0 0 10px rgba(74,222,128,.2)}
+.loot-rarity-common{border-color:#aaa}
+
+/* ── Achievement Popup ── */
+#achievement-popup{position:absolute;top:200px;right:20px;z-index:200;pointer-events:none}
+.ach-toast{background:rgba(0,0,0,.92);border:2px solid #ffd700;border-radius:10px;padding:12px 18px;margin-bottom:8px;animation:achIn .5s ease,achOut .5s ease 3.5s forwards;white-space:nowrap}
+@keyframes achIn{from{opacity:0;transform:translateX(60px)}to{opacity:1;transform:translateX(0)}}
+@keyframes achOut{to{opacity:0;transform:translateX(60px)}}
+.ach-toast .ach-title{font-family:'Press Start 2P',monospace;font-size:8px;color:#ffd700;letter-spacing:1px;margin-bottom:4px}
+.ach-toast .ach-name{font-size:14px;font-weight:700;color:#fff}
+.ach-toast .ach-desc{font-size:10px;color:#999;margin-top:2px}
+
+/* ── Sub Kill Banner ── */
+#sub-kill-banner{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:250;display:none;text-align:center;pointer-events:none}
+#sub-kill-banner.active{display:block;animation:popIn .5s ease}
+.sub-star{font-size:60px;animation:subStar 1.5s ease infinite}
+@keyframes subStar{0%,100%{transform:scale(1) rotate(0deg)}50%{transform:scale(1.2) rotate(10deg)}}
+
+/* ── Cosmetic borders on leaderboard ── */
+.lb-row[data-border="rainbow"]{background:linear-gradient(90deg,rgba(255,0,0,.15),rgba(255,165,0,.15),rgba(255,255,0,.15),rgba(0,128,0,.15),rgba(0,0,255,.15),rgba(75,0,130,.15));animation:rainbowShift 3s linear infinite;background-size:200%}
+@keyframes rainbowShift{0%{background-position:0%}100%{background-position:200%}}
+
+/* ── PvP Duel Overlay ── */
+#duel-overlay{position:absolute;top:0;left:0;width:100%;height:100%;z-index:280;display:none;pointer-events:none}
+#duel-overlay.active{display:block}
+#duel-canvas{position:absolute;top:0;left:0;width:100%;height:100%;image-rendering:pixelated}
+#duel-combat-log{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);width:500px;max-height:90px;overflow:hidden;text-align:center;z-index:2;font-size:12px}
+.duel-log-line{animation:duelLogIn .3s ease;margin:2px 0;text-shadow:1px 1px 3px #000}
+.duel-log-crit{color:#ff4444;font-weight:700;font-size:14px}
+.duel-log-dodge{color:#4ade80;font-style:italic}
+.duel-log-dragon{color:#ff8800;font-weight:700}
+.duel-log-normal{color:#ddd}
+@keyframes duelLogIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+#duel-result-banner{position:absolute;top:40%;left:50%;transform:translate(-50%,-50%);text-align:center;z-index:4;display:none}
+#duel-result-banner.show{display:block;animation:popIn .5s ease}
+#duel-result-winner{font-family:'Press Start 2P',monospace;font-size:20px;color:#ffd700;text-shadow:0 0 30px rgba(255,215,0,.6);margin-bottom:8px}
+#duel-result-details{font-size:12px;color:#ccc}
+#duel-result-gold{font-family:'Press Start 2P',monospace;font-size:14px;color:#44ff44;margin-top:6px}
+#duel-result-rating{font-size:10px;color:#4ecdc4;margin-top:4px}
+
+/* ── Prestige Overlay ── */
+#prestige-overlay{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:260;display:none;text-align:center;pointer-events:none}
+#prestige-overlay.active{display:block;animation:popIn .5s ease}
+.prestige-announce{font-family:'Press Start 2P',monospace;font-size:18px;color:#ffd700;text-shadow:0 0 30px rgba(255,215,0,.6);margin-bottom:10px}
+.prestige-rank-big{font-size:60px;margin:10px 0;animation:prestigeSpin 1s ease}
+@keyframes prestigeSpin{0%{transform:scale(0) rotate(-180deg);opacity:0}60%{transform:scale(1.2) rotate(10deg);opacity:1}100%{transform:scale(1) rotate(0)}}
+.prestige-name-big{font-family:'Press Start 2P',monospace;font-size:16px;color:#ffd700;margin-bottom:6px}
+.prestige-bonus-text{font-size:12px;color:#4ecdc4}
+
+/* ── Test Panel ── */
+#test-panel{position:absolute;bottom:10px;left:10px;background:rgba(0,0,0,.9);border:1px solid #555;border-radius:8px;padding:10px;z-index:999;font-size:12px;display:none}
+#test-panel.show{display:block}
+#test-panel input{background:#222;border:1px solid #555;color:#fff;padding:6px 10px;border-radius:4px;width:200px;font-size:12px}
+#test-panel button{background:#444;border:1px solid #666;color:#fff;padding:5px 10px;border-radius:4px;cursor:pointer;margin-left:4px;font-size:11px}
+#test-toggle{position:absolute;bottom:10px;left:10px;background:rgba(0,0,0,.6);border:1px solid #555;border-radius:50%;width:30px;height:30px;color:#888;font-size:14px;cursor:pointer;z-index:998;display:flex;align-items:center;justify-content:center}
+#test-toggle:hover{color:#ffd700;border-color:#ffd700}
+#status-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#ff4444;margin-right:6px}
+#status-dot.connected{background:#44ff44}
+</style>
+</head>
+<body>
+
+<!-- Boss HP -->
+<div id="boss-section">
+  <div id="boss-name">LOADING...</div>
+  <div id="boss-sub"></div>
+  <div id="hp-wrap"><div id="hp-bar"></div><div id="hp-text">0 / 0</div></div>
+</div>
+
+<!-- Boss Sprite -->
+<div id="boss-sprite-wrap"><canvas id="boss-sprite" width="200" height="200"></canvas></div>
+
+<!-- Leaderboard -->
+<div id="leaderboard">
+  <div id="lb-title">⚔️ TOP DAMAGE</div>
+  <div id="lb-list"></div>
+</div>
+
+<!-- Hit popups -->
+<div id="hit-area"></div>
+
+<!-- Center overlay -->
+<div id="center">
+  <div id="idle-screen" class="hidden">
+    <h1>⚔️ CHAT MMO ⚔️</h1>
+    <button id="start-btn" onclick="send('start_game')">START GAME</button>
+  </div>
+  <div id="announce" class="hidden"></div>
+  <div id="wheel-section" class="hidden">
+    <div id="wheel-pointer"></div>
+    <canvas id="wheel-canvas" width="400" height="400"></canvas>
+    <br>
+    <button id="spin-btn" onclick="doSpin()">🔴 SPIN THE WHEEL</button>
+    <div id="wheel-result" class="hidden"></div>
+  </div>
+</div>
+
+<!-- Reward Overlay -->
+<div id="reward-overlay"></div>
+
+<!-- Buff indicators -->
+<div id="buff-bar"></div>
+
+<!-- Low HP alarm -->
+<div id="low-hp-alarm"><div class="alarm-overlay"></div><div class="alarm-text">⚠️ LOW HP ⚠️  LOW HP ⚠️  FINISH THEM!! ⚠️</div></div>
+
+<!-- Combo counter -->
+<div id="combo-counter"><div id="combo-count">0</div><div id="combo-label">COMBO!</div></div>
+
+<!-- Multiplier badge -->
+<div id="multiplier-badge">1x PRIZES</div>
+
+<!-- Admin kill banner -->
+<div id="admin-kill" style="display:none"></div>
+
+<!-- Boss attack dodge overlay -->
+<div id="boss-attack-overlay">
+  <div class="ba-bg"></div>
+  <div class="ba-content">
+    <div class="ba-emoji" id="ba-emoji">🔥</div>
+    <div class="ba-name" id="ba-name">Fire Breath</div>
+    <div class="ba-dodge">TYPE !dodge NOW!</div>
+    <div class="ba-timer" id="ba-timer">5</div>
+  </div>
+</div>
+
+<!-- Loot drop reveal -->
+<div id="loot-reveal"></div>
+
+<!-- Achievement popup -->
+<div id="achievement-popup"></div>
+
+<!-- Sub kill banner -->
+<div id="sub-kill-banner">
+  <div class="sub-star">⭐</div>
+  <div style="font-family:'Press Start 2P',monospace;font-size:22px;color:#ffd700;margin:10px 0;text-shadow:0 0 30px rgba(255,215,0,.6)" id="sub-kill-text">SUBSCRIBER KILL!</div>
+  <div style="font-family:'Press Start 2P',monospace;font-size:14px;color:#ff4444;text-shadow:0 0 15px #f00" id="sub-kill-boss"></div>
+</div>
+
+<!-- PvP Duel Overlay -->
+<div id="duel-overlay">
+  <canvas id="duel-canvas" width="1920" height="1080"></canvas>
+  <div id="duel-combat-log"></div>
+  <div id="duel-result-banner">
+    <div id="duel-result-winner"></div>
+    <div id="duel-result-details"></div>
+    <div id="duel-result-gold"></div>
+    <div id="duel-result-rating"></div>
+  </div>
+</div>
+
+<!-- Prestige Overlay -->
+<div id="prestige-overlay">
+  <div class="prestige-announce">⭐ PRESTIGE UP! ⭐</div>
+  <div class="prestige-rank-big" id="prestige-icon"></div>
+  <div class="prestige-name-big" id="prestige-rank-name"></div>
+  <div class="prestige-bonus-text" id="prestige-bonus-text"></div>
+</div>
+
+<!-- Toasts -->
+<div id="toasts"></div>
+
+<!-- Test panel toggle -->
+<div id="test-toggle" onclick="document.getElementById('test-panel').classList.toggle('show')">⚙</div>
+<div id="test-panel">
+  <div style="margin-bottom:8px"><span id="status-dot"></span><span id="status-text">Disconnected</span></div>
+  <form onsubmit="testCmd(event)">
+    <input id="test-input" placeholder="!sethp 500" autocomplete="off">
+    <button type="submit">Send</button>
+  </form>
+  <div style="margin-top:6px;font-size:9px;color:#666">Admin: you = mikeydamike<br>Other user: @name !attack</div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// WebSocket
+// ═══════════════════════════════════════════
+let ws;
+function connect() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(proto + '://' + location.host);
+  ws.onopen = () => {
+    document.getElementById('status-dot').className = 'connected';
+    document.getElementById('status-text').textContent = 'Connected';
+  };
+  ws.onclose = () => {
+    document.getElementById('status-dot').className = '';
+    document.getElementById('status-text').textContent = 'Disconnected';
+    setTimeout(connect, 2000);
+  };
+  ws.onmessage = e => {
+    const m = JSON.parse(e.data);
+    handle(m.type, m.data);
+  };
+}
+function send(type, data) {
+  if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type, ...(data || {}) }));
+}
+function testCmd(e) {
+  e.preventDefault();
+  const v = document.getElementById('test-input').value.trim();
+  if (!v) return;
+  let user = 'mikeydamike';
+  let content = v;
+  // @username prefix to send as a different user
+  if (v.startsWith('@')) {
+    const spaceIdx = v.indexOf(' ');
+    if (spaceIdx > 0) {
+      user = v.substring(1, spaceIdx).toLowerCase();
+      content = v.substring(spaceIdx + 1).trim();
+    }
+  }
+  send('test_command', { content, username: user });
+  document.getElementById('test-input').value = '';
+}
+connect();
+
+// ═══════════════════════════════════════════
+// State
+// ═══════════════════════════════════════════
+let wheelRewards = [];
+let currentRotation = 0;
+let audioCtx;
+let lowHPAlarmInterval = null;
+let currentPrizeMultiplier = 1;
+
+// ═══════════════════════════════════════════
+// Message Router
+// ═══════════════════════════════════════════
+function handle(type, d) {
+  switch (type) {
+    case 'state_sync': onSync(d); break;
+    case 'boss_spawn': onBossSpawn(d); break;
+    case 'hit': onHit(d); break;
+    case 'boss_phase': onPhase(d); break;
+    case 'boss_dead': onBossDead(d); break;
+    case 'leaderboard': onLeaderboard(d); break;
+    case 'break_start': onBreak(d); break;
+    case 'wheel_ready': onWheelReady(d); break;
+    case 'wheel_result': onWheelResult(d); break;
+    case 'level_up': toast(`⬆️ ${d.username} leveled up to Lv.${d.level}!`, '#ffd700'); break;
+    case 'stats_response': showStats(d); break;
+    case 'daily_claimed': toast(`🎁 ${d.username} claimed daily! +${d.xp} XP +${d.gold} Gold`, '#4ecdc4'); break;
+    case 'boss_info': showBossInfo(d); break;
+    case 'combo': onCombo(d); break;
+    case 'gamble_result': onGamble(d); break;
+    case 'gift_sent': toast(`🎁 ${d.from} gifted ${d.amount} gold to ${d.to}!`, '#ff8800', 4000); break;
+    case 'buff_active': toast(`💪 ${d.type === 'double' ? '2X XP + 2X DAMAGE' : 'BUFF'} activated for ${Math.round(d.duration/60000)} min!`, '#44ff44', 5000); break;
+    case 'rules_display': toast(d.rules, '#ffd700', 6000); break;
+    case 'shop_list': {
+      const lines = d.items.map(i => `${i.name} (${i.cost}g) — ${i.desc}`).join('\n');
+      toast(`🛒 SHOP — !buy <item>\n${lines}`, '#fbbf24', 8000);
+      break;
+    }
+    case 'shop_purchase': toast(`🛒 ${d.username} bought ${d.item} for ${d.cost}g!`, '#44ff44', 4000); break;
+    case 'shop_error': {
+      if (d.error === 'broke') toast(`❌ ${d.username}: Not enough gold! Need ${d.cost}g, have ${d.gold}g`, '#ff4444', 3000);
+      else if (d.error === 'not_found') toast(`❌ Unknown item! Try: ${(d.available||[]).join(', ')}`, '#ff4444', 3000);
+      else if (d.error === 'already_active') toast(`❌ ${d.username}: You already have that buff active!`, '#ff4444', 3000);
+      else if (d.error === 'already_owned') toast(`❌ ${d.username}: You already own that!`, '#ff4444', 3000);
+      break;
+    }
+    // Boss attack / dodge
+    case 'boss_attack': onBossAttack(d); break;
+    case 'boss_attack_result': onBossAttackResult(d); break;
+    case 'dodge_success': toast(`🏃 ${d.username} dodged!`, '#4ade80', 2000); break;
+    // Sub kill
+    case 'sub_kill': onSubKill(d); break;
+    // Loot
+    case 'loot_drop': onLootDrop(d); break;
+    // Achievements
+    case 'achievement': onAchievement(d); break;
+    case 'achievement_list': showAchievementList(d); break;
+    // Inventory
+    case 'inventory_list': showInventory(d); break;
+    case 'item_equipped': toast(`🗡️ ${d.username} equipped ${d.equipped.name}!`, '#60a5fa', 4000); break;
+    case 'item_unequipped': toast(`🗡️ ${d.username} unequipped ${d.unequipped.name}`, '#aaa', 3000); break;
+    case 'equip_error': toast(`❌ ${d.error === 'not_found' ? 'Item not in inventory' : d.error}`, '#ff4444', 3000); break;
+    // PvP Duels
+    case 'duel_challenge': toast(`⚔️ ${d.challenger} challenged ${d.defender} to a duel! (${d.bet || 0}g bet)`, '#ff8800', 5000); break;
+    case 'duel_declined': toast(`❌ ${d.defender} declined the duel from ${d.challenger}`, '#888', 3000); break;
+    case 'duel_result': onDuelResult(d); break;
+    // Prestige
+    case 'prestige': onPrestige(d); break;
+    // Cosmetics
+    case 'cosmetic_shop': showCosmeticShop(d); break;
+    case 'cosmetic_purchased': toast(`✨ ${d.username} bought ${d.item} for ${d.cost}g!`, '#c084fc', 4000); break;
+    case 'cosmetic_equipped': toast(`✨ ${d.username} equipped cosmetic: ${d.equipped}!`, '#c084fc', 3000); break;
+    case 'cosmetic_error': {
+      if (d.error === 'broke') toast(`❌ Not enough gold! Need ${d.cost}g, have ${d.gold}g`, '#ff4444', 3000);
+      else if (d.error === 'already_owned') toast(`❌ You already own that cosmetic!`, '#ff4444', 3000);
+      else toast(`❌ ${d.error}`, '#ff4444', 3000);
+      break;
+    }
+    // Market
+    case 'market_list': showMarket(d); break;
+    case 'market_listed': toast(`📦 ${d.username} listed ${d.listing.itemData.name} for ${d.listing.price}g on the market!`, '#fbbf24', 4000); break;
+    case 'market_purchased': toast(`🛒 ${d.buyer} bought ${d.item} from ${d.seller} for ${d.price}g!`, '#44ff44', 5000); break;
+    case 'market_cancelled': toast(`📦 ${d.username} cancelled listing: ${d.cancelled}`, '#aaa', 3000); break;
+    case 'market_error': {
+      if (d.error === 'broke') toast(`❌ Not enough gold! Need ${d.cost}g`, '#ff4444', 3000);
+      else toast(`❌ Market: ${d.error}`, '#ff4444', 3000);
+      break;
+    }
+    // Cash
+    case 'cash_balance': toast(`💵 ${d.username}: ${d.gold} gold = $${d.cashValue} IRL (rate: ${d.rate}g/$1)`, '#44ff44', 6000); break;
+  }
+}
+
+// ═══════════════════════════════════════════
+// Handlers
+// ═══════════════════════════════════════════
+function onSync(d) {
+  wheelRewards = d.wheelRewards || [];
+  hideAll();
+  if (d.state === 'idle') showIdle();
+  else if (d.state === 'boss_active' && d.boss) {
+    showBoss(d.boss);
+    onLeaderboard(d.leaderboard);
+  } else if (d.state === 'wheel_ready') {
+    showWheel();
+  }
+}
+
+function onBossSpawn(d) {
+  hideAll();
+  showBoss(d);
+  playSound('spawn');
+}
+
+function showBoss(b) {
+  const el = document.getElementById('boss-section');
+  document.getElementById('boss-name').textContent = b.name;
+  document.getElementById('boss-sub').textContent = b.number === 1 ? '⚔️ Warm-Up Boss' : '👑 RAID BOSS';
+  updateHP(b.hp, b.maxHP);
+  el.classList.add('show');
+  document.getElementById('leaderboard').classList.add('show');
+  drawBossSprite(b.name, b.number);
+  document.getElementById('boss-sprite-wrap').classList.add('show');
+}
+
+function updateHP(hp, max) {
+  const pct = Math.max(0, (hp / max) * 100);
+  const bar = document.getElementById('hp-bar');
+  bar.style.width = pct + '%';
+  bar.className = pct <= 10 ? 'low' : pct <= 30 ? 'med' : '';
+  document.getElementById('hp-text').textContent = `${hp.toLocaleString()} / ${max.toLocaleString()}`;
+
+  // Low HP alarm
+  const alarm = document.getElementById('low-hp-alarm');
+  if (pct <= 10 && pct > 0) {
+    if (!alarm.classList.contains('active')) {
+      alarm.classList.add('active');
+      lowHPAlarmInterval = setInterval(() => playSound('alarm'), 800);
+    }
+  } else {
+    alarm.classList.remove('active');
+    if (lowHPAlarmInterval) { clearInterval(lowHPAlarmInterval); lowHPAlarmInterval = null; }
+  }
+}
+
+function onHit(d) {
+  updateHP(d.bossHP, d.bossMaxHP);
+  // Admin kill → big centered banner instead of small popup
+  if (d.username === '💀 ADMIN' && d.damage >= 9999) {
+    const banner = document.getElementById('admin-kill');
+    banner.textContent = '💀 ADMIN KILL 💀';
+    banner.style.display = 'block';
+    setTimeout(() => { banner.style.display = 'none'; }, 2500);
+    playSound('crit');
+    return;
+  }
+  // Sub kill special
+  if (d.username.includes('(SUB!)')) {
+    playSound('victory');
+    return;
+  }
+  const effectMap = { fire: '🔥', ice: '❄️', lightning: '⚡', shadow: '🌑' };
+  const prefix = d.hitEffect ? (effectMap[d.hitEffect] || '') + ' ' : '';
+  const titleStr = d.title || '';
+  const badgeStr = d.badge || '';
+  const displayName = `${titleStr}${badgeStr}${d.username}`;
+  spawnHitPopup(displayName, d.damage, d.isCrit, prefix);
+  // Boss hit flash
+  const sprite = document.getElementById('boss-sprite');
+  sprite.classList.remove('hit');
+  void sprite.offsetWidth;
+  sprite.classList.add('hit');
+  setTimeout(() => sprite.classList.remove('hit'), 300);
+  playSound(d.isCrit ? 'crit' : 'hit');
+  if (d.goldEarned) {
+    spawnGoldPopup(d.goldEarned);
+  }
+}
+
+function spawnHitPopup(user, dmg, crit, prefix) {
+  const area = document.getElementById('hit-area');
+  const el = document.createElement('div');
+  el.className = crit ? 'hit crit' : 'hit';
+  el.style.right = Math.random() * 100 + 'px';
+  el.style.fontSize = crit ? '22px' : (12 + Math.min(dmg / 3, 8)) + 'px';
+  el.textContent = crit ? `💥 ${prefix}${user} CRIT ${dmg}!` : `${prefix}${user} → ${dmg}`;
+  area.appendChild(el);
+  setTimeout(() => el.remove(), crit ? 3000 : 2500);
+}
+
+function spawnGoldPopup(amount) {
+  const area = document.getElementById('hit-area');
+  const el = document.createElement('div');
+  el.className = 'hit';
+  el.style.right = (150 + Math.random() * 50) + 'px';
+  el.style.fontSize = '10px';
+  el.style.color = '#ffd700';
+  el.textContent = `+${amount}g`;
+  area.appendChild(el);
+  setTimeout(() => el.remove(), 2000);
+}
+
+function onPhase(d) {
+  const txt = d.phase === 10 ? `🔥 ${d.bossName} at 10%! FINISH HIM!`
+    : d.phase === 25 ? `⚠️ ${d.bossName} at 25% HP!`
+    : `${d.bossName} at 50% HP!`;
+  showAnnounce(txt, 3000);
+  playSound('phase');
+}
+
+function onBossDead(d) {
+  lastBossDead = d;
+  currentPrizeMultiplier = d.prizeMultiplier || 1;
+  // Clear low HP alarm
+  const alarm = document.getElementById('low-hp-alarm');
+  alarm.classList.remove('active');
+  if (lowHPAlarmInterval) { clearInterval(lowHPAlarmInterval); lowHPAlarmInterval = null; }
+  // Hide combo
+  document.getElementById('combo-counter').classList.remove('show');
+
+  document.getElementById('boss-section').classList.remove('show');
+  const sprite = document.getElementById('boss-sprite');
+  sprite.classList.add('dying');
+  setTimeout(() => { document.getElementById('boss-sprite-wrap').classList.remove('show'); sprite.classList.remove('dying'); }, 1200);
+  document.body.appendChild(Object.assign(document.createElement('div'), { className: 'flash' }));
+  setTimeout(() => document.querySelector('.flash')?.remove(), 600);
+  playSound('victory');
+
+  if (!d.isRaidBoss) {
+    // Boss 1: Show loot drops, then cash rewards
+    if (d.lootResults && d.lootResults.length > 0) {
+      setTimeout(() => showLootReveal(d.lootResults), 1200);
+    }
+    setTimeout(() => showBoss1Rewards(d), d.lootResults && d.lootResults.length > 0 ? 7500 : 1500);
+  } else {
+    if (d.lootResults && d.lootResults.length > 0) {
+      setTimeout(() => showLootReveal(d.lootResults), 1200);
+    }
+    let html = `<h2>💀 ${d.bossName} DEFEATED!</h2><p style="margin-top:10px;font-size:16px;color:#ff6b6b">RAID WHEEL INCOMING...</p>`;
+    showAnnounceHTML(html, 5000);
+  }
+}
+
+function onLeaderboard(d) {
+  const list = document.getElementById('lb-list');
+  list.innerHTML = '';
+  const COSMETIC_DATA = {
+    border_gold:'#ffd700', border_red:'#ff4444', border_blue:'#4488ff', border_purple:'#c084fc', border_rainbow:'rainbow',
+    border_green:'#4ade80', border_fire:'#ff6600', border_ice:'#88ddff',
+    title_champion:'⭐', title_legend:'🔥', title_king:'👑', title_skull:'💀', title_diamond:'💎',
+    title_clown:'🤡', title_rat:'🐀', title_goat:'🐐',
+    badge_vip:'💠', badge_sword:'⚔️', badge_shield:'🛡️', badge_skull:'💀', badge_dragon:'🐉',
+  };
+  for (const e of (d.top5 || [])) {
+    const cos = e.cosmetics || {};
+    const borderKey = cos.border;
+    const borderColor = borderKey ? COSMETIC_DATA[borderKey] : null;
+    const titleKey = cos.title;
+    const titleEmoji = titleKey ? COSMETIC_DATA[titleKey] : '';
+    const badgeKey = cos.badge;
+    const badgeEmoji = badgeKey ? COSMETIC_DATA[badgeKey] : '';
+    const rankBadge = e.rankBadge || '';
+
+    const row = document.createElement('div');
+    row.className = 'lb-row';
+    if (borderColor === 'rainbow') {
+      row.setAttribute('data-border', 'rainbow');
+    } else if (borderColor) {
+      row.style.borderLeft = `3px solid ${borderColor}`;
+      row.style.background = `rgba(${hexToRgb(borderColor)}, 0.1)`;
+    }
+    row.innerHTML = `<span class="lb-rank">#${e.rank}</span><span class="lb-name">${rankBadge}${titleEmoji}${badgeEmoji}${e.username}</span><span class="lb-dmg">${e.damage.toLocaleString()}</span>`;
+    list.appendChild(row);
+  }
+}
+
+function hexToRgb(hex) {
+  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  return `${r},${g},${b}`;
+}
+
+function onCombo(d) {
+  const cc = document.getElementById('combo-counter');
+  cc.classList.add('show');
+  document.getElementById('combo-count').textContent = d.count + 'x';
+  document.getElementById('combo-count').style.animation = 'none';
+  void document.getElementById('combo-count').offsetWidth;
+  document.getElementById('combo-count').style.animation = 'popIn .3s ease';
+  if (d.count >= 10) document.getElementById('combo-count').style.color = '#ff4444';
+  else if (d.count >= 5) document.getElementById('combo-count').style.color = '#ff8800';
+  else document.getElementById('combo-count').style.color = '#ffd700';
+}
+
+function onGamble(d) {
+  if (d.error === 'broke') { toast(`💸 ${d.username} tried to gamble but only has ${d.gold} gold!`, '#ff4444'); return; }
+  if (d.win) toast(`🎰 ${d.username} WON ${d.bet} gold! Now has ${d.gold}g`, '#44ff44', 4000);
+  else toast(`💸 ${d.username} LOST ${d.bet} gold... Down to ${d.gold}g`, '#ff4444', 4000);
+}
+
+let breakData = null;
+function onBreak(d) {
+  breakData = { duration: d.duration, startTime: Date.now() };
+  startBreakTimer();
+}
+function startBreakTimer() {
+  if (!breakData) return;
+  const update = () => {
+    const el = document.getElementById('break-time');
+    if (!el) return;
+    const elapsed = Date.now() - breakData.startTime;
+    const remaining = breakData.duration - elapsed;
+    if (remaining <= 0) { el.textContent = 'BOSS 2 INCOMING!'; clearInterval(iv); return; }
+    const m = Math.floor(remaining / 60000);
+    const s = Math.floor((remaining % 60000) / 1000);
+    el.textContent = `${m}:${s.toString().padStart(2, '0')}`;
+  };
+  const iv = setInterval(update, 1000);
+  setTimeout(update, 100);
+}
+
+// ── Wheel ──
+function onWheelReady(d) {
+  wheelRewards = d.rewards || wheelRewards;
+  hideAll();
+  document.getElementById('leaderboard').classList.remove('show');
+  showWheel();
+}
+
+function showWheel() {
+  const sec = document.getElementById('wheel-section');
+  sec.classList.remove('hidden');
+  document.getElementById('center').classList.add('active');
+  document.getElementById('spin-btn').disabled = false;
+  document.getElementById('wheel-result').classList.add('hidden');
+  drawWheel(currentRotation);
+  playSound('wheelReady');
+}
+
+function doSpin() {
+  document.getElementById('spin-btn').disabled = true;
+  initAudio();
+  send('wheel_spin');
+}
+
+function onWheelResult(d) {
+  const segAngle = (2 * Math.PI) / wheelRewards.length;
+  // Target: segment center at top (the pointer is at top = -PI/2)
+  const targetAngle = -Math.PI / 2 - d.index * segAngle - segAngle / 2;
+  const spins = 5 * 2 * Math.PI;
+  const jitter = (Math.random() - 0.5) * segAngle * 0.5;
+  const finalRot = targetAngle + spins + jitter;
+
+  const startRot = currentRotation;
+  const startTime = performance.now();
+  const duration = 5000;
+
+  function animate(now) {
+    const t = Math.min((now - startTime) / duration, 1);
+    const ease = 1 - Math.pow(1 - t, 3);
+    currentRotation = startRot + (finalRot - startRot) * ease;
+    drawWheel(currentRotation);
+
+    if (t < 0.3) playSound('tick');
+
+    if (t < 1) requestAnimationFrame(animate);
+    else {
+      const res = document.getElementById('wheel-result');
+      res.textContent = '🎉 ' + d.reward + ' 🎉';
+      res.classList.remove('hidden');
+      playSound('wheelLand');
+      if (d.reward === 'Re-spin!') {
+        setTimeout(() => {
+          res.classList.add('hidden');
+          document.getElementById('spin-btn').disabled = false;
+        }, 3000);
+      } else if (d.reward === 'Double / Re-spin') {
+        currentPrizeMultiplier = d.newMultiplier || currentPrizeMultiplier * 2;
+        showDoubleAnimation(currentPrizeMultiplier);
+        setTimeout(() => {
+          res.classList.add('hidden');
+          document.getElementById('spin-btn').disabled = false;
+        }, 4000);
+      } else {
+        setTimeout(() => showRewardAnimation(d.reward), 2000);
+      }
+    }
+  }
+  requestAnimationFrame(animate);
+}
+
+const WHEEL_COLORS = ['#4ECDC4', '#F1C40F', '#FF6B6B', '#9B59B6', '#45B7D1'];
+const WHEEL_LABELS = ['750g\nGOLD RAIN', 'DOUBLE /\nRE-SPIN', '1500g\nJACKPOT', 'RE-SPIN!', 'RANDOM\nVIEWER'];
+let lastBossDead = null;
+
+function drawWheel(rot) {
+  const c = document.getElementById('wheel-canvas');
+  const ctx = c.getContext('2d');
+  const cx = c.width / 2, cy = c.height / 2, r = c.width / 2 - 15;
+  ctx.clearRect(0, 0, c.width, c.height);
+
+  const n = wheelRewards.length || 6;
+  const seg = (2 * Math.PI) / n;
+
+  for (let i = 0; i < n; i++) {
+    const a0 = rot + i * seg, a1 = a0 + seg;
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, r, a0, a1); ctx.closePath();
+    ctx.fillStyle = WHEEL_COLORS[i % WHEEL_COLORS.length]; ctx.fill();
+    ctx.strokeStyle = '#222'; ctx.lineWidth = 2; ctx.stroke();
+
+    // Label
+    ctx.save(); ctx.translate(cx, cy); ctx.rotate(a0 + seg / 2);
+    ctx.textAlign = 'center'; ctx.fillStyle = '#000'; ctx.font = 'bold 11px "Press Start 2P", monospace';
+    const lines = (WHEEL_LABELS[i] || '').split('\n');
+    lines.forEach((line, li) => ctx.fillText(line, r * 0.58, -4 + li * 16 - ((lines.length - 1) * 8)));
+    ctx.restore();
+  }
+
+  // Center
+  ctx.beginPath(); ctx.arc(cx, cy, 22, 0, 2 * Math.PI);
+  ctx.fillStyle = '#222'; ctx.fill(); ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 3; ctx.stroke();
+  ctx.fillStyle = '#ffd700'; ctx.font = 'bold 14px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('⚔️', cx, cy + 5);
+}
+
+// ═══════════════════════════════════════════
+// Reward Animations
+// ═══════════════════════════════════════════
+function showBoss1Rewards(d) {
+  const ov = document.getElementById('reward-overlay');
+  const top3 = (d.top5 || []).slice(0, 3);
+  const rw = d.randomWinner;
+  const prize = d.prizeDollars || 2.50;
+
+  let html = '<div class="reward-title">💀 ' + d.bossName + ' DEFEATED!</div>';
+  html += '<div style="margin-bottom:12px;font-family:\'Press Start 2P\',monospace;font-size:12px;color:#4ecdc4">💰 CASH REWARDS 💰</div>';
+
+  top3.forEach((p, i) => {
+    html += `<div class="cash-row" style="animation-delay:${i * 0.3}s"><span class="cash-rank">#${i+1}</span><span class="cash-name">${p.username}</span><span class="cash-amount">$${prize}</span></div>`;
+  });
+  if (rw) {
+    html += `<div class="cash-row" style="animation-delay:${top3.length * 0.3}s;border-color:rgba(68,255,68,.3)"><span class="cash-rank">🎲</span><span class="cash-name">${rw}</span><span class="cash-amount">$${prize}</span></div>`;
+  }
+  html += '<div style="margin-top:16px;font-family:\'Press Start 2P\',monospace;font-size:9px;color:#888;font-style:italic">paid out quickly by ur boy mikeydamike 🏄‍♂️💨</div>';
+  html += '<div style="margin-top:12px;font-family:\'Press Start 2P\',monospace;font-size:10px;color:#888">Boss 2 incoming...</div>';
+  html += '<div id="break-time" style="font-family:\'Press Start 2P\',monospace;font-size:30px;color:#4ecdc4;margin-top:12px"></div>';
+
+  ov.innerHTML = html;
+  ov.classList.add('show');
+  spawnExplosion(ov);
+  playSound('victory');
+  startBreakTimer();
+
+  // Auto-hide when break ends
+  const hideDuration = (breakData && breakData.duration) ? breakData.duration + 2000 : 30000;
+  setTimeout(() => { ov.classList.remove('show'); ov.innerHTML = ''; }, hideDuration);
+}
+
+function showRewardAnimation(reward) {
+  const m = currentPrizeMultiplier || 1;
+  let chainDelay = 0;
+  if (reward.includes('Gold Rain')) {
+    showGoldRainAnimation(m);
+    chainDelay = 8500;
+  } else if (reward.includes('Jackpot')) {
+    showCSGORoll(`${1500 * m}g JACKPOT`, `${1500 * m}g`);
+    chainDelay = 12500;
+  } else if (reward.includes('Random Viewer')) {
+    showCSGORoll(`RANDOM VIEWER PICK`, `🎲 PICKED!`);
+    chainDelay = 12500;
+  }
+  if (chainDelay > 0) {
+    setTimeout(() => showBoss2Winners(), chainDelay);
+  }
+  // Hide multiplier badge
+  document.getElementById('multiplier-badge').classList.remove('show');
+  currentPrizeMultiplier = 1;
+}
+
+function showGoldRainAnimation(multiplier) {
+  const m = multiplier || 1;
+  const ov = document.getElementById('reward-overlay');
+  const d = lastBossDead;
+  const top4 = (d && d.top5) ? d.top5.slice(0, 4) : [];
+  const goldAmt = 750 * m;
+  const perPlayer = Math.floor(goldAmt / 4);
+
+  let html = `<div class="reward-title">🪙 ${goldAmt}g GOLD RAIN! 🪙</div>`;
+  if (m > 1) html += `<div style="font-family:'Press Start 2P',monospace;font-size:12px;color:#ff4444;margin-bottom:10px">${m}x MULTIPLIER!</div>`;
+  html += `<div style="font-family:'Press Start 2P',monospace;font-size:10px;color:#888;margin-bottom:12px">${perPlayer}g each to top 4 💰</div>`;
+  top4.forEach((p, i) => {
+    html += `<div class="cash-row" style="animation-delay:${i * 0.4 + 0.5}s"><span class="cash-rank">#${i+1}</span><span class="cash-name">${p.username}</span><span class="cash-amount">${perPlayer}g</span></div>`;
+  });
+
+  ov.innerHTML = html;
+  ov.classList.add('show');
+
+  // Delayed explosion per row
+  top4.forEach((_, i) => {
+    setTimeout(() => { spawnExplosion(ov); playSound('crit'); }, (i * 400) + 800);
+  });
+
+  setTimeout(() => { ov.classList.remove('show'); ov.innerHTML = ''; }, 8000);
+}
+
+function showCSGORoll(title, amount) {
+  const ov = document.getElementById('reward-overlay');
+  const d = lastBossDead;
+  const all = (d && d.allAttackers && d.allAttackers.length > 0) ? d.allAttackers : ['Player1','Player2','Player3','Player4','Player5'];
+  const winnerIdx = Math.floor(Math.random() * all.length);
+  const winner = all[winnerIdx];
+
+  // Build strip: repeat names many times, place winner at a set position
+  const totalItems = 60;
+  const winPos = 45; // winner position in the strip
+  const items = [];
+  for (let i = 0; i < totalItems; i++) {
+    items.push(i === winPos ? winner : all[Math.floor(Math.random() * all.length)]);
+  }
+
+  let html = `<div class="reward-title">${title}</div>`;
+  html += '<div id="csgo-roll"><div id="csgo-pointer"></div><div id="csgo-pointer-bot"></div><div id="csgo-strip">';
+  items.forEach((name, i) => {
+    html += `<div class="csgo-item${i === winPos ? ' winner' : ''}">${name}</div>`;
+  });
+  html += '</div></div>';
+  html += `<div id="csgo-result" style="font-family:'Press Start 2P',monospace;font-size:20px;color:#ffd700;margin-top:20px;opacity:0"></div>`;
+
+  ov.innerHTML = html;
+  ov.classList.add('show');
+
+  // Animate the strip
+  const strip = document.getElementById('csgo-strip');
+  const itemWidth = 120;
+  const centerOffset = 300; // half of #csgo-roll width
+  const targetX = -(winPos * itemWidth) + centerOffset - (itemWidth / 2) + (Math.random() * 60 - 30);
+
+  // Start animation after brief pause
+  setTimeout(() => {
+    strip.style.transition = 'left 4.5s cubic-bezier(0.15, 0.85, 0.25, 1)';
+    strip.style.left = targetX + 'px';
+
+    // Tick sound during scroll
+    let tickCount = 0;
+    const tickIv = setInterval(() => {
+      playSound('tick');
+      tickCount++;
+      if (tickCount > 40) clearInterval(tickIv);
+    }, 80);
+    setTimeout(() => clearInterval(tickIv), 4200);
+
+    // Reveal winner
+    setTimeout(() => {
+      const res = document.getElementById('csgo-result');
+      if (res) {
+        res.textContent = `🎉 ${winner} WINS ${amount}! 🎉`;
+        res.style.opacity = '1';
+        res.style.animation = 'popIn .5s ease';
+      }
+      spawnExplosion(ov);
+      playSound('wheelLand');
+
+      // Highlight winner item
+      const items = document.querySelectorAll('.csgo-item');
+      items[winPos]?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+    }, 4800);
+  }, 500);
+
+  setTimeout(() => { ov.classList.remove('show'); ov.innerHTML = ''; }, 12000);
+}
+
+function showDoubleAnimation(multiplier) {
+  const ov = document.getElementById('reward-overlay');
+  let html = '<div class="reward-title">💎 DOUBLE! 💎</div>';
+  html += `<div style="font-family:'Press Start 2P',monospace;font-size:60px;color:#ffd700;margin:20px 0;animation:popIn .5s ease;text-shadow:0 0 40px rgba(255,215,0,.6)">${multiplier}x</div>`;
+  html += `<div style="font-family:'Press Start 2P',monospace;font-size:14px;color:#4ecdc4;margin-top:10px">ALL PRIZES DOUBLED!</div>`;
+  html += `<div style="font-family:'Press Start 2P',monospace;font-size:11px;color:#888;margin-top:15px">Spin again...</div>`;
+  ov.innerHTML = html;
+  ov.classList.add('show');
+  spawnExplosion(ov);
+  playSound('victory');
+  // Update multiplier badge
+  const badge = document.getElementById('multiplier-badge');
+  badge.textContent = multiplier + 'x PRIZES';
+  badge.classList.add('show');
+  setTimeout(() => { ov.classList.remove('show'); ov.innerHTML = ''; }, 3500);
+}
+
+function showDoubleOrNothing() {
+  const ov = document.getElementById('reward-overlay');
+  const win = Math.random() < 0.5;
+
+  let html = '<div class="reward-title">🎰 DOUBLE OR NOTHING 🎰</div>';
+  html += `<div style="font-family:'Press Start 2P',monospace;font-size:60px;margin:30px 0;animation:popIn .5s ease" id="don-result">?</div>`;
+  html += `<div style="font-family:'Press Start 2P',monospace;font-size:14px;color:#888" id="don-text">Flipping...</div>`;
+
+  ov.innerHTML = html;
+  ov.classList.add('show');
+
+  // Coin flip animation
+  let flips = 0;
+  const flipIv = setInterval(() => {
+    const el = document.getElementById('don-result');
+    if (!el) { clearInterval(flipIv); return; }
+    el.textContent = flips % 2 === 0 ? '🪙' : '💰';
+    el.style.transform = `rotateY(${flips * 180}deg)`;
+    playSound('tick');
+    flips++;
+    if (flips > 15) {
+      clearInterval(flipIv);
+      el.textContent = win ? '💰 WIN!' : '💀 NOTHING!';
+      el.style.color = win ? '#44ff44' : '#ff4444';
+      el.style.transform = 'rotateY(0)';
+      el.style.fontSize = '40px';
+      const txt = document.getElementById('don-text');
+      if (txt) {
+        if (win) {
+          txt.textContent = '2x XP + 2x DAMAGE for 5 mins! 🎉';
+          send('reward_effect', { effect: 'double_buff' });
+          showBuff('2X XP', '#ffd700', 300000);
+          showBuff('2X DMG', '#ff4444', 300000);
+        } else {
+          txt.textContent = 'Better luck next time...';
+        }
+      }
+      if (win) spawnExplosion(ov);
+      playSound(win ? 'wheelLand' : 'phase');
+    }
+  }, 200);
+
+  setTimeout(() => { ov.classList.remove('show'); ov.innerHTML = ''; }, 10000);
+}
+
+function showBuff(label, color, durationMs) {
+  const bar = document.getElementById('buff-bar');
+  const tag = document.createElement('div');
+  tag.className = 'buff-tag';
+  tag.style.background = color;
+  tag.style.color = '#000';
+  tag.textContent = label;
+  bar.appendChild(tag);
+  setTimeout(() => tag.remove(), durationMs);
+}
+
+function showBoss2Winners() {
+  const ov = document.getElementById('reward-overlay');
+  const d = lastBossDead;
+  if (!d) return;
+
+  const top3 = (d.top5 || []).slice(0, 3);
+  const rw = d.randomWinner;
+  const prize = d.prizeDollars || 4.00;
+  const winners = top3.map((p, i) => ({ rank: `#${i+1}`, name: p.username, label: `$${prize}` }));
+  if (rw) winners.push({ rank: '🎲', name: rw, label: `$${prize}` });
+  if (winners.length === 0) return;
+
+  const allNames = (d.allAttackers && d.allAttackers.length > 0) ? d.allAttackers : ['Player1','Player2','Player3'];
+
+  let html = '<div class="reward-title">👑 BOSS 2 CHAMPIONS 👑</div>';
+  html += '<div style="font-family:\'Press Start 2P\',monospace;font-size:9px;color:#888;margin-bottom:10px;font-style:italic">paid out quickly by ur boy mikeydamike 🏄‍♂️💨</div>';
+  html += '<div style="display:flex;flex-direction:column;align-items:center;gap:10px">';
+  winners.forEach((w, i) => {
+    html += `<div class="cash-row b2-winner" data-idx="${i}" style="opacity:0;min-width:350px">`;
+    html += `<span class="cash-rank">${w.rank}</span>`;
+    html += `<span class="cash-name" id="b2w-${i}">???</span>`;
+    html += `<span class="cash-amount" style="font-size:10px;color:#4ecdc4">${w.label}</span></div>`;
+  });
+  html += '</div>';
+
+  ov.innerHTML = html;
+  ov.classList.add('show');
+
+  winners.forEach((w, i) => {
+    setTimeout(() => {
+      const row = document.querySelector(`.b2-winner[data-idx="${i}"]`);
+      const nameEl = document.getElementById(`b2w-${i}`);
+      if (!row || !nameEl) return;
+      row.style.opacity = '0.5';
+      let shuffles = 0;
+      const shuffleIv = setInterval(() => {
+        nameEl.textContent = allNames[Math.floor(Math.random() * allNames.length)];
+        playSound('tick');
+        shuffles++;
+        if (shuffles > 12) {
+          clearInterval(shuffleIv);
+          nameEl.textContent = w.name;
+          row.style.opacity = '1';
+          row.style.animation = 'cashSlide .5s ease both';
+          spawnExplosion(ov);
+          playSound('crit');
+        }
+      }, 80);
+    }, i * 1500 + 500);
+  });
+
+  const totalDuration = winners.length * 1500 + 4000;
+  setTimeout(() => { ov.classList.remove('show'); ov.innerHTML = ''; }, totalDuration);
+}
+
+function spawnExplosion(container) {
+  const colors = ['#ffd700','#ff4444','#44ff44','#ff6b6b','#4ecdc4','#ff8800','#cc00ff','#ffffff'];
+  const cx = container.offsetWidth / 2;
+  const cy = container.offsetHeight / 2;
+  for (let i = 0; i < 40; i++) {
+    const p = document.createElement('div');
+    p.className = 'explosion-particle';
+    p.style.left = cx + 'px';
+    p.style.top = cy + 'px';
+    p.style.background = colors[Math.floor(Math.random() * colors.length)];
+    const angle = (Math.PI * 2 * i) / 40;
+    const dist = 100 + Math.random() * 200;
+    p.style.setProperty('--ex', Math.cos(angle) * dist + 'px');
+    p.style.setProperty('--ey', Math.sin(angle) * dist + 'px');
+    p.style.animationDuration = (0.5 + Math.random() * 0.8) + 's';
+    container.appendChild(p);
+    setTimeout(() => p.remove(), 1500);
+  }
+}
+
+// ═══════════════════════════════════════════
+// Helpers
+// ═══════════════════════════════════════════
+function hideAll() {
+  document.getElementById('boss-section').classList.remove('show');
+  document.getElementById('boss-sprite-wrap').classList.remove('show');
+  document.getElementById('leaderboard').classList.remove('show');
+  document.getElementById('idle-screen').classList.add('hidden');
+  document.getElementById('announce').classList.add('hidden');
+  document.getElementById('wheel-section').classList.add('hidden');
+  document.getElementById('center').classList.remove('active');
+  document.getElementById('reward-overlay').classList.remove('show');
+  document.getElementById('low-hp-alarm').classList.remove('active');
+  document.getElementById('combo-counter').classList.remove('show');
+  if (lowHPAlarmInterval) { clearInterval(lowHPAlarmInterval); lowHPAlarmInterval = null; }
+}
+
+function showIdle() {
+  document.getElementById('idle-screen').classList.remove('hidden');
+  document.getElementById('center').classList.add('active');
+}
+
+function showAnnounce(text, autoHide) {
+  const el = document.getElementById('announce');
+  el.innerHTML = `<h2>${text}</h2>`;
+  el.classList.remove('hidden');
+  document.getElementById('center').classList.add('active');
+  if (autoHide) setTimeout(() => { el.classList.add('hidden'); document.getElementById('center').classList.remove('active'); }, autoHide);
+}
+
+function showAnnounceHTML(html, autoHide) {
+  const el = document.getElementById('announce');
+  el.innerHTML = html;
+  el.classList.remove('hidden');
+  document.getElementById('center').classList.add('active');
+  if (autoHide) setTimeout(() => { el.classList.add('hidden'); document.getElementById('center').classList.remove('active'); }, autoHide);
+}
+
+function toast(text, color, dur) {
+  const el = document.createElement('div');
+  el.className = 'toast';
+  if (color) el.style.borderColor = color;
+  el.textContent = text;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(() => el.remove(), dur || 4000);
+}
+
+function showStats(d) {
+  toast(`📊 ${d.username} — Lv.${d.level} | DMG: ${d.minDmg}-${d.maxDmg} | Crit: ${d.critChance}% | Gold: ${d.gold} ($${d.cashValue}) | 🎒${d.inventoryCount} items | ${d.achievements} ach | Streak: ${d.streak || 0}🔥`, '#4ecdc4', 6000);
+}
+
+function showBossInfo(d) {
+  if (!d.active) { toast('No boss active right now', '#888'); return; }
+  toast(`🐉 ${d.name} — ${d.hp.toLocaleString()}/${d.maxHP.toLocaleString()} HP (${d.percent}%) — Boss #${d.number}`, '#ff6b6b', 4000);
+}
+
+// ═══════════════════════════════════════════
+// Sound Effects (Web Audio API)
+// ═══════════════════════════════════════════
+let lastTick = 0;
+function initAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); if (audioCtx.state === 'suspended') audioCtx.resume(); }
+
+function playSound(type) {
+  try {
+    initAudio();
+    const ctx = audioCtx;
+    const now = ctx.currentTime;
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+
+    switch (type) {
+      case 'hit':
+        o.frequency.value = 300 + Math.random() * 200;
+        o.type = 'square';
+        g.gain.setValueAtTime(0.15, now);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+        o.start(now); o.stop(now + 0.08);
+        break;
+      case 'crit':
+        o.frequency.setValueAtTime(800, now);
+        o.frequency.exponentialRampToValueAtTime(200, now + 0.25);
+        o.type = 'sawtooth';
+        g.gain.setValueAtTime(0.3, now);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+        o.start(now); o.stop(now + 0.3);
+        break;
+      case 'phase':
+        o.frequency.setValueAtTime(400, now);
+        o.frequency.linearRampToValueAtTime(800, now + 0.15);
+        o.frequency.linearRampToValueAtTime(400, now + 0.3);
+        o.type = 'square';
+        g.gain.setValueAtTime(0.25, now);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+        o.start(now); o.stop(now + 0.4);
+        break;
+      case 'victory':
+        [523, 659, 784, 1047].forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          const gn = ctx.createGain();
+          osc.connect(gn); gn.connect(ctx.destination);
+          osc.frequency.value = freq; osc.type = 'square';
+          gn.gain.setValueAtTime(0.2, now + i * 0.12);
+          gn.gain.exponentialRampToValueAtTime(0.001, now + i * 0.12 + 0.3);
+          osc.start(now + i * 0.12); osc.stop(now + i * 0.12 + 0.35);
+        });
+        o.stop(now); // cancel the base oscillator
+        break;
+      case 'spawn':
+        o.frequency.setValueAtTime(150, now);
+        o.frequency.exponentialRampToValueAtTime(600, now + 0.4);
+        o.type = 'sawtooth';
+        g.gain.setValueAtTime(0.25, now);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+        o.start(now); o.stop(now + 0.5);
+        break;
+      case 'wheelReady':
+        [440, 554, 659].forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          const gn = ctx.createGain();
+          osc.connect(gn); gn.connect(ctx.destination);
+          osc.frequency.value = freq; osc.type = 'sine';
+          gn.gain.setValueAtTime(0.2, now + i * 0.15);
+          gn.gain.exponentialRampToValueAtTime(0.001, now + i * 0.15 + 0.4);
+          osc.start(now + i * 0.15); osc.stop(now + i * 0.15 + 0.45);
+        });
+        o.stop(now);
+        break;
+      case 'tick':
+        if (performance.now() - lastTick < 120) return;
+        lastTick = performance.now();
+        o.frequency.value = 600 + Math.random() * 400;
+        o.type = 'sine';
+        g.gain.setValueAtTime(0.08, now);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
+        o.start(now); o.stop(now + 0.04);
+        break;
+      case 'wheelLand':
+        o.frequency.setValueAtTime(880, now);
+        o.type = 'sine';
+        g.gain.setValueAtTime(0.3, now);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
+        o.start(now); o.stop(now + 0.8);
+        break;
+      case 'alarm':
+        // Urgent siren: two-tone alternating DARN DARN
+        o.frequency.setValueAtTime(800, now);
+        o.frequency.setValueAtTime(500, now + 0.1);
+        o.frequency.setValueAtTime(800, now + 0.2);
+        o.frequency.setValueAtTime(500, now + 0.3);
+        o.type = 'square';
+        g.gain.setValueAtTime(0.2, now);
+        g.gain.setValueAtTime(0.25, now + 0.1);
+        g.gain.setValueAtTime(0.2, now + 0.2);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+        o.start(now); o.stop(now + 0.42);
+        break;
+      default:
+        o.stop(now);
+    }
+  } catch {}
+}
+
+// ═══════════════════════════════════════════
+// Boss Attack / Dodge
+// ═══════════════════════════════════════════
+function onBossAttack(d) {
+  const ov = document.getElementById('boss-attack-overlay');
+  document.getElementById('ba-emoji').textContent = d.emoji || '⚡';
+  document.getElementById('ba-name').textContent = `${d.bossName} uses ${d.attack}!`;
+  ov.classList.add('active');
+  playSound('alarm');
+
+  let remaining = Math.ceil((d.dodgeWindow || 5000) / 1000);
+  document.getElementById('ba-timer').textContent = remaining;
+  const iv = setInterval(() => {
+    remaining--;
+    document.getElementById('ba-timer').textContent = remaining;
+    if (remaining <= 0) { clearInterval(iv); }
+    playSound('tick');
+  }, 1000);
+
+  setTimeout(() => { ov.classList.remove('active'); }, d.dodgeWindow || 5000);
+}
+
+function onBossAttackResult(d) {
+  document.getElementById('boss-attack-overlay').classList.remove('active');
+  if (d.dodged.length > 0) toast(`🏃 DODGED: ${d.dodged.join(', ')}`, '#4ade80', 4000);
+  if (d.hit.length > 0) toast(`💥 HIT: ${d.hit.map(h => `${h.username} (-${h.goldLost}g)`).join(', ')}`, '#ff4444', 5000);
+  playSound(d.hit.length > d.dodged.length ? 'crit' : 'victory');
+}
+
+// ═══════════════════════════════════════════
+// Sub Kill Animation
+// ═══════════════════════════════════════════
+function onSubKill(d) {
+  const banner = document.getElementById('sub-kill-banner');
+  document.getElementById('sub-kill-text').textContent = `⭐ ${d.subscriber} SUBSCRIBED! ⭐`;
+  document.getElementById('sub-kill-boss').textContent = `${d.bossName} INSTANTLY KILLED!`;
+  banner.classList.add('active');
+  spawnExplosion(banner);
+  playSound('victory');
+  setTimeout(() => { playSound('victory'); }, 500);
+  setTimeout(() => { banner.classList.remove('active'); }, 5000);
+}
+
+// ═══════════════════════════════════════════
+// Achievement Popup
+// ═══════════════════════════════════════════
+function onAchievement(d) {
+  const container = document.getElementById('achievement-popup');
+  const el = document.createElement('div');
+  el.className = 'ach-toast';
+  el.innerHTML = `<div class="ach-title">🏆 ACHIEVEMENT UNLOCKED</div><div class="ach-name">${d.name}</div><div class="ach-desc">${d.desc}</div><div style="font-size:9px;color:#666;margin-top:3px">— ${d.username}</div>`;
+  container.appendChild(el);
+  playSound('wheelLand');
+  setTimeout(() => el.remove(), 4500);
+}
+
+function showAchievementList(d) {
+  const unlocked = d.achievements.filter(a => a.unlocked).map(a => `${a.name}`);
+  const locked = d.achievements.filter(a => !a.unlocked).length;
+  toast(`🏆 ${d.username}: ${d.unlocked}/${d.total} achievements\n${unlocked.join(' ') || 'None yet'}\n${locked} remaining`, '#ffd700', 8000);
+}
+
+// ═══════════════════════════════════════════
+// Loot Drop Reveal (after boss death)
+// ═══════════════════════════════════════════
+function showLootReveal(lootResults) {
+  if (!lootResults || lootResults.length === 0) return;
+  const el = document.getElementById('loot-reveal');
+  const top = lootResults.slice(0, 5);
+  let html = '<div style="font-family:\'Press Start 2P\',monospace;font-size:12px;color:#ffd700;margin-bottom:15px;text-shadow:0 0 15px rgba(255,215,0,.4)">⚔️ LOOT DROPS ⚔️</div>';
+  top.forEach((l, i) => {
+    html += `<div class="loot-card loot-rarity-${l.item.rarity}" style="animation-delay:${i * 0.3}s">`;
+    html += `<div style="font-size:10px;color:#888;margin-bottom:4px">#${l.rank} — ${l.username}</div>`;
+    html += `<div style="font-size:14px;font-weight:700;color:${RARITY_COLORS[l.item.rarity] || '#fff'}">${l.item.name}</div>`;
+    html += `<div style="font-size:9px;color:#ccc;margin-top:3px">${l.item.desc || ''}</div>`;
+    html += `<div style="font-size:8px;color:${RARITY_COLORS[l.item.rarity] || '#aaa'};margin-top:2px;text-transform:uppercase">${l.item.rarity}</div>`;
+    html += '</div>';
+  });
+  el.innerHTML = html;
+  el.classList.add('active');
+  setTimeout(() => { el.classList.remove('active'); el.innerHTML = ''; }, 6000);
+}
+
+const RARITY_COLORS = { common: '#aaa', uncommon: '#4ade80', rare: '#60a5fa', epic: '#c084fc', legendary: '#fbbf24' };
+
+// ═══════════════════════════════════════════
+// Inventory / Cosmetics / Market Toasts
+// ═══════════════════════════════════════════
+function showInventory(d) {
+  const inv = (d.inventory || []).slice(0, 8);
+  const eqd = d.equipped || {};
+  let msg = `🎒 ${d.username} Inventory:\n`;
+  if (Object.keys(eqd).length > 0) {
+    msg += 'Equipped: ' + Object.entries(eqd).filter(([,v]) => v).map(([s,v]) => `[${s}] ${v.name}`).join(', ') + '\n';
+  }
+  if (inv.length > 0) {
+    msg += inv.map(i => `${i.name} (${i.rarity})`).join(', ');
+    if (d.inventory.length > 8) msg += ` +${d.inventory.length - 8} more`;
+  } else msg += 'Empty bag';
+  msg += `\nCosmetics: ${(d.cosmetics || []).length} owned`;
+  toast(msg, '#60a5fa', 8000);
+}
+
+function showCosmeticShop(d) {
+  const items = d.items || [];
+  let msg = `✨ COSMETIC SHOP (${d.gold}g):\n`;
+  msg += items.filter(i => !i.owned).slice(0, 6).map(i => `${i.name} — ${i.cost}g`).join('\n');
+  msg += `\n!buycosmetic <id> to buy`;
+  toast(msg, '#c084fc', 8000);
+}
+
+function showMarket(d) {
+  const list = d.listings || [];
+  if (list.length === 0) { toast('📦 Market is empty! Use !sell <uid> <price> to list items.', '#fbbf24', 4000); return; }
+  let msg = `📦 MARKET:\n`;
+  msg += list.slice(0, 6).map(l => `#${l.id} ${l.name}${l.rarity ? ` (${l.rarity})` : ''} — ${l.price}g by ${l.seller}`).join('\n');
+  if (list.length > 6) msg += `\n+${list.length - 6} more`;
+  msg += '\n!buymarket <#> to buy';
+  toast(msg, '#fbbf24', 8000);
+}
+
+// ═══════════════════════════════════════════
+// Pixel Art Boss Sprites (Canvas-drawn)
+// ═══════════════════════════════════════════
+const BOSS_SPRITES = {
+  // Each sprite is a 16x16 grid, values = color index
+  // 0=transparent, 1=outline, 2=primary, 3=secondary, 4=eyes, 5=accent
+  'Goblin Warchief': {
+    palette: ['transparent','#1a1a1a','#4a8c3f','#2d5e27','#ff0000','#ffd700'],
+    grid: [
+      0,0,0,0,0,5,5,5,5,5,0,0,0,0,0,0,
+      0,0,0,0,5,5,1,1,1,5,5,0,0,0,0,0,
+      0,0,0,1,1,2,2,2,2,2,1,1,0,0,0,0,
+      0,0,1,2,2,2,2,2,2,2,2,2,1,0,0,0,
+      0,0,1,2,2,4,2,2,2,4,2,2,1,0,0,0,
+      0,0,1,2,2,4,2,2,2,4,2,2,1,0,0,0,
+      0,1,3,2,2,2,2,1,2,2,2,2,3,1,0,0,
+      0,1,3,2,2,2,1,1,1,2,2,2,3,1,0,0,
+      0,0,1,1,2,2,2,2,2,2,2,1,1,0,0,0,
+      0,0,0,1,2,2,2,2,2,2,2,1,0,0,0,0,
+      0,0,1,2,2,5,2,2,2,5,2,2,1,0,0,0,
+      0,0,1,2,2,2,2,2,2,2,2,2,1,0,0,0,
+      0,0,1,3,3,2,2,2,2,2,3,3,1,0,0,0,
+      0,0,0,1,3,3,2,2,2,3,3,1,0,0,0,0,
+      0,0,0,1,1,0,1,1,1,0,1,1,0,0,0,0,
+      0,0,0,1,1,0,0,0,0,0,1,1,0,0,0,0,
+    ]
+  },
+  'Shadow Lurker': {
+    palette: ['transparent','#0a0a0a','#2a1a3a','#4a2a6a','#cc00ff','#8800aa'],
+    grid: [
+      0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,0,
+      0,0,0,0,1,1,2,2,2,2,1,1,0,0,0,0,
+      0,0,0,1,2,2,3,2,2,3,2,2,1,0,0,0,
+      0,0,1,2,2,2,2,2,2,2,2,2,2,1,0,0,
+      0,0,1,2,4,4,2,2,2,2,4,4,2,1,0,0,
+      0,0,1,2,4,4,2,2,2,2,4,4,2,1,0,0,
+      0,0,0,1,2,2,2,2,2,2,2,2,1,0,0,0,
+      0,0,0,1,2,2,1,1,1,1,2,2,1,0,0,0,
+      0,0,1,5,2,2,2,2,2,2,2,2,5,1,0,0,
+      0,1,5,2,2,2,2,2,2,2,2,2,2,5,1,0,
+      1,5,2,2,2,2,2,2,2,2,2,2,2,2,5,1,
+      0,1,5,2,3,2,2,2,2,2,2,3,2,5,1,0,
+      0,0,1,5,5,3,2,2,2,2,3,5,5,1,0,0,
+      0,0,0,1,1,5,3,2,2,3,5,1,1,0,0,0,
+      0,0,0,0,0,1,1,1,1,1,1,0,0,0,0,0,
+      0,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0,
+    ]
+  },
+  'Crystal Golem': {
+    palette: ['transparent','#1a1a2a','#44aaff','#2288dd','#ffffff','#88ddff'],
+    grid: [
+      0,0,0,0,0,5,5,5,5,5,5,0,0,0,0,0,
+      0,0,0,5,5,2,2,3,3,2,2,5,5,0,0,0,
+      0,0,5,2,2,2,3,2,2,3,2,2,2,5,0,0,
+      0,5,2,2,2,2,2,2,2,2,2,2,2,2,5,0,
+      0,1,2,2,4,4,2,2,2,2,4,4,2,2,1,0,
+      0,1,2,2,4,4,2,2,2,2,4,4,2,2,1,0,
+      0,1,2,2,2,2,2,3,3,2,2,2,2,2,1,0,
+      0,1,2,2,2,2,2,2,2,2,2,2,2,2,1,0,
+      5,1,2,2,2,2,2,2,2,2,2,2,2,2,1,5,
+      5,1,3,2,2,2,2,2,2,2,2,2,2,3,1,5,
+      0,1,3,3,2,2,5,2,2,5,2,2,3,3,1,0,
+      0,1,2,3,3,2,2,2,2,2,2,3,3,2,1,0,
+      0,0,1,2,3,3,2,2,2,2,3,3,2,1,0,0,
+      0,0,0,1,1,2,2,0,0,2,2,1,1,0,0,0,
+      0,0,0,1,2,1,0,0,0,0,1,2,1,0,0,0,
+      0,0,0,1,1,0,0,0,0,0,0,1,1,0,0,0,
+    ]
+  },
+  'Dragon of Chaos': {
+    palette: ['transparent','#1a1a1a','#cc2200','#ff4422','#ffff00','#ff8800'],
+    grid: [
+      0,0,0,1,1,0,0,0,0,0,0,1,1,0,0,0,
+      0,0,1,2,2,1,0,0,0,0,1,2,2,1,0,0,
+      0,0,1,2,3,2,1,1,1,1,2,3,2,1,0,0,
+      0,0,0,1,2,2,2,2,2,2,2,2,1,0,0,0,
+      0,0,1,2,4,1,2,2,2,2,1,4,2,1,0,0,
+      0,0,1,2,2,2,2,2,2,2,2,2,2,1,0,0,
+      0,1,2,2,2,2,3,3,3,3,2,2,2,2,1,0,
+      0,1,2,3,2,5,5,5,5,5,5,2,3,2,1,0,
+      1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,
+      1,5,2,2,2,2,2,2,2,2,2,2,2,2,5,1,
+      0,1,2,2,2,3,3,2,2,3,3,2,2,2,1,0,
+      0,0,1,2,2,2,2,2,2,2,2,2,2,1,0,0,
+      0,0,0,1,2,2,2,2,2,2,2,2,1,0,0,0,
+      0,0,0,1,1,2,2,0,0,2,2,1,1,0,0,0,
+      0,0,1,2,1,0,0,0,0,0,0,1,2,1,0,0,
+      0,0,1,1,0,0,0,0,0,0,0,0,1,1,0,0,
+    ]
+  },
+  'The Void King': {
+    palette: ['transparent','#0d0d0d','#220044','#440088','#aa00ff','#ff00ff'],
+    grid: [
+      0,0,0,5,0,0,5,5,5,5,0,0,5,0,0,0,
+      0,0,5,4,5,5,2,2,2,2,5,5,4,5,0,0,
+      0,0,0,5,2,2,2,2,2,2,2,2,5,0,0,0,
+      0,0,1,2,2,3,3,2,2,3,3,2,2,1,0,0,
+      0,1,2,2,4,5,3,2,2,3,5,4,2,2,1,0,
+      0,1,2,2,4,5,2,2,2,2,5,4,2,2,1,0,
+      0,1,2,2,2,2,2,2,2,2,2,2,2,2,1,0,
+      0,1,2,2,2,2,1,1,1,1,2,2,2,2,1,0,
+      0,0,1,2,2,2,2,2,2,2,2,2,2,1,0,0,
+      0,0,1,3,2,2,2,2,2,2,2,2,3,1,0,0,
+      0,1,3,3,2,5,2,2,2,2,5,2,3,3,1,0,
+      0,1,2,2,2,2,2,2,2,2,2,2,2,2,1,0,
+      0,0,1,2,3,2,2,2,2,2,2,3,2,1,0,0,
+      0,0,0,1,1,3,2,0,0,2,3,1,1,0,0,0,
+      0,0,0,1,3,1,0,0,0,0,1,3,1,0,0,0,
+      0,0,0,1,1,0,0,0,0,0,0,1,1,0,0,0,
+    ]
+  },
+  'Titan of Flames': {
+    palette: ['transparent','#1a0a00','#ff4400','#ff8800','#ffff00','#ffcc00'],
+    grid: [
+      0,0,4,4,0,0,0,4,4,0,0,0,4,4,0,0,
+      0,4,5,4,0,0,4,5,5,4,0,0,4,5,4,0,
+      0,0,4,1,1,1,2,2,2,2,1,1,1,4,0,0,
+      0,0,1,2,2,3,3,2,2,3,3,2,2,1,0,0,
+      0,1,2,2,4,4,2,2,2,2,4,4,2,2,1,0,
+      0,1,2,2,4,4,2,2,2,2,4,4,2,2,1,0,
+      0,1,2,2,2,2,2,3,3,2,2,2,2,2,1,0,
+      0,1,2,2,2,2,1,4,4,1,2,2,2,2,1,0,
+      0,1,3,2,2,2,2,2,2,2,2,2,2,3,1,0,
+      1,3,3,2,2,2,2,2,2,2,2,2,2,3,3,1,
+      1,2,3,3,2,5,2,2,2,2,5,2,3,3,2,1,
+      0,1,2,3,3,2,2,2,2,2,2,3,3,2,1,0,
+      0,0,1,2,3,3,2,2,2,2,3,3,2,1,0,0,
+      0,0,0,1,1,2,2,0,0,2,2,1,1,0,0,0,
+      0,0,0,1,2,1,0,0,0,0,1,2,1,0,0,0,
+      0,0,0,1,1,0,0,0,0,0,0,1,1,0,0,0,
+    ]
+  },
+  _default1: {
+    palette: ['transparent','#1a1a1a','#6644aa','#8866cc','#ff0000','#44ffaa'],
+    grid: [
+      0,0,0,0,0,1,1,1,1,1,1,0,0,0,0,0,
+      0,0,0,1,1,2,2,2,2,2,2,1,1,0,0,0,
+      0,0,1,2,2,2,3,2,2,3,2,2,2,1,0,0,
+      0,1,2,2,2,2,2,2,2,2,2,2,2,2,1,0,
+      0,1,2,2,4,1,2,2,2,2,1,4,2,2,1,0,
+      0,1,2,2,4,1,2,2,2,2,1,4,2,2,1,0,
+      0,1,2,2,2,2,2,1,1,2,2,2,2,2,1,0,
+      0,0,1,2,2,2,1,5,5,1,2,2,2,1,0,0,
+      0,0,1,2,2,2,2,2,2,2,2,2,2,1,0,0,
+      0,0,0,1,3,3,3,3,3,3,3,3,1,0,0,0,
+      0,0,1,3,3,2,3,3,3,3,2,3,3,1,0,0,
+      0,0,1,2,2,2,2,2,2,2,2,2,2,1,0,0,
+      0,0,1,2,2,5,2,2,2,2,5,2,2,1,0,0,
+      0,0,0,1,1,2,2,2,2,2,2,1,1,0,0,0,
+      0,0,0,0,1,1,0,0,0,0,1,1,0,0,0,0,
+      0,0,0,0,1,1,0,0,0,0,1,1,0,0,0,0,
+    ]
+  },
+  _default2: {
+    palette: ['transparent','#1a1a1a','#cc0044','#ff2266','#ffff00','#ff6600'],
+    grid: [
+      0,0,0,0,5,5,1,1,1,1,5,5,0,0,0,0,
+      0,0,0,5,2,2,2,2,2,2,2,2,5,0,0,0,
+      0,0,5,2,2,2,2,2,2,2,2,2,2,5,0,0,
+      0,5,2,2,2,3,3,2,2,3,3,2,2,2,5,0,
+      0,1,2,2,4,4,3,2,2,3,4,4,2,2,1,0,
+      0,1,2,2,4,4,2,2,2,2,4,4,2,2,1,0,
+      0,1,2,2,2,2,2,2,2,2,2,2,2,2,1,0,
+      0,1,2,2,2,2,1,1,1,1,2,2,2,2,1,0,
+      0,0,1,2,2,1,5,5,5,5,1,2,2,1,0,0,
+      0,0,1,3,3,2,2,2,2,2,2,3,3,1,0,0,
+      0,1,3,3,2,2,2,2,2,2,2,2,3,3,1,0,
+      0,1,2,2,5,2,2,2,2,2,2,5,2,2,1,0,
+      0,0,1,2,2,2,2,2,2,2,2,2,2,1,0,0,
+      0,0,0,1,1,2,2,0,0,2,2,1,1,0,0,0,
+      0,0,0,1,2,1,0,0,0,0,1,2,1,0,0,0,
+      0,0,0,1,1,0,0,0,0,0,0,1,1,0,0,0,
+    ]
+  }
+};
+
+function drawBossSprite(bossName, bossNum) {
+  const canvas = document.getElementById('boss-sprite');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, 200, 200);
+
+  let data = BOSS_SPRITES[bossName];
+  if (!data) data = bossNum === 1 ? BOSS_SPRITES._default1 : BOSS_SPRITES._default2;
+
+  const px = Math.floor(200 / 16);
+  for (let i = 0; i < 256; i++) {
+    const ci = data.grid[i];
+    if (ci === 0) continue;
+    const x = (i % 16) * px;
+    const y = Math.floor(i / 16) * px;
+    ctx.fillStyle = data.palette[ci];
+    ctx.fillRect(x, y, px, px);
+  }
+
+  if (bossNum === 2) {
+    ctx.shadowColor = '#ff4400';
+    ctx.shadowBlur = 20;
+    ctx.strokeStyle = 'rgba(255,68,0,0.3)';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(10, 10, 180, 180);
+    ctx.shadowBlur = 0;
+  }
+}
+
+// ═══════════════════════════════════════════
+// PvP Duel Overlay Animation (Canvas 2D Fighter)
+// ═══════════════════════════════════════════
+const ARENA_BG = {
+  colosseum: { sky: '#1a0a00', ground: '#5c3a1a', accent: '#ffd700' },
+  volcano: { sky: '#1a0000', ground: '#5c1a00', accent: '#ff4400' },
+  ice_cavern: { sky: '#001a33', ground: '#004466', accent: '#88ddff' },
+  shadow_realm: { sky: '#000011', ground: '#1a0033', accent: '#aa00ff' },
+  sky_platform: { sky: '#003366', ground: '#4488aa', accent: '#66ccff' },
+  dragons_lair: { sky: '#1a0000', ground: '#661a00', accent: '#ff8800' },
+};
+let duelAnimFrame = null;
+let duelFloatingDmg = [];
+let duelFighters = {};
+
+function drawOverlayFighter(ctx, f, flip) {
+  const a = f.appearance || {};
+  const eq = f.equipped || {};
+  const ox = Math.round(f.x), oy = Math.round(f.y);
+  const skin = a.skinColor || '#f5d0a9';
+  const hair = a.hairColor || '#2c1b0e';
+  const eye = a.eyeColor || '#3498db';
+  const outfitC = a.outfitColor || '#3498db';
+  const outfit = a.outfit || 'tshirt';
+  const S = f.scale || 5;
+  function px(x, y, w, h, color) {
+    const fx = flip ? ox + 24*S - (x + w) * S : ox + x * S;
+    ctx.fillStyle = color;
+    ctx.fillRect(fx, oy + y * S, w * S, h * S);
+  }
+  function darker(hex, amt) {
+    const num = parseInt((hex || '#888888').replace('#',''), 16);
+    return `rgb(${Math.max(0,(num>>16)-amt)},${Math.max(0,((num>>8)&0xff)-amt)},${Math.max(0,(num&0xff)-amt)})`;
+  }
+  const skinShade = darker(skin, 30);
+  const outfitShade = darker(outfitC, 40);
+  if (f.flash > 0) { ctx.globalAlpha = 0.5 + Math.sin(f.flash * 10) * 0.3; }
+  // Head
+  const hx=6, hy=0;
+  px(hx+1,hy,8,8,skin); px(hx,hy+1,10,6,skin);
+  px(hx+1,hy+6,2,1,skinShade); px(hx+7,hy+6,2,1,skinShade);
+  // Hair
+  const hs = a.hairStyle || 'spiky';
+  if (hs==='spiky'){px(hx,hy-1,10,2,hair);px(hx+1,hy-2,2,1,hair);px(hx+4,hy-3,2,1,hair);px(hx+7,hy-2,2,1,hair);}
+  else if(hs==='flat'){px(hx,hy-1,10,2,hair);}
+  else if(hs==='mohawk'){px(hx+3,hy-3,4,4,hair);}
+  else if(hs==='long'){px(hx,hy-1,10,2,hair);px(hx-1,hy+1,2,7,hair);px(hx+9,hy+1,2,7,hair);}
+  else if(hs==='curly'){px(hx-1,hy-1,12,2,hair);px(hx-1,hy+1,2,4,hair);px(hx+9,hy+1,2,4,hair);}
+  else if(hs==='messy'){px(hx-1,hy-2,12,3,hair);px(hx+1,hy-3,2,1,hair);px(hx+6,hy-3,3,1,hair);}
+  // Eyes
+  const lex=hx+2, rex=hx+6, eey=hy+3;
+  px(lex,eey,2,1,'#fff');px(lex+1,eey,1,1,eye);
+  px(rex,eey,2,1,'#fff');px(rex,eey,1,1,eye);
+  // Mouth
+  px(hx+3,hy+5,4,1,darker(skin,60));
+  // Neck
+  px(hx+3,hy+8,4,2,skin);
+  // Body
+  const bx=4, by=10;
+  px(bx,by,16,12,outfitC); px(bx+1,by,14,12,outfitC);
+  if(outfit==='hoodie'){px(bx-2,by,2,8,outfitC);px(bx+16,by,2,8,outfitC);px(bx+5,by,6,3,outfitShade);}
+  else if(outfit==='armor_light'){px(bx-2,by,2,6,'#888');px(bx+16,by,2,6,'#888');px(bx+5,by+1,6,4,'#aaa');}
+  else {px(bx-2,by,2,5,outfitC);px(bx+16,by,2,5,outfitC);}
+  // Arms
+  const armY = by + (outfit==='hoodie'?8:5);
+  px(bx-2,armY,2,5,skin);px(bx+16,armY,2,5,skin);
+  px(bx-2,armY+5,2,2,skin);px(bx+16,armY+5,2,2,skin);
+  // Weapon
+  if(eq.weapon){
+    const wRar=eq.weapon.rarity||'common';
+    const wCol=wRar==='legendary'?'#fbbf24':wRar==='epic'?'#c084fc':wRar==='rare'?'#60a5fa':wRar==='uncommon'?'#4ade80':'#aaa';
+    const wy=armY+3, wx=flip?bx-4:bx+18;
+    px(wx,wy-6,1,7,wCol);px(wx-1,wy-7,3,1,wCol);px(wx-1,wy+1,3,1,'#8b4513');px(wx,wy+2,1,2,'#654321');
+  }
+  // Armor overlay
+  if(eq.armor){
+    const aCol=eq.armor.rarity==='legendary'?'#fbbf24':eq.armor.rarity==='epic'?'#c084fc':'#aaa';
+    px(bx-1,by-1,4,2,aCol);px(bx+13,by-1,4,2,aCol);px(bx+2,by+9,12,1,aCol);
+  }
+  // Legs
+  px(bx+2,by+12,5,6,'#2c3e50');px(bx+9,by+12,5,6,'#2c3e50');
+  px(bx+1,by+18,6,2,'#1a1a2e');px(bx+9,by+18,6,2,'#1a1a2e');
+  ctx.globalAlpha = 1;
+}
+
+function drawDuelBG(ctx, W, H, bg, arenaName) {
+  const grd = ctx.createLinearGradient(0, 0, 0, H);
+  grd.addColorStop(0, bg.sky); grd.addColorStop(0.6, bg.ground); grd.addColorStop(1, bg.ground);
+  ctx.fillStyle = grd; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = bg.accent; ctx.globalAlpha = 0.3;
+  ctx.fillRect(0, H*0.72, W, 3); ctx.globalAlpha = 1;
+  ctx.fillStyle = bg.ground; ctx.fillRect(0, H*0.72+3, W, H*0.28);
+  ctx.fillStyle = bg.accent; ctx.globalAlpha = 0.7;
+  ctx.font = 'bold 18px "Press Start 2P", monospace'; ctx.textAlign = 'center';
+  ctx.fillText(arenaName || 'Arena', W/2, 40); ctx.globalAlpha = 1;
+}
+
+function drawDuelHPBar(ctx, f) {
+  const barW = 140, barH = 14;
+  const bx = f.x + 12*f.scale - barW/2, by = f.y - 35;
+  ctx.fillStyle = '#222'; ctx.fillRect(bx-1, by-1, barW+2, barH+2);
+  const pct = Math.max(0, f.hp / f.maxHP);
+  ctx.fillStyle = pct > 0.5 ? '#44ff44' : pct > 0.2 ? '#ffaa00' : '#ff4444';
+  ctx.fillRect(bx, by, barW * pct, barH);
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 14px "Press Start 2P", monospace'; ctx.textAlign = 'center';
+  ctx.fillText(f.name, f.x + 12*f.scale, by - 10);
+}
+
+function onDuelResult(d) {
+  const ov = document.getElementById('duel-overlay');
+  const canvas = document.getElementById('duel-canvas');
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+  const W = 1920, H = 1080;
+
+  const bg = ARENA_BG[d.arena?.id] || ARENA_BG.colosseum;
+  const cData = d.challengerData || {};
+  const dData = d.defenderData || {};
+  const S = 5;
+
+  duelFighters = {
+    left: { name: (cData.rankBadge||'')+d.challenger, x: 350, baseX: 350, y: 480, scale: S, hp: 100+(cData.level||1)*5+(cData.prestige||0)*10, maxHP: 100+(cData.level||1)*5+(cData.prestige||0)*10, appearance: cData.appearance||{}, equipped: cData.equipped||{}, state:'idle', stateTimer:0, flash:0 },
+    right: { name: (dData.rankBadge||'')+d.defender, x: 1350, baseX: 1350, y: 480, scale: S, hp: 100+(dData.level||1)*5+(dData.prestige||0)*10, maxHP: 100+(dData.level||1)*5+(dData.prestige||0)*10, appearance: dData.appearance||{}, equipped: dData.equipped||{}, state:'idle', stateTimer:0, flash:0 },
+  };
+  duelFloatingDmg = [];
+
+  document.getElementById('duel-combat-log').innerHTML = '';
+  document.getElementById('duel-result-banner').classList.remove('show');
+  ov.classList.add('active');
+  playSound('spawn');
+
+  if (duelAnimFrame) cancelAnimationFrame(duelAnimFrame);
+  function render() {
+    ctx.clearRect(0, 0, W, H);
+    drawDuelBG(ctx, W, H, bg, d.arena?.name);
+    ['left','right'].forEach(side => {
+      const f = duelFighters[side];
+      if (f.stateTimer > 0) f.stateTimer--; else f.state = 'idle';
+      if (f.flash > 0) f.flash -= 0.1;
+      if (f.state === 'idle') { f.y = 480 + Math.sin(Date.now()/400)*5; f.x = f.baseX; }
+      if (f.state === 'attacking') {
+        const prog = 1 - f.stateTimer / 8;
+        const lunge = side === 'left' ? 60 : -60;
+        f.x = f.baseX + (prog < 0.5 ? lunge*prog*2 : lunge*(1-prog)*2);
+      }
+    });
+    drawOverlayFighter(ctx, duelFighters.left, false);
+    drawOverlayFighter(ctx, duelFighters.right, true);
+    drawDuelHPBar(ctx, duelFighters.left);
+    drawDuelHPBar(ctx, duelFighters.right);
+    // Floating damage
+    duelFloatingDmg = duelFloatingDmg.filter(dm => dm.life > 0);
+    duelFloatingDmg.forEach(dm => {
+      dm.y -= 1.5; dm.life--;
+      ctx.globalAlpha = Math.min(1, dm.life / 15);
+      ctx.font = dm.crit ? 'bold 26px "Press Start 2P", monospace' : 'bold 18px "Press Start 2P", monospace';
+      ctx.textAlign = 'center'; ctx.fillStyle = dm.color;
+      ctx.fillText(dm.text, dm.x, dm.y);
+      ctx.globalAlpha = 1;
+    });
+    // VS text in center
+    ctx.fillStyle = '#ff4444'; ctx.globalAlpha = 0.6;
+    ctx.font = 'bold 50px "Press Start 2P", monospace'; ctx.textAlign = 'center';
+    ctx.fillText('⚔️ VS ⚔️', W/2, H/2 - 60);
+    ctx.globalAlpha = 1;
+    duelAnimFrame = requestAnimationFrame(render);
+  }
+  render();
+
+  // Animate rounds
+  const rounds = d.rounds || [];
+  let delay = 1500;
+
+  rounds.forEach((r, i) => {
+    setTimeout(() => {
+      const isLeft = r.attacker === d.challenger;
+      const attacker = isLeft ? duelFighters.left : duelFighters.right;
+      const defender = isLeft ? duelFighters.right : duelFighters.left;
+
+      attacker.state = 'attacking'; attacker.stateTimer = 8;
+      setTimeout(() => {
+        if (!r.dodged) {
+          defender.flash = 1.5;
+          if (isLeft) { duelFighters.right.hp = r.defenderHP; }
+          else { duelFighters.left.hp = r.defenderHP; }
+          duelFloatingDmg.push({ x: defender.baseX+60, y: defender.y+30, text: r.isCrit?`CRIT ${r.damage}!`:`${r.damage}`, color: r.isCrit?'#ff4444':r.dragonHit>0?'#ff8800':'#fff', crit: r.isCrit, life: 40 });
+          if (r.dragonHit > 0) duelFloatingDmg.push({ x: defender.baseX+80, y: defender.y+60, text: `🐉+${r.dragonHit}`, color: '#ff8800', crit: false, life: 35 });
+          playSound(r.isCrit ? 'crit' : 'hit');
+        } else {
+          duelFloatingDmg.push({ x: defender.baseX+60, y: defender.y+30, text: 'DODGE!', color: '#4ade80', crit: false, life: 35 });
+        }
+      }, 200);
+
+      // Combat log
+      const log = document.getElementById('duel-combat-log');
+      const line = document.createElement('div');
+      line.className = 'duel-log-line';
+      if (r.dodged) { line.className += ' duel-log-dodge'; line.textContent = `${r.attacker} attacks — DODGED!`; }
+      else if (r.isCrit) { line.className += ' duel-log-crit'; line.textContent = `💥 ${r.attacker} CRIT ${r.damage}!`; }
+      else if (r.dragonHit > 0) { line.className += ' duel-log-dragon'; line.textContent = `🐉 ${r.attacker} hits ${r.damage} (+${r.dragonHit} dragon fire)!`; }
+      else { line.className += ' duel-log-normal'; line.textContent = `${r.attacker} hits for ${r.damage}`; }
+      log.appendChild(line);
+      while (log.children.length > 5) log.removeChild(log.firstChild);
+    }, delay + i * 700);
+  });
+
+  // Show result after all rounds
+  const resultDelay = delay + rounds.length * 700 + 500;
+  setTimeout(() => {
+    const banner = document.getElementById('duel-result-banner');
+    document.getElementById('duel-result-winner').textContent = `🏆 ${d.winner} WINS! 🏆`;
+    document.getElementById('duel-result-details').textContent = `${d.winner} vs ${d.loser}`;
+    document.getElementById('duel-result-gold').textContent = d.bet > 0 ? `+${d.bet}g won!` : '';
+    document.getElementById('duel-result-rating').textContent = `Rating: +${d.ratingChange || 0} / -${d.ratingChange || 0}`;
+    banner.classList.add('show');
+    spawnExplosion(ov);
+    playSound('victory');
+  }, resultDelay);
+
+  // Hide overlay after everything
+  setTimeout(() => {
+    ov.classList.remove('active');
+    document.getElementById('duel-result-banner').classList.remove('show');
+    if (duelAnimFrame) cancelAnimationFrame(duelAnimFrame);
+  }, resultDelay + 4000);
+}
+
+// ═══════════════════════════════════════════
+// Prestige Overlay Animation
+// ═══════════════════════════════════════════
+function onPrestige(d) {
+  toast(`🏅 ${d.username} PRESTIGED to ${d.prestigeName}! (+${d.dmgBonus}% dmg, +${d.goldReward}g)`, '#ffd700', 6000);
+
+  const ov = document.getElementById('prestige-overlay');
+  document.getElementById('prestige-icon').textContent = d.prestigeIcon || '⭐';
+  document.getElementById('prestige-rank-name').textContent = d.prestigeName || `Prestige ${d.newPrestige}`;
+  document.getElementById('prestige-bonus-text').textContent = `+${d.dmgBonus || 0}% permanent damage bonus`;
+  ov.classList.add('active');
+  playSound('victory');
+
+  setTimeout(() => playSound('wheelLand'), 500);
+  setTimeout(() => { ov.classList.remove('active'); }, 5000);
+}
+</script>
+</body>
+</html>
+

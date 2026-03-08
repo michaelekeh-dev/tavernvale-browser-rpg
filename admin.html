@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>⚔️ KickStream MMO — Admin Dashboard</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',sans-serif;background:#0a0a0f;color:#e0e0e0;min-height:100vh}
+.header{background:linear-gradient(135deg,#1a1a2e,#16213e);padding:15px 25px;display:flex;align-items:center;border-bottom:2px solid #e94560}
+.header h1{font-size:22px;color:#e94560;flex:1}
+.status{font-size:13px;padding:5px 12px;border-radius:12px}
+.status.connected{background:#0d472a;color:#4ade80}
+.status.disconnected{background:#4a1c1c;color:#f87171}
+.grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:15px;padding:15px}
+.panel{background:#12121a;border:1px solid #2a2a3a;border-radius:10px;padding:15px}
+.panel h2{font-size:14px;text-transform:uppercase;color:#e94560;margin-bottom:12px;letter-spacing:1px;border-bottom:1px solid #2a2a3a;padding-bottom:8px}
+.full-width{grid-column:1/-1}
+.two-col{grid-column:span 2}
+.state-item{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #1a1a2a;font-size:13px}
+.state-label{color:#888}
+.state-value{color:#fff;font-weight:600}
+.state-value.active{color:#4ade80}
+.state-value.idle{color:#888}
+.state-value.wheel{color:#fbbf24}
+.hp-bar-outer{background:#1a1a2a;border-radius:6px;height:20px;margin-top:8px;overflow:hidden}
+.hp-bar-inner{height:100%;background:linear-gradient(90deg,#4ade80,#22c55e);transition:width .3s;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#000}
+.btn-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.btn{padding:10px;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;transition:all .2s}
+.btn:hover{transform:translateY(-1px);filter:brightness(1.2)}
+.btn:active{transform:translateY(0)}
+.btn-red{background:#dc2626;color:#fff}
+.btn-green{background:#16a34a;color:#fff}
+.btn-blue{background:#2563eb;color:#fff}
+.btn-yellow{background:#d97706;color:#fff}
+.btn-purple{background:#7c3aed;color:#fff}
+.btn-gray{background:#4b5563;color:#fff}
+.input-row{display:flex;gap:6px;margin-top:8px}
+.input-row input{flex:1;padding:8px;background:#1a1a2a;border:1px solid #2a2a3a;border-radius:6px;color:#fff;font-size:13px}
+.input-row input:focus{outline:none;border-color:#e94560}
+.player-search{width:100%;padding:8px 12px;background:#1a1a2a;border:1px solid #2a2a3a;border-radius:6px;color:#fff;font-size:13px;margin-bottom:10px}
+.player-search:focus{outline:none;border-color:#e94560}
+.player-table{width:100%;border-collapse:collapse;font-size:12px}
+.player-table th{text-align:left;padding:8px;background:#1a1a2a;color:#888;font-weight:600;position:sticky;top:0}
+.player-table td{padding:6px 8px;border-bottom:1px solid #1a1a2a}
+.player-table tr:hover td{background:#1a1a2a}
+.player-scroll{max-height:300px;overflow-y:auto}
+.config-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;font-size:12px}
+.config-item{display:flex;flex-direction:column;background:#1a1a2a;padding:6px 8px;border-radius:4px}
+.config-item label{color:#888;font-size:10px;margin-bottom:3px}
+.config-item input{background:#0a0a0f;border:1px solid #2a2a3a;border-radius:3px;color:#fff;padding:4px 6px;font-size:12px;width:100%}
+.config-item input:focus{outline:none;border-color:#e94560}
+.kick-status{display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:13px}
+.kick-dot{width:8px;height:8px;border-radius:50%}
+.kick-dot.on{background:#4ade80}
+.kick-dot.off{background:#f87171}
+.log{max-height:200px;overflow-y:auto;font-family:Consolas,monospace;font-size:11px;background:#0a0a0f;padding:8px;border-radius:6px}
+.log-entry{padding:2px 0;border-bottom:1px solid #111}
+.log-entry .time{color:#555}
+.log-entry .msg{color:#ccc}
+.log-entry.error .msg{color:#f87171}
+.log-entry.success .msg{color:#4ade80}
+.log-entry.info .msg{color:#60a5fa}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;align-items:center;justify-content:center}
+.modal-overlay.active{display:flex}
+.modal{background:#12121a;border:1px solid #e94560;border-radius:10px;padding:20px;min-width:300px}
+.modal h3{color:#e94560;margin-bottom:15px}
+.modal label{display:block;color:#888;font-size:12px;margin:8px 0 4px}
+.modal input{width:100%;padding:8px;background:#1a1a2a;border:1px solid #2a2a3a;border-radius:6px;color:#fff;font-size:13px}
+.modal input:focus{outline:none;border-color:#e94560}
+.modal-btns{display:flex;gap:8px;margin-top:15px}
+.modal-btns .btn{flex:1}
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:#0a0a0f}
+::-webkit-scrollbar-thumb{background:#2a2a3a;border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:#3a3a4a}
+.toast{position:fixed;bottom:20px;right:20px;background:#16a34a;color:#fff;padding:10px 20px;border-radius:8px;font-size:13px;z-index:2000;opacity:0;transform:translateY(10px);transition:all .3s}
+.toast.show{opacity:1;transform:translateY(0)}
+.toast.error{background:#dc2626}
+.shop-item{display:flex;justify-content:space-between;align-items:center;padding:8px;background:#1a1a2a;border-radius:6px;margin-bottom:6px;font-size:12px}
+.shop-item .shop-name{color:#fff;font-weight:600;flex:1}
+.shop-item .shop-cost{color:#fbbf24;font-weight:700;margin:0 12px}
+.shop-item .shop-desc{color:#888;font-size:11px;flex:2}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>⚔️ KickStream MMO — Admin Dashboard</h1>
+  <span class="status disconnected" id="wsStatus">● Disconnected</span>
+</div>
+
+<div class="grid">
+  <!-- Game State -->
+  <div class="panel">
+    <h2>🎮 Game State</h2>
+    <div class="state-item"><span class="state-label">Status</span><span class="state-value" id="gameState">idle</span></div>
+    <div class="state-item"><span class="state-label">Boss</span><span class="state-value" id="bossName">—</span></div>
+    <div class="state-item"><span class="state-label">Boss #</span><span class="state-value" id="bossNumber">—</span></div>
+    <div class="state-item"><span class="state-label">Active Players</span><span class="state-value" id="activePlayers">0</span></div>
+    <div class="state-item"><span class="state-label">Prize Multiplier</span><span class="state-value" id="prizeMultiplier">1x</span></div>
+    <div class="state-item"><span class="state-label">Buffs</span><span class="state-value" id="activeBuffs">None</span></div>
+    <div style="margin-top:10px">
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:#888;margin-bottom:4px">
+        <span>HP</span><span id="hpText">— / —</span>
+      </div>
+      <div class="hp-bar-outer"><div class="hp-bar-inner" id="hpBar" style="width:0%"></div></div>
+    </div>
+  </div>
+
+  <!-- Admin Commands -->
+  <div class="panel">
+    <h2>🔧 Admin Commands</h2>
+    <div class="btn-grid">
+      <button class="btn btn-green" onclick="adminCmd('!spawn1')">⚔️ Spawn Boss 1</button>
+      <button class="btn btn-purple" onclick="adminCmd('!spawn2')">🐉 Spawn Boss 2</button>
+      <button class="btn btn-red" onclick="adminCmd('!kill')">💀 Kill Boss</button>
+      <button class="btn btn-yellow" onclick="adminCmd('!wheel')">🎡 Open Wheel</button>
+      <button class="btn btn-blue" onclick="adminCmd('!skip')">⏭️ Skip Break</button>
+      <button class="btn btn-gray" onclick="adminCmd('!reset')">🔄 Reset Game</button>
+      <button class="btn btn-red" onclick="fullReset()" style="background:linear-gradient(90deg,#ff0000,#880000)">🔥 WIPE ALL DATA</button>
+      <button class="btn btn-red" onclick="adminCmd('!bossattack')" style="grid-column:1/-1;background:linear-gradient(90deg,#dc2626,#9a1c1c)">🐉 BOSS ATTACK (viewers must !dodge)</button>
+    </div>
+    <div class="input-row">
+      <input type="number" id="sethpInput" placeholder="New HP value...">
+      <button class="btn btn-blue" onclick="setHP()">Set HP</button>
+    </div>
+    <div class="input-row">
+      <button class="btn btn-yellow" style="width:100%" onclick="spinWheel()">🎡 Spin Wheel</button>
+    </div>
+  </div>
+
+  <!-- Kick Connection -->
+  <div class="panel">
+    <h2>📡 Kick Connection</h2>
+    <div class="kick-status">
+      <div class="kick-dot off" id="kickDot"></div>
+      <span id="kickStatus">Unknown</span>
+    </div>
+    <div class="state-item"><span class="state-label">Channel</span><span class="state-value" id="kickChannel">—</span></div>
+    <div class="state-item"><span class="state-label">Chatroom ID</span><span class="state-value" id="chatroomId">—</span></div>
+    <div class="input-row">
+      <input type="number" id="chatroomInput" placeholder="Chatroom ID...">
+      <button class="btn btn-green" onclick="setChatroomId()">Connect</button>
+    </div>
+    <p style="font-size:11px;color:#666;margin-top:10px">
+      To find your Chatroom ID:<br>
+      1. Open browser → kick.com/api/v2/channels/YOUR_CHANNEL<br>
+      2. Find "chatroom" → "id" in the JSON<br>
+      3. Enter the number above and click Connect
+    </p>
+  </div>
+
+  <!-- Player Management -->
+  <div class="panel two-col">
+    <h2>👥 Players (<span id="playerCount">0</span>)</h2>
+    <input class="player-search" id="playerSearch" placeholder="Search players..." oninput="filterPlayers()">
+    <div class="player-scroll">
+      <table class="player-table">
+        <thead><tr><th>Player</th><th>Level</th><th>XP</th><th>Gold</th><th>Total DMG</th><th>Items</th><th>Ach</th><th>Actions</th></tr></thead>
+        <tbody id="playerBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Event Log -->
+  <div class="panel">
+    <h2>📜 Event Log</h2>
+    <div class="log" id="eventLog"></div>
+  </div>
+
+  <!-- Gold Shop Items -->
+  <div class="panel full-width">
+    <h2>🛒 Gold Shop Items</h2>
+    <div id="shopItems">
+      <div class="shop-item">
+        <span class="shop-name">🗡️ Whetstone</span>
+        <span class="shop-cost">50g</span>
+        <span class="shop-desc">+3 bonus damage for the current boss fight</span>
+      </div>
+      <div class="shop-item">
+        <span class="shop-name">🍀 Lucky Charm</span>
+        <span class="shop-cost">75g</span>
+        <span class="shop-desc">+15% crit chance for the current boss fight</span>
+      </div>
+      <div class="shop-item">
+        <span class="shop-name">👟 Swift Boots</span>
+        <span class="shop-cost">100g</span>
+        <span class="shop-desc">Halve your attack cooldown for the current boss fight</span>
+      </div>
+      <div class="shop-item">
+        <span class="shop-name">💪 Mega Potion</span>
+        <span class="shop-cost">150g</span>
+        <span class="shop-desc">2x damage for the current boss fight</span>
+      </div>
+      <div class="shop-item">
+        <span class="shop-name">⭐ Title: Champion</span>
+        <span class="shop-cost">500g</span>
+        <span class="shop-desc">Permanent ⭐ badge on the leaderboard</span>
+      </div>
+    </div>
+    <p style="font-size:11px;color:#666;margin-top:8px">Players use: <b>!shop</b> (list items) | <b>!buy whetstone/charm/boots/potion/title</b> (purchase)</p>
+  </div>
+
+  <!-- Config Editor -->
+  <div class="panel full-width">
+    <h2>⚙️ Configuration <button class="btn btn-green" style="float:right;padding:4px 12px;font-size:11px" onclick="saveConfig()">💾 Save Config</button></h2>
+    <div class="config-grid" id="configGrid"></div>
+  </div>
+
+  <!-- Command Reference -->
+  <div class="panel full-width">
+    <h2>📖 Command Reference</h2>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;font-size:12px">
+      <div>
+        <b style="color:#e94560">Combat</b>
+        <div style="color:#888;margin-top:4px">!attack — Hit the boss</div>
+        <div style="color:#888">!dodge — Dodge boss attack</div>
+        <div style="color:#888">!stats — View your stats</div>
+        <div style="color:#888">!daily — Claim daily reward</div>
+        <div style="color:#888">!boss — Boss info</div>
+        <div style="color:#888">!lb — Leaderboard</div>
+        <div style="color:#888">!help — Show rules</div>
+      </div>
+      <div>
+        <b style="color:#e94560">Economy</b>
+        <div style="color:#888;margin-top:4px">!gamble &lt;amount&gt; — Risk gold</div>
+        <div style="color:#888">!gift &lt;user&gt; &lt;amount&gt;</div>
+        <div style="color:#888">!cash — Check IRL $$$ value</div>
+        <div style="color:#888">!shop — Temp buff shop</div>
+        <div style="color:#888">!buy &lt;item&gt; — Buy buff</div>
+        <div style="color:#888">!inv — View inventory</div>
+        <div style="color:#888">!equip &lt;uid&gt; — Equip item</div>
+        <div style="color:#888">!unequip &lt;slot&gt;</div>
+        <div style="color:#888">!vendorsell &lt;uid&gt; — NPC sell</div>
+        <div style="color:#888">!link — Link portal account</div>
+      </div>
+      <div>
+        <b style="color:#e94560">Cosmetics & Market</b>
+        <div style="color:#888;margin-top:4px">!cosmetics — Browse cosmetics</div>
+        <div style="color:#888">!buycosmetic &lt;id&gt;</div>
+        <div style="color:#888">!equipcosmetic &lt;id&gt;</div>
+        <div style="color:#888">!market — Browse listings</div>
+        <div style="color:#888">!sell &lt;uid&gt; &lt;price&gt;</div>
+        <div style="color:#888">!sellcosmetic &lt;id&gt; &lt;price&gt;</div>
+        <div style="color:#888">!buymarket &lt;#id&gt;</div>
+        <div style="color:#888">!cancel &lt;#id&gt;</div>
+        <div style="color:#888">!achievements — Track progress</div>
+      </div>
+      <div>
+        <b style="color:#e94560">Admin Commands</b>
+        <div style="color:#888;margin-top:4px">!spawn1 — Spawn Boss 1</div>
+        <div style="color:#888">!spawn2 — Spawn Boss 2</div>
+        <div style="color:#888">!kill — Instant kill boss</div>
+        <div style="color:#888">!bossattack — Boss attacks chat!</div>
+        <div style="color:#888">!wheel — Open wheel</div>
+        <div style="color:#888">!skip — Skip break timer</div>
+        <div style="color:#888">!reset — Reset for new stream</div>
+        <div style="color:#888">!sethp &lt;value&gt; — Set boss HP</div>
+        <div style="color:#888;margin-top:8px"><b style="color:#4ade80">SUB = instant boss kill!</b></div>
+      </div>
+    </div>
+  </div>
+  <!-- Gold Economy -->
+  <div class="panel full-width">
+    <h2>💰 Gold Economy</h2>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:15px;font-size:12px">
+      <div>
+        <b style="color:#fbbf24">Earning Gold</b>
+        <div style="color:#888;margin-top:4px">🪙 Per attack hit: 1g</div>
+        <div style="color:#888">💀 Boss kill (all): 8g</div>
+        <div style="color:#888">🏆 MVP bonus: 25g</div>
+        <div style="color:#888">🥈 Top 2-3 bonus: 15g</div>
+        <div style="color:#888">🥇 Top 4-5 bonus: 10g</div>
+        <div style="color:#888">📅 Daily (!daily): 8g</div>
+        <div style="color:#888">🔥 Streak +1g per 5 hits</div>
+        <div style="color:#888">🎰 Gamble: 45% win (2x bet)</div>
+      </div>
+      <div>
+        <b style="color:#fbbf24">Vendor Sell Prices</b>
+        <div style="color:#888;margin-top:4px">⬜ Common: 10g</div>
+        <div style="color:#4ade80">🟢 Uncommon: 25g</div>
+        <div style="color:#60a5fa">🔵 Rare: 60g</div>
+        <div style="color:#c084fc">🟣 Epic: 120g</div>
+        <div style="color:#fbbf24">🟡 Legendary: 250g</div>
+        <div style="color:#888;margin-top:4px">Players can vendor sell (!vendorsell) or list on market (!sell) for custom prices</div>
+      </div>
+      <div>
+        <b style="color:#4ade80">IRL Cash Value</b>
+        <div style="color:#888;margin-top:4px">💵 Rate: 150g = $1 IRL</div>
+        <div style="color:#888">Min redeem: $10 (1500g)</div>
+        <div style="color:#888;margin-top:6px">🎯 <b>Boss Prizes (top 3 + 1 random):</b></div>
+        <div style="color:#4ade80">Boss 1: $2.50 each (375g)</div>
+        <div style="color:#fbbf24">Boss 2: $4.00 each (600g)</div>
+        <div style="color:#888;font-style:italic;margin-top:4px">"payouts processed quickly by ur boy mikeydamike" 🏄‍♂️💨</div>
+        <div style="color:#888;margin-top:6px">🎡 <b>Wheel Prizes:</b></div>
+        <div style="color:#fbbf24">750g Gold Rain (split top 4)</div>
+        <div style="color:#fbbf24">1500g Jackpot</div>
+        <div style="color:#c084fc">Random Viewer Pick</div>
+        <div style="color:#888">Double / Re-spin</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Payout Queue -->
+  <div class="panel full-width">
+    <h2>💰 Payout Queue <button class="btn btn-blue" style="float:right;padding:4px 12px;font-size:11px" onclick="loadPayouts()">🔄 Refresh</button></h2>
+    <div id="payoutQueue" style="font-size:13px">
+      <div style="color:#888;text-align:center;padding:20px;">Loading...</div>
+    </div>
+  </div>
+
+  <!-- Discord Webhook -->
+  <div class="panel full-width">
+    <h2>🤖 Discord Integration</h2>
+
+    <div style="margin-bottom:16px;">
+      <div style="font-size:13px;color:#fff;font-weight:600;margin-bottom:4px">📢 Events Channel (Webhook)</div>
+      <div style="font-size:12px;color:#888;margin-bottom:8px">Boss kills, MVPs, achievements, payouts. One-way notifications.</div>
+      <div class="input-row">
+        <input type="text" id="discordWebhook" placeholder="https://discord.com/api/webhooks/...">
+        <button class="btn btn-purple" onclick="saveDiscordWebhook()">Save</button>
+        <button class="btn btn-gray" onclick="testDiscordWebhook()">Test</button>
+      </div>
+      <div id="discordStatus" style="font-size:11px;color:#888;margin-top:6px"></div>
+    </div>
+
+    <div style="border-top:1px solid #333;padding-top:16px;">
+      <div style="font-size:13px;color:#fff;font-weight:600;margin-bottom:4px">💬 Chat Channel (Bot — Two-Way)</div>
+      <div style="font-size:12px;color:#888;margin-bottom:8px">Bridges portal chat ↔ Discord. Messages show 🌐 (portal) or 💬 (Discord) icons. Requires a Discord bot.</div>
+      <div style="font-size:11px;color:#888;margin-bottom:8px">Steps: <a href="https://discord.com/developers/applications" target="_blank" style="color:#5865F2">discord.dev</a> → New Application → Bot → Reset Token → Copy Token. Enable "Message Content Intent" under Bot settings. Invite bot to server with Messages permission.</div>
+      <div class="input-row" style="margin-bottom:6px">
+        <input type="text" id="discordBotToken" placeholder="Bot token (from discord.dev)">
+      </div>
+      <div class="input-row">
+        <input type="text" id="discordChatChannel" placeholder="Chat channel ID (right-click channel → Copy ID)">
+        <button class="btn btn-purple" onclick="saveDiscordBot()">Connect Bot</button>
+        <button class="btn btn-red" onclick="disconnectDiscordBot()">Disconnect</button>
+      </div>
+      <div id="discordBotStatus" style="font-size:11px;color:#888;margin-top:6px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Player Modal -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <h3>Edit Player: <span id="editPlayerName"></span></h3>
+    <label>Level</label><input type="number" id="editLevel" min="1">
+    <label>XP</label><input type="number" id="editXP" min="0">
+    <label>Gold</label><input type="number" id="editGold" min="0">
+    <label>Total Damage</label><input type="number" id="editDamage" min="0">
+    <div class="modal-btns">
+      <button class="btn btn-gray" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-green" onclick="savePlayer()">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let ws = null;
+let allPlayers = {};
+let currentConfig = {};
+let editingPlayer = null;
+
+function connect() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(proto + '://' + location.host);
+
+  ws.onopen = () => {
+    document.getElementById('wsStatus').className = 'status connected';
+    document.getElementById('wsStatus').textContent = '● Connected';
+    addLog('Connected to server', 'success');
+    ws.send(JSON.stringify({ type: 'admin_get_players' }));
+    ws.send(JSON.stringify({ type: 'admin_get_config' }));
+    ws.send(JSON.stringify({ type: 'admin_get_kick_status' }));
+  };
+
+  ws.onclose = () => {
+    document.getElementById('wsStatus').className = 'status disconnected';
+    document.getElementById('wsStatus').textContent = '● Disconnected';
+    addLog('Disconnected — reconnecting...', 'error');
+    setTimeout(connect, 3000);
+  };
+
+  ws.onmessage = (e) => {
+    try { handleMessage(JSON.parse(e.data)); } catch {}
+  };
+}
+
+function handleMessage(msg) {
+  const { type, data } = msg;
+  switch (type) {
+    case 'state_sync': updateGameState(data); break;
+    case 'boss_spawn':
+      updateBossDisplay(data);
+      addLog('Boss #' + data.number + ' "' + data.name + '" spawned — HP: ' + data.hp, 'info');
+      break;
+    case 'hit': updateHP(data.bossHP, data.bossMaxHP); break;
+    case 'boss_dead':
+      document.getElementById('gameState').textContent = data.isRaidBoss ? 'wheel_ready' : 'break';
+      document.getElementById('bossName').textContent = '—';
+      document.getElementById('hpText').textContent = '— / —';
+      document.getElementById('hpBar').style.width = '0%';
+      addLog('Boss "' + data.bossName + '" defeated! MVP: ' + data.mvp, 'success');
+      refreshPlayers();
+      break;
+    case 'boss_phase':
+      addLog('⚠️ ' + data.bossName + ' at ' + data.phase + '% HP!', 'info');
+      break;
+    case 'wheel_ready':
+      document.getElementById('gameState').textContent = 'wheel_ready';
+      document.getElementById('gameState').className = 'state-value wheel';
+      addLog('🎡 Wheel is ready!', 'info');
+      break;
+    case 'wheel_result':
+      addLog('🎡 Wheel: ' + data.reward + (data.prizeMultiplier > 1 ? ' (' + data.prizeMultiplier + 'x)' : ''), 'success');
+      if (data.newMultiplier) document.getElementById('prizeMultiplier').textContent = data.newMultiplier + 'x';
+      break;
+    case 'level_up':
+      addLog('⬆️ ' + data.username + ' reached level ' + data.level + '!', 'info');
+      break;
+    case 'buff_active':
+      document.getElementById('activeBuffs').textContent = '2X XP + 2X DMG';
+      addLog('💪 Double buff activated!', 'success');
+      break;
+    case 'combo':
+      addLog('🔥 ' + data.count + 'x COMBO by ' + data.username + '!', 'info');
+      break;
+    case 'admin_players':
+      allPlayers = data.players || {};
+      renderPlayers();
+      break;
+    case 'admin_config':
+      currentConfig = data.config || {};
+      renderConfig();
+      break;
+    case 'admin_kick_status':
+      updateKickStatus(data);
+      break;
+    case 'admin_player_updated':
+      toast('Updated ' + data.username);
+      refreshPlayers();
+      break;
+    case 'admin_config_updated':
+      toast('Config saved!');
+      break;
+    case 'admin_chatroom_set':
+      toast('Chatroom ID set to ' + data.id + ' — connecting...');
+      document.getElementById('chatroomId').textContent = data.id;
+      break;
+    case 'admin_error':
+      toast(data.message || 'Error', true);
+      break;
+    case 'admin_state':
+      updateGameState(data);
+      break;
+    case 'gamble_result':
+      addLog('🎰 ' + data.username + ' ' + (data.win ? 'WON' : 'LOST') + ' ' + data.bet + 'g', data.win ? 'success' : 'error');
+      break;
+    case 'gift_sent':
+      addLog('🎁 ' + data.from + ' gifted ' + data.amount + 'g to ' + data.to, 'info');
+      break;
+    case 'shop_purchase':
+      addLog('🛒 ' + data.username + ' bought ' + data.item + ' for ' + data.cost + 'g', 'info');
+      break;
+    case 'shop_list':
+      addLog('📋 ' + data.username + ' viewed the shop', 'info');
+      break;
+    case 'boss_attack':
+      addLog('🐉 BOSS ATTACK: ' + data.attack + '! Viewers must !dodge!', 'error');
+      break;
+    case 'boss_attack_result':
+      addLog('🛡️ Attack result — Dodged: ' + (data.dodged || []).length + ' | Hit: ' + (data.hit || []).length, 'info');
+      break;
+    case 'sub_kill':
+      addLog('🌟 SUBSCRIBER KILL! ' + data.subscriber + ' killed ' + data.bossName + '!', 'success');
+      break;
+    case 'achievement':
+      addLog('🏆 ' + data.username + ' unlocked: ' + data.name, 'success');
+      break;
+    case 'cosmetic_purchased':
+      addLog('✨ ' + data.username + ' bought cosmetic: ' + data.item, 'info');
+      break;
+    case 'market_purchased':
+      addLog('📦 ' + data.buyer + ' bought ' + data.item + ' from ' + data.seller + ' for ' + data.price + 'g', 'info');
+      break;
+    case 'market_listed':
+      addLog('📦 ' + data.username + ' listed item on market for ' + data.listing.price + 'g', 'info');
+      break;
+    case 'dodge_success':
+      addLog('🏃 ' + data.username + ' dodged!', 'info');
+      break;
+  }
+}
+
+/* ── Admin Commands ── */
+function adminCmd(cmd) {
+  ws.send(JSON.stringify({ type: 'test_command', username: 'mikeydamike', content: cmd }));
+  addLog('Sent: ' + cmd, 'info');
+}
+function fullReset() {
+  if (!confirm('⚠️ WIPE ALL PLAYER DATA?\n\nThis will delete ALL players, gold, items, stats, market listings, and payout queue.\n\nThis CANNOT be undone!')) return;
+  if (!confirm('Are you ABSOLUTELY sure? Type OK to confirm.')) return;
+  fetch('/api/admin/fullreset', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+    .then(r => r.json())
+    .then(d => { addLog('🔥 FULL RESET — All data wiped!', 'error'); loadPlayers(); })
+    .catch(e => addLog('Reset failed: ' + e.message, 'error'));
+}
+function setHP() {
+  const val = document.getElementById('sethpInput').value;
+  if (!val) return;
+  ws.send(JSON.stringify({ type: 'test_command', username: 'mikeydamike', content: '!sethp ' + val }));
+  document.getElementById('sethpInput').value = '';
+  addLog('Set HP to ' + val, 'info');
+}
+function spinWheel() {
+  ws.send(JSON.stringify({ type: 'wheel_spin' }));
+  addLog('Spinning wheel...', 'info');
+}
+function setChatroomId() {
+  const id = document.getElementById('chatroomInput').value;
+  if (!id) return;
+  ws.send(JSON.stringify({ type: 'admin_set_chatroom', id: parseInt(id) }));
+  document.getElementById('chatroomInput').value = '';
+}
+function refreshPlayers() {
+  if (ws && ws.readyState === WebSocket.OPEN)
+    ws.send(JSON.stringify({ type: 'admin_get_players' }));
+}
+
+/* ── Game State Display ── */
+function updateGameState(data) {
+  const el = document.getElementById('gameState');
+  el.textContent = data.state;
+  el.className = 'state-value ' + (data.state === 'boss_active' ? 'active' : data.state === 'wheel_ready' ? 'wheel' : 'idle');
+  document.getElementById('prizeMultiplier').textContent = (data.prizeMultiplier || 1) + 'x';
+  document.getElementById('bossNumber').textContent = data.bossNumber || '—';
+  if (data.boss) updateBossDisplay(data.boss);
+  else {
+    document.getElementById('bossName').textContent = '—';
+    document.getElementById('hpText').textContent = '— / —';
+    document.getElementById('hpBar').style.width = '0%';
+  }
+  if (data.activePlayers !== undefined) document.getElementById('activePlayers').textContent = data.activePlayers;
+}
+function updateBossDisplay(boss) {
+  document.getElementById('gameState').textContent = 'boss_active';
+  document.getElementById('gameState').className = 'state-value active';
+  document.getElementById('bossName').textContent = boss.name;
+  document.getElementById('bossNumber').textContent = boss.number;
+  updateHP(boss.hp, boss.maxHP);
+}
+function updateHP(hp, maxHP) {
+  if (hp == null || maxHP == null) return;
+  const pct = maxHP > 0 ? (hp / maxHP * 100) : 0;
+  document.getElementById('hpText').textContent = hp + ' / ' + maxHP;
+  const bar = document.getElementById('hpBar');
+  bar.style.width = pct + '%';
+  bar.style.background = pct > 50 ? 'linear-gradient(90deg,#4ade80,#22c55e)' : pct > 25 ? 'linear-gradient(90deg,#fbbf24,#f59e0b)' : 'linear-gradient(90deg,#f87171,#dc2626)';
+  bar.textContent = Math.round(pct) + '%';
+}
+
+/* ── Kick Status ── */
+function updateKickStatus(data) {
+  document.getElementById('kickDot').className = 'kick-dot ' + (data.connected ? 'on' : 'off');
+  document.getElementById('kickStatus').textContent = data.connected ? 'Connected' : (data.chatroomId ? 'Disconnected' : 'No Chatroom ID');
+  document.getElementById('kickChannel').textContent = data.channel || '—';
+  document.getElementById('chatroomId').textContent = data.chatroomId || 'Not set';
+}
+
+/* ── Player Table ── */
+function renderPlayers() {
+  const search = document.getElementById('playerSearch').value.toLowerCase();
+  const entries = Object.entries(allPlayers)
+    .filter(([name]) => name.toLowerCase().includes(search))
+    .sort((a, b) => b[1].level - a[1].level || b[1].gold - a[1].gold);
+  document.getElementById('playerCount').textContent = Object.keys(allPlayers).length;
+  document.getElementById('playerBody').innerHTML = entries.map(([name, p]) =>
+    '<tr>' +
+    '<td style="color:#fff;font-weight:600">' + esc(name) + (p.title ? ' ⭐' : '') + '</td>' +
+    '<td>' + p.level + '</td>' +
+    '<td>' + p.xp + '/' + (p.level * 100) + '</td>' +
+    '<td style="color:#fbbf24">🪙 ' + p.gold + '</td>' +
+    '<td>' + (p.totalDamage || 0).toLocaleString() + '</td>' +
+    '<td>' + ((p.inventory || []).length + Object.values(p.equipped || {}).filter(Boolean).length) + '🗡️ ' + (p.cosmetics || []).length + '✨</td>' +
+    '<td>' + (p.achievements || []).length + '🏆</td>' +
+    '<td><button class="btn btn-blue" style="padding:3px 8px;font-size:11px" onclick="editPlayer(\'' + esc(name) + '\')">✏️</button></td>' +
+    '</tr>'
+  ).join('');
+}
+function filterPlayers() { renderPlayers(); }
+function editPlayer(name) {
+  editingPlayer = name;
+  const p = allPlayers[name];
+  if (!p) return;
+  document.getElementById('editPlayerName').textContent = name;
+  document.getElementById('editLevel').value = p.level;
+  document.getElementById('editXP').value = p.xp;
+  document.getElementById('editGold').value = p.gold;
+  document.getElementById('editDamage').value = p.totalDamage;
+  document.getElementById('editModal').classList.add('active');
+}
+function closeModal() {
+  document.getElementById('editModal').classList.remove('active');
+  editingPlayer = null;
+}
+function savePlayer() {
+  if (!editingPlayer) return;
+  ws.send(JSON.stringify({
+    type: 'admin_set_player',
+    username: editingPlayer,
+    data: {
+      level: parseInt(document.getElementById('editLevel').value) || 1,
+      xp: parseInt(document.getElementById('editXP').value) || 0,
+      gold: parseInt(document.getElementById('editGold').value) || 0,
+      totalDamage: parseInt(document.getElementById('editDamage').value) || 0,
+    }
+  }));
+  closeModal();
+}
+
+/* ── Config Editor ── */
+function renderConfig() {
+  document.getElementById('configGrid').innerHTML = Object.entries(currentConfig).map(([key, val]) =>
+    '<div class="config-item"><label>' + esc(key) + '</label><input type="number" data-key="' + esc(key) + '" value="' + val + '"></div>'
+  ).join('');
+}
+function saveConfig() {
+  const updates = {};
+  document.querySelectorAll('#configGrid input').forEach(input => {
+    const key = input.dataset.key;
+    const val = parseFloat(input.value);
+    if (!isNaN(val) && currentConfig[key] !== val) updates[key] = val;
+  });
+  if (Object.keys(updates).length === 0) { toast('No changes to save'); return; }
+  ws.send(JSON.stringify({ type: 'admin_update_config', updates }));
+  Object.assign(currentConfig, updates);
+  addLog('Config updated: ' + Object.keys(updates).join(', '), 'success');
+}
+
+/* ── Log ── */
+function addLog(msg, cls) {
+  const el = document.getElementById('eventLog');
+  const time = new Date().toLocaleTimeString();
+  el.innerHTML = '<div class="log-entry ' + (cls || '') + '"><span class="time">[' + time + ']</span> <span class="msg">' + esc(msg) + '</span></div>' + el.innerHTML;
+  while (el.children.length > 100) el.removeChild(el.lastChild);
+}
+
+/* ── Utils ── */
+function esc(str) { const d = document.createElement('div'); d.textContent = String(str); return d.innerHTML; }
+function toast(msg, isError) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show' + (isError ? ' error' : '');
+  setTimeout(() => el.className = 'toast', 2500);
+}
+
+/* ── Payout Queue ── */
+function loadPayouts() {
+  fetch('/api/admin/payouts').then(r => r.json()).then(data => {
+    if (!data.queue) return;
+    renderPayouts(data.queue);
+  }).catch(() => {
+    document.getElementById('payoutQueue').innerHTML = '<div style="color:#f87171;text-align:center;padding:10px">Failed to load payouts</div>';
+  });
+}
+function renderPayouts(queue) {
+  const el = document.getElementById('payoutQueue');
+  if (!queue.length) { el.innerHTML = '<div style="color:#888;text-align:center;padding:20px">No payout requests yet</div>'; return; }
+  const pending = queue.filter(p => p.status === 'pending');
+  const processed = queue.filter(p => p.status !== 'pending');
+  let html = '';
+  if (pending.length) {
+    html += '<div style="margin-bottom:8px;color:#fbbf24;font-weight:600">⏳ Pending (' + pending.length + ')</div>';
+    html += '<table style="width:100%;border-collapse:collapse;margin-bottom:16px"><tr style="color:#888;font-size:11px;text-align:left">' +
+      '<th style="padding:4px 8px">User</th><th>Gold</th><th>USD</th><th>Method</th><th>Address</th><th>Date</th><th>Actions</th></tr>';
+    pending.forEach(p => {
+      html += '<tr style="border-top:1px solid #333">' +
+        '<td style="padding:6px 8px;color:#fff;font-weight:600">' + esc(p.username) + '</td>' +
+        '<td style="color:#fbbf24">' + p.goldAmount + 'g</td>' +
+        '<td style="color:#4ade80">$' + (typeof p.dollarValue === 'number' ? p.dollarValue.toFixed(2) : p.dollarValue) + '</td>' +
+        '<td>' + esc(p.method) + '</td>' +
+        '<td style="font-size:11px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + esc(p.address) + '">' + esc(p.address) + '</td>' +
+        '<td style="color:#888;font-size:11px">' + new Date(p.date || p.createdAt).toLocaleDateString() + '</td>' +
+        '<td>' +
+          '<button class="btn btn-green" style="padding:2px 8px;font-size:11px;margin-right:4px" onclick="processPayout(' + p.id + ',\'approve\')">✅</button>' +
+          '<button class="btn btn-red" style="padding:2px 8px;font-size:11px" onclick="processPayout(' + p.id + ',\'deny\')">❌</button>' +
+        '</td></tr>';
+    });
+    html += '</table>';
+  }
+  if (processed.length) {
+    html += '<details style="margin-top:8px"><summary style="cursor:pointer;color:#888;font-size:12px">📋 History (' + processed.length + ')</summary>';
+    html += '<table style="width:100%;border-collapse:collapse;margin-top:6px"><tr style="color:#888;font-size:11px;text-align:left">' +
+      '<th style="padding:4px 8px">User</th><th>Gold</th><th>USD</th><th>Method</th><th>Status</th><th>Date</th></tr>';
+    processed.forEach(p => {
+      const statusColor = p.status === 'approved' ? '#4ade80' : '#f87171';
+      html += '<tr style="border-top:1px solid #222">' +
+        '<td style="padding:4px 8px;color:#ccc">' + esc(p.username) + '</td>' +
+        '<td style="color:#888">' + p.goldAmount + 'g</td>' +
+        '<td style="color:#888">$' + (typeof p.dollarValue === 'number' ? p.dollarValue.toFixed(2) : p.dollarValue) + '</td>' +
+        '<td style="color:#888">' + esc(p.method) + '</td>' +
+        '<td style="color:' + statusColor + ';font-weight:600">' + p.status.toUpperCase() + '</td>' +
+        '<td style="color:#555;font-size:11px">' + new Date(p.date || p.createdAt).toLocaleDateString() + '</td>' +
+        '</tr>';
+    });
+    html += '</table></details>';
+  }
+  el.innerHTML = html;
+}
+function processPayout(id, action) {
+  if (!confirm(action === 'approve' ? 'Approve this payout? Make sure you\'ve sent the funds!' : 'Deny this payout? Gold will be refunded to the player.')) return;
+  fetch('/api/admin/payout', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ requestId: id, action })
+  }).then(r => r.json()).then(data => {
+    if (data.error) { toast(data.error, true); return; }
+    toast('Payout ' + action + 'd successfully!');
+    loadPayouts();
+    refreshPlayers();
+  }).catch(() => toast('Failed to process payout', true));
+}
+
+/* ── Discord Webhook ── */
+function loadDiscordWebhook() {
+  fetch('/api/admin/discord-webhook').then(r => r.json()).then(data => {
+    if (data.url) {
+      document.getElementById('discordWebhook').value = data.url;
+      document.getElementById('discordStatus').textContent = '✅ Webhook configured';
+      document.getElementById('discordStatus').style.color = '#4ade80';
+    }
+  });
+}
+function saveDiscordWebhook() {
+  const url = document.getElementById('discordWebhook').value.trim();
+  fetch('/api/admin/discord-webhook', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url })
+  }).then(r => r.json()).then(data => {
+    if (data.error) { toast(data.error, true); return; }
+    toast('Discord webhook saved!');
+    document.getElementById('discordStatus').textContent = url ? '✅ Webhook configured' : '⚠️ Webhook removed';
+    document.getElementById('discordStatus').style.color = url ? '#4ade80' : '#888';
+  }).catch(() => toast('Failed to save webhook', true));
+}
+function testDiscordWebhook() {
+  const url = document.getElementById('discordWebhook').value.trim();
+  if (!url) { toast('Enter a webhook URL first', true); return; }
+  fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content: '🎮 **Kickstream Boss Game** — Webhook test successful! Game events will appear here.' })
+  }).then(r => {
+    if (r.ok || r.status === 204) { toast('Test message sent to Discord!'); }
+    else { toast('Webhook returned error: ' + r.status, true); }
+  }).catch(() => toast('Failed to reach webhook URL', true));
+}
+
+/* ── Discord Bot (Two-Way Chat) ── */
+function loadDiscordBot() {
+  fetch('/api/admin/discord-bot').then(r => r.json()).then(data => {
+    const el = document.getElementById('discordBotStatus');
+    if (data.configured) {
+      el.textContent = '✅ Bot connected • Chat channel: ' + data.chatChannelId;
+      el.style.color = '#4ade80';
+    } else {
+      el.textContent = '⚠️ Not configured';
+      el.style.color = '#888';
+    }
+  });
+}
+function saveDiscordBot() {
+  const botToken = document.getElementById('discordBotToken').value.trim();
+  const chatChannelId = document.getElementById('discordChatChannel').value.trim();
+  if (!botToken || !chatChannelId) { toast('Need both bot token and channel ID', true); return; }
+  fetch('/api/admin/discord-bot', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ botToken, chatChannelId })
+  }).then(r => r.json()).then(data => {
+    if (data.error) { toast(data.error, true); return; }
+    toast('Discord bot connecting...');
+    document.getElementById('discordBotToken').value = '';
+    setTimeout(loadDiscordBot, 3000);
+  }).catch(() => toast('Failed to save bot config', true));
+}
+function disconnectDiscordBot() {
+  fetch('/api/admin/discord-bot/disconnect', { method: 'POST' })
+    .then(r => r.json()).then(() => {
+      toast('Discord bot disconnected');
+      document.getElementById('discordBotStatus').textContent = '⚠️ Not configured';
+      document.getElementById('discordBotStatus').style.color = '#888';
+    });
+}
+
+// Auto-refresh every 10s
+setInterval(() => {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: 'admin_get_players' }));
+    ws.send(JSON.stringify({ type: 'admin_get_kick_status' }));
+  }
+  loadPayouts();
+}, 10000);
+
+connect();
+loadPayouts();
+loadDiscordWebhook();
+loadDiscordBot();
+</script>
+</body>
+</html>
