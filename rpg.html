@@ -13,21 +13,8 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;di
 /* Login */
 #login-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;gap:16px}
 #login-screen h1{font-family:'Press Start 2P',monospace;font-size:20px;color:var(--gold)}
-#login-screen .sub{color:var(--dim);font-size:13px;margin-bottom:8px}
+#login-screen .sub{color:var(--dim);font-size:13px}
 #login-screen .info{color:var(--accent);font-size:12px;padding:16px;text-align:center;max-width:400px}
-.auth-box{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:28px 24px;width:340px;display:flex;flex-direction:column;gap:12px}
-.auth-box .tabs{display:flex;gap:0;margin-bottom:4px}
-.auth-box .tabs button{flex:1;padding:8px;background:transparent;border:1px solid var(--border);color:var(--dim);cursor:pointer;font-size:13px;transition:all .2s}
-.auth-box .tabs button:first-child{border-radius:6px 0 0 6px}
-.auth-box .tabs button:last-child{border-radius:0 6px 6px 0}
-.auth-box .tabs button.active{background:var(--accent);color:#fff;border-color:var(--accent)}
-.auth-box input{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px 12px;color:var(--text);font-size:14px;outline:none}
-.auth-box input:focus{border-color:var(--accent)}
-.auth-box .btn-go{padding:10px;background:var(--accent);border:none;border-radius:6px;color:#fff;font-size:14px;font-weight:600;cursor:pointer;transition:opacity .2s}
-.auth-box .btn-go:hover{opacity:.85}
-.auth-box .btn-go:disabled{opacity:.5;cursor:not-allowed}
-.auth-box .auth-error{color:var(--red);font-size:12px;text-align:center;display:none}
-.auth-box .auth-hint{color:var(--dim);font-size:11px;text-align:center}
 
 /* Game */
 #game-app{display:none;flex:1;flex-direction:column;height:100vh}
@@ -138,17 +125,8 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;di
 <div id="login-screen">
   <h1>KICKSTREAM RPG</h1>
   <div class="sub">Open World Dungeon Crawler</div>
-  <div class="auth-box">
-    <div class="tabs">
-      <button class="active" onclick="switchTab('login')">Login</button>
-      <button onclick="switchTab('register')">Register</button>
-    </div>
-    <input type="text" id="auth-user" placeholder="Username" autocomplete="username" maxlength="20" />
-    <input type="password" id="auth-pass" placeholder="Password" autocomplete="current-password" maxlength="64" />
-    <button class="btn-go" id="auth-btn" onclick="doAuth()">Login</button>
-    <div class="auth-error" id="auth-error"></div>
-    <div class="auth-hint" id="auth-hint">Enter your login credentials</div>
-  </div>
+  <div class="info">Loading your adventure...<br><small>You must be linked via the Player Portal.</small></div>
+  <a href="/play" style="color:var(--accent);font-size:12px">&larr; Back to Player Portal</a>
 </div>
 
 <div id="game-app">
@@ -637,47 +615,13 @@ function lighten(hex,amt){let r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice
 // =============================================
 // Auth + Connect
 // =============================================
-let authMode='login';
-function switchTab(mode){
-  authMode=mode;
-  document.querySelectorAll('.auth-box .tabs button').forEach((b,i)=>{
-    b.classList.toggle('active',i===(mode==='login'?0:1));
-  });
-  document.getElementById('auth-btn').textContent=mode==='login'?'Login':'Create Account';
-  document.getElementById('auth-hint').textContent=mode==='login'?'Enter your login credentials':'Choose a username and password';
-  document.getElementById('auth-error').style.display='none';
-  document.getElementById('auth-pass').autocomplete=mode==='login'?'current-password':'new-password';
-}
-function doAuth(){
-  const user=document.getElementById('auth-user').value.trim();
-  const pass=document.getElementById('auth-pass').value;
-  const errEl=document.getElementById('auth-error');
-  const btn=document.getElementById('auth-btn');
-  if(!user||!pass){errEl.textContent='Enter username and password.';errEl.style.display='block';return}
-  btn.disabled=true;errEl.style.display='none';
-  const endpoint=authMode==='login'?'/api/auth/login':'/api/auth/register';
-  fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:user,password:pass})})
-    .then(r=>r.json().then(d=>({ok:r.ok,data:d})))
-    .then(({ok,data})=>{
-      btn.disabled=false;
-      if(!ok||data.error){errEl.textContent=data.error||'Failed';errEl.style.display='block';return}
-      username=data.username;authToken=data.token;
-      localStorage.setItem('mmo_last_user',username);
-      localStorage.setItem('mmo_token_'+username,authToken);
-      connectWS();
-    }).catch(()=>{btn.disabled=false;errEl.textContent='Connection error.';errEl.style.display='block'});
-}
 function init(){
   const savedUser=localStorage.getItem('mmo_last_user');
-  if(!savedUser)return;
+  if(!savedUser){document.querySelector('#login-screen .info').innerHTML='You need to log in via the <a href="/play" style="color:var(--accent)">Player Portal</a> first.';return}
   username=savedUser;authToken=localStorage.getItem('mmo_token_'+username);
-  if(!authToken)return;
+  if(!authToken){document.querySelector('#login-screen .info').innerHTML='Account not linked. Go to the <a href="/play" style="color:var(--accent)">Player Portal</a>.';return}
   connectWS();
 }
-document.addEventListener('DOMContentLoaded',()=>{
-  document.getElementById('auth-user').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('auth-pass').focus()});
-  document.getElementById('auth-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doAuth()});
-});
 function connectWS(){
   const proto=location.protocol==='https:'?'wss':'ws';
   ws=new WebSocket(`${proto}://${location.host}`);
@@ -736,12 +680,11 @@ function handleMessage(msg){
     case'rpg_duel_turn':onDuelTurn(d);break;
     case'rpg_duel_end':onDuelEnd(d);break;
     case'rpg_error':
-      // Token expired or invalid — clear and show login
+      // Token expired or invalid — redirect to portal
       localStorage.removeItem('mmo_token_'+username);
       document.getElementById('login-screen').style.display='flex';
       document.getElementById('game-app').style.display='none';
-      document.getElementById('auth-error').textContent=d.error||'Session expired. Log in again.';
-      document.getElementById('auth-error').style.display='block';
+      document.querySelector('#login-screen .info').innerHTML='<span style="color:var(--red)">'+(d.error||'Session expired.')+'</span><br><a href="/play" style="color:var(--accent)">Go to Player Portal</a>';
       if(ws){try{ws.close()}catch{}}ws=null;
       break;
   }

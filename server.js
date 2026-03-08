@@ -9,6 +9,7 @@ const { Game, CONFIG, COSMETICS, BOSS_LOOT, ACHIEVEMENTS, RARITY_COLOR, VENDOR_P
 // ═══════════════════════════════════════════
 const KICK_CHANNEL = 'mikeydamike';
 const PORT = process.env.PORT || 3000;
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'kickstream2026';
 
 // If auto-detection fails, set your chatroom ID manually:
 // 1. Open your browser and go to: https://kick.com/api/v2/channels/mikeydamike
@@ -23,24 +24,13 @@ const app = express();
 const server = http.createServer(app);
 app.use(express.json());
 app.use('/audio', express.static(path.join(__dirname, 'audio')));
-app.get('/', (req, res) => res.redirect('/rpg'));
+app.get('/', (req, res) => res.redirect('/play'));
 app.get('/play', (req, res) => res.sendFile(path.join(__dirname, 'player.html')));
 app.get('/rpg', (req, res) => res.sendFile(path.join(__dirname, 'rpg.html')));
-
-// ═══════════════════════════════════════════
-// Auth API (register / login)
-// ═══════════════════════════════════════════
-app.post('/api/auth/register', (req, res) => {
-  const { username, password } = req.body || {};
-  const r = game.registerAccount(username, password);
-  if (r.error) return res.status(400).json(r);
-  res.json(r);
-});
-app.post('/api/auth/login', (req, res) => {
-  const { username, password } = req.body || {};
-  const r = game.loginAccount(username, password);
-  if (r.error) return res.status(401).json(r);
-  res.json(r);
+app.get('/admin', (req, res) => {
+  const pw = req.query.pw;
+  if (pw !== ADMIN_PASSWORD) return res.status(403).send('Access denied.');
+  res.sendFile(path.join(__dirname, 'admin.html'));
 });
 
 // ═══════════════════════════════════════════
