@@ -24,6 +24,7 @@ const app = express();
 const server = http.createServer(app);
 app.use(express.json());
 app.use('/audio', express.static(path.join(__dirname, 'audio')));
+app.use('/overlay', express.static(path.join(__dirname, 'Overlay')));
 app.get('/', (req, res) => res.redirect('/play'));
 app.get('/play', (req, res) => res.sendFile(path.join(__dirname, 'player.html')));
 app.get('/rpg', (req, res) => res.sendFile(path.join(__dirname, 'rpg.html')));
