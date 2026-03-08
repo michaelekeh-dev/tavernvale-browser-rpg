@@ -230,7 +230,7 @@ class Game {
     this.doubleDmgUntil = 0;
 
     this.admin = 'mikeydamike';
-    this.wheelRewards = ['750g Gold Rain','Double / Re-spin','1500g Jackpot','Re-spin!','Random Viewer Pick'];
+    this.wheelRewards = ['1500g Gold Rain','Double / Re-spin','750g Jackpot','Re-spin!','Random Viewer Pick'];
     this.prizeMultiplier = 1;
     this.comboCount = 0;
     this.lastAttacker = null;
@@ -545,9 +545,8 @@ class Game {
     const all = sorted.map(([u]) => u);
     const lootResults = [];
 
-    // Boss prize: top 3 + 1 random each get fixed $ in gold
-    const prizeDollars = num === 1 ? 2.50 : 4.00;
-    const prizeGold = Math.floor(prizeDollars * CONFIG.goldPerDollar);
+    // Boss prize: top 3 attackers get gold
+    const prizeGold = num === 1 ? 300 : 450;
 
     // Base rewards (XP + participation gold)
     for (const u of all) {
@@ -604,15 +603,10 @@ class Game {
     this.playerBuffs = {};
     for (const u of all) this.player(u).streak = 0;
 
-    // Random winner from non-top-3 also gets prize gold
-    const nonTop3 = all.filter(u => !sorted.slice(0, 3).map(s => s[0]).includes(u));
-    const randomWinner = nonTop3.length > 0 ? pick(nonTop3) : (all[all.length - 1] || null);
-    if (randomWinner) this.addGold(this.player(randomWinner), prizeGold);
-
     this.emit('boss_dead', {
       bossNumber: num, bossName: name, mvp, top5, lootResults,
-      isRaidBoss: num === 2, allAttackers: all, randomWinner,
-      prizeMultiplier: this.prizeMultiplier, prizeDollars, prizeGold,
+      isRaidBoss: num === 2, allAttackers: all,
+      prizeMultiplier: this.prizeMultiplier, prizeGold,
     });
 
     for (const u of all) this.emitAchievements(u);
@@ -1085,15 +1079,17 @@ class Game {
     const goldWinners = [];
 
     if (reward.includes('Gold Rain')) {
-      const totalGold = 750 * m;
-      const perPlayer = Math.floor(totalGold / 4);
-      const top4 = sorted.slice(0, 4).map(([u]) => u);
-      for (const u of top4) {
+      const totalGold = 1500 * m;
+      const perPlayer = Math.floor(totalGold / 2);
+      // Pick 2 random hitters
+      const shuffled = all.sort(() => Math.random() - 0.5);
+      const winners2 = shuffled.slice(0, Math.min(2, shuffled.length));
+      for (const u of winners2) {
         this.addGold(this.player(u), perPlayer);
         goldWinners.push({ username: u, gold: perPlayer });
       }
     } else if (reward.includes('Jackpot')) {
-      const totalGold = 1500 * m;
+      const totalGold = 750 * m;
       const winner = all.length > 0 ? pick(all) : null;
       if (winner) {
         this.addGold(this.player(winner), totalGold);
@@ -1319,8 +1315,8 @@ class Game {
     if (!validMethods.includes(method)) return { error: 'invalid_method', message: 'Nah fam, only Solana or Discord. We ain\'t PayPal over here 😤' };
     const p = this.player(username);
     const amt = parseInt(goldAmount);
-    const minRedeem = CONFIG.goldPerDollar * 10; // minimum $10 redeem
-    if (isNaN(amt) || amt < minRedeem) return { error: 'min_redeem', minimum: minRedeem, minDollars: 10 };
+    const minRedeem = 1000;
+    if (isNaN(amt) || amt < minRedeem) return { error: 'min_redeem', minimum: minRedeem };
     if (p.gold < amt) return { error: 'broke', gold: p.gold, message: 'You\'re down bad rn... go farm some bosses 💀' };
     if (this.payoutQueue.find(r => r.username === username && r.status === 'pending')) return { error: 'already_pending', message: 'Chill, you already got one cooking 🍳' };
     const dollarValue = parseFloat((amt / CONFIG.goldPerDollar).toFixed(2));

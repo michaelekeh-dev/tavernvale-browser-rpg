@@ -632,7 +632,7 @@
         <div class="card-header">💰 Redeem Gold for Cash</div>
         <div style="background:var(--bg3);border-radius:8px;padding:14px;margin-bottom:16px;">
           <div style="font-size:14px;font-weight:700;color:var(--gold);margin-bottom:4px;">Exchange Rate: <span id="redeem-rate">150</span>g = $1</div>
-          <div style="font-size:12px;color:var(--dim);">Minimum redeem: $10 (<span id="redeem-min">1500</span>g)</div>
+          <div style="font-size:12px;color:var(--dim);">Minimum redeem: <span id="redeem-min">1000</span>g</div>
           <div style="font-size:12px;color:var(--green);margin-top:2px;">Payouts processed quickly by ur boy mikeydamike 🏄‍♂️💨</div>
           <div style="font-size:11px;color:var(--dim);margin-top:2px;font-style:italic;">"we ain't a bank out here, we move FAST" — mikeydamike</div>
           <div style="font-size:12px;color:var(--dim);margin-top:2px;">Your gold: <span id="redeem-gold" style="color:var(--gold);font-weight:700;">0</span></div>
@@ -2460,7 +2460,7 @@ function submitRedeem() {
   fetch('/api/redeem', { method: 'POST', headers: authHeaders(), body: authBody({ gold, method, address }) })
     .then(r => r.json()).then(r => {
       if (r.error) {
-        if (r.error === 'min_redeem') toast(`Minimum redeem is $${r.minDollars} (${r.minimum}g) no cap 💰`, 'error');
+        if (r.error === 'min_redeem') toast(`Minimum redeem is ${r.minimum}g no cap 💰`, 'error');
         else if (r.error === 'broke') toast(r.message || "You're down bad rn... go farm some bosses 💀", 'error');
         else if (r.error === 'already_pending') toast(r.message || "Chill, you already got one cooking 🍳", 'error');
         else if (r.error === 'invalid_method') toast(r.message || 'Invalid method', 'error');

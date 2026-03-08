@@ -772,7 +772,7 @@ function onWheelResult(d) {
 }
 
 const WHEEL_COLORS = ['#4ECDC4', '#F1C40F', '#FF6B6B', '#9B59B6', '#45B7D1'];
-const WHEEL_LABELS = ['750g\nGOLD RAIN', 'DOUBLE /\nRE-SPIN', '1500g\nJACKPOT', 'RE-SPIN!', 'RANDOM\nVIEWER'];
+const WHEEL_LABELS = ['1500g\nGOLD RAIN', 'DOUBLE /\nRE-SPIN', '750g\nJACKPOT', 'RE-SPIN!', 'RANDOM\nVIEWER'];
 let lastBossDead = null;
 
 function drawWheel(rot) {
@@ -810,18 +810,14 @@ function drawWheel(rot) {
 function showBoss1Rewards(d) {
   const ov = document.getElementById('reward-overlay');
   const top3 = (d.top5 || []).slice(0, 3);
-  const rw = d.randomWinner;
-  const prize = d.prizeDollars || 2.50;
+  const prize = d.prizeGold || 300;
 
   let html = '<div class="reward-title">💀 ' + d.bossName + ' DEFEATED!</div>';
-  html += '<div style="margin-bottom:12px;font-family:\'Press Start 2P\',monospace;font-size:12px;color:#4ecdc4">💰 CASH REWARDS 💰</div>';
+  html += '<div style="margin-bottom:12px;font-family:\'Press Start 2P\',monospace;font-size:12px;color:#4ecdc4">🪙 GOLD REWARDS 🪙</div>';
 
   top3.forEach((p, i) => {
-    html += `<div class="cash-row" style="animation-delay:${i * 0.3}s"><span class="cash-rank">#${i+1}</span><span class="cash-name">${p.username}</span><span class="cash-amount">$${prize}</span></div>`;
+    html += `<div class="cash-row" style="animation-delay:${i * 0.3}s"><span class="cash-rank">#${i+1}</span><span class="cash-name">${p.username}</span><span class="cash-amount">${prize}g</span></div>`;
   });
-  if (rw) {
-    html += `<div class="cash-row" style="animation-delay:${top3.length * 0.3}s;border-color:rgba(68,255,68,.3)"><span class="cash-rank">🎲</span><span class="cash-name">${rw}</span><span class="cash-amount">$${prize}</span></div>`;
-  }
   html += '<div style="margin-top:16px;font-family:\'Press Start 2P\',monospace;font-size:9px;color:#888;font-style:italic">paid out quickly by ur boy mikeydamike 🏄‍♂️💨</div>';
   html += '<div style="margin-top:12px;font-family:\'Press Start 2P\',monospace;font-size:10px;color:#888">Boss 2 incoming...</div>';
   html += '<div id="break-time" style="font-family:\'Press Start 2P\',monospace;font-size:30px;color:#4ecdc4;margin-top:12px"></div>';
@@ -844,7 +840,7 @@ function showRewardAnimation(reward) {
     showGoldRainAnimation(m);
     chainDelay = 8500;
   } else if (reward.includes('Jackpot')) {
-    showCSGORoll(`${1500 * m}g JACKPOT`, `${1500 * m}g`);
+    showCSGORoll(`${750 * m}g JACKPOT`, `${750 * m}g`);
     chainDelay = 12500;
   } else if (reward.includes('Random Viewer')) {
     showCSGORoll(`RANDOM VIEWER PICK`, `🎲 PICKED!`);
@@ -862,22 +858,24 @@ function showGoldRainAnimation(multiplier) {
   const m = multiplier || 1;
   const ov = document.getElementById('reward-overlay');
   const d = lastBossDead;
-  const top4 = (d && d.top5) ? d.top5.slice(0, 4) : [];
-  const goldAmt = 750 * m;
-  const perPlayer = Math.floor(goldAmt / 4);
+  const goldAmt = 1500 * m;
+  const perPlayer = Math.floor(goldAmt / 2);
+  // Use goldWinners from wheel result if available, otherwise pick 2 random from allAttackers
+  const allAttackers = (d && d.allAttackers && d.allAttackers.length > 0) ? d.allAttackers : [];
+  const winners2 = allAttackers.sort(() => Math.random() - 0.5).slice(0, 2);
 
   let html = `<div class="reward-title">🪙 ${goldAmt}g GOLD RAIN! 🪙</div>`;
   if (m > 1) html += `<div style="font-family:'Press Start 2P',monospace;font-size:12px;color:#ff4444;margin-bottom:10px">${m}x MULTIPLIER!</div>`;
-  html += `<div style="font-family:'Press Start 2P',monospace;font-size:10px;color:#888;margin-bottom:12px">${perPlayer}g each to top 4 💰</div>`;
-  top4.forEach((p, i) => {
-    html += `<div class="cash-row" style="animation-delay:${i * 0.4 + 0.5}s"><span class="cash-rank">#${i+1}</span><span class="cash-name">${p.username}</span><span class="cash-amount">${perPlayer}g</span></div>`;
+  html += `<div style="font-family:'Press Start 2P',monospace;font-size:10px;color:#888;margin-bottom:12px">${perPlayer}g each to 2 random hitters 💰</div>`;
+  winners2.forEach((name, i) => {
+    html += `<div class="cash-row" style="animation-delay:${i * 0.4 + 0.5}s"><span class="cash-rank">🎲</span><span class="cash-name">${name}</span><span class="cash-amount">${perPlayer}g</span></div>`;
   });
 
   ov.innerHTML = html;
   ov.classList.add('show');
 
   // Delayed explosion per row
-  top4.forEach((_, i) => {
+  winners2.forEach((_, i) => {
     setTimeout(() => { spawnExplosion(ov); playSound('crit'); }, (i * 400) + 800);
   });
 
@@ -1029,10 +1027,8 @@ function showBoss2Winners() {
   if (!d) return;
 
   const top3 = (d.top5 || []).slice(0, 3);
-  const rw = d.randomWinner;
-  const prize = d.prizeDollars || 4.00;
-  const winners = top3.map((p, i) => ({ rank: `#${i+1}`, name: p.username, label: `$${prize}` }));
-  if (rw) winners.push({ rank: '🎲', name: rw, label: `$${prize}` });
+  const prize = d.prizeGold || 450;
+  const winners = top3.map((p, i) => ({ rank: `#${i+1}`, name: p.username, label: `${prize}g` }));
   if (winners.length === 0) return;
 
   const allNames = (d.allAttackers && d.allAttackers.length > 0) ? d.allAttackers : ['Player1','Player2','Player3'];
