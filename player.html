@@ -2371,7 +2371,7 @@ let currentAppearance = null;
 let appearanceDirty = false;
 
 const SKIN_COLORS = ['#f5d0a9','#c68642','#8d5524','#ffdbac','#e0ac69','#6b4226','#f1c27d','#d4a574'];
-const HAIR_STYLES = ['spiky','flat','mohawk','long','bald','curly','ponytail','messy'];
+const HAIR_STYLES = ['spiky','flat','mohawk','long','bald','curly','ponytail','messy','buzz','afro'];
 const HAIR_COLORS = ['#2c1b0e','#8b4513','#daa520','#c0392b','#2c3e50','#ecf0f1','#8e44ad','#e67e22','#1abc9c','#e74c3c'];
 const EYE_STYLES = ['normal','angry','happy','cool','sleepy','wide','dot','wink'];
 const EYE_COLORS = ['#3498db','#2ecc71','#8b4513','#2c3e50','#e74c3c','#9b59b6','#f39c12'];
@@ -2489,195 +2489,296 @@ function drawCharacter() {
   const a = currentAppearance || {};
   const eq = (profile && profile.equipped) || {};
 
-  // Helper: draw a filled pixel rect
   function px(x, y, w, h, color) {
     ctx.fillStyle = color;
     ctx.fillRect(x * S, y * S, w * S, h * S);
   }
 
-  // Helper: darker shade
   function darker(hex, amt) {
     const num = parseInt(hex.replace('#',''), 16);
-    const r = Math.max(0, (num >> 16) - amt);
-    const g = Math.max(0, ((num >> 8) & 0xff) - amt);
-    const b = Math.max(0, (num & 0xff) - amt);
+    const r = Math.max(0, Math.min(255, (num >> 16) - amt));
+    const g = Math.max(0, Math.min(255, ((num >> 8) & 0xff) - amt));
+    const b = Math.max(0, Math.min(255, (num & 0xff) - amt));
     return `rgb(${r},${g},${b})`;
   }
 
   const skin = a.skinColor || '#f5d0a9';
   const skinShade = darker(skin, 30);
+  const skinHi = darker(skin, -20);
   const hair = a.hairColor || '#2c1b0e';
+  const hairHi = darker(hair, -25);
+  const hairSh = darker(hair, 30);
   const eye = a.eyeColor || '#3498db';
   const outfitC = a.outfitColor || '#3498db';
   const outfitShade = darker(outfitC, 40);
+  const outfitHi = darker(outfitC, -25);
 
-  // ── BODY (centered at x=14, y starts at head top ~8) ──
+  // HEAD (12x11 rounded, centered at x=14)
+  const hx = 14, hy = 8;
+  // Head shape with rounded corners
+  px(hx+1, hy, 10, 11, skin); px(hx, hy+1, 12, 9, skin);
+  // Chin roundness
+  px(hx, hy+10, 1, 1, skin); px(hx+11, hy+10, 1, 1, skin);
+  // Cheek shade + highlights
+  px(hx+1, hy+9, 2, 1, skinShade); px(hx+9, hy+9, 2, 1, skinShade);
+  px(hx+1, hy+1, 3, 1, skinHi); px(hx+5, hy+1, 3, 1, skinHi);
 
-  // HEAD (10x10 pixels, at x=15, y=8)
-  const hx = 15, hy = 8;
-  // Head shape
-  px(hx+1, hy, 8, 10, skin);
-  px(hx, hy+1, 10, 8, skin);
-  // Cheek shade
-  px(hx+1, hy+7, 2, 1, skinShade);
-  px(hx+7, hy+7, 2, 1, skinShade);
+  // Ears with inner detail
+  px(hx-1, hy+3, 1, 4, skin); px(hx-1, hy+4, 1, 2, skinShade);
+  px(hx+12, hy+3, 1, 4, skin); px(hx+12, hy+4, 1, 2, skinShade);
 
-  // ── HAIR ──
+  // ── HAIR (8 styles, detailed) ──
   const hs = a.hairStyle || 'spiky';
   if (hs === 'spiky') {
-    px(hx, hy-2, 10, 3, hair); px(hx+1, hy-3, 2, 1, hair); px(hx+4, hy-4, 2, 1, hair); px(hx+7, hy-3, 2, 1, hair);
-    px(hx, hy+1, 1, 3, hair); px(hx+9, hy+1, 1, 3, hair);
+    px(hx, hy-2, 12, 3, hair);
+    px(hx+1, hy-4, 2, 2, hair); px(hx+5, hy-5, 2, 3, hair); px(hx+9, hy-4, 2, 2, hair);
+    px(hx, hy+1, 1, 3, hair); px(hx+11, hy+1, 1, 3, hair);
+    px(hx+2, hy-2, 3, 1, hairHi); px(hx+6, hy-3, 2, 1, hairHi);
   } else if (hs === 'flat') {
-    px(hx, hy-1, 10, 2, hair); px(hx, hy+1, 1, 2, hair); px(hx+9, hy+1, 1, 2, hair);
+    px(hx, hy-1, 12, 2, hair);
+    px(hx, hy+1, 1, 3, hair); px(hx+11, hy+1, 1, 3, hair);
+    px(hx+2, hy-1, 4, 1, hairHi);
   } else if (hs === 'mohawk') {
-    px(hx+3, hy-4, 4, 5, hair); px(hx+4, hy-5, 2, 1, hair);
+    px(hx+4, hy-5, 4, 6, hair); px(hx+5, hy-6, 2, 1, hair);
+    px(hx+5, hy-5, 2, 1, hairHi);
   } else if (hs === 'long') {
-    px(hx, hy-1, 10, 2, hair); px(hx-1, hy+1, 2, 9, hair); px(hx+9, hy+1, 2, 9, hair);
-    px(hx, hy+1, 1, 4, hair); px(hx+9, hy+1, 1, 4, hair);
+    px(hx, hy-1, 12, 3, hair);
+    px(hx-1, hy+2, 2, 8, hair); px(hx+11, hy+2, 2, 8, hair);
+    px(hx, hy+1, 1, 5, hair); px(hx+11, hy+1, 1, 5, hair);
+    px(hx+2, hy-1, 4, 1, hairHi); px(hx-1, hy+3, 1, 2, hairHi);
   } else if (hs === 'curly') {
-    px(hx-1, hy-1, 12, 2, hair); px(hx-1, hy+1, 2, 5, hair); px(hx+9, hy+1, 2, 5, hair);
-    px(hx, hy-2, 3, 1, hair); px(hx+5, hy-2, 3, 1, hair);
+    px(hx-1, hy-1, 14, 3, hair);
+    px(hx-1, hy+2, 2, 4, hair); px(hx+11, hy+2, 2, 4, hair);
+    px(hx+1, hy-2, 3, 1, hair); px(hx+8, hy-2, 3, 1, hair);
+    px(hx+2, hy-1, 3, 1, hairHi);
   } else if (hs === 'ponytail') {
-    px(hx, hy-1, 10, 2, hair); px(hx+9, hy+1, 1, 3, hair); px(hx+10, hy+2, 1, 6, hair); px(hx+11, hy+5, 1, 4, hair);
+    px(hx, hy-1, 12, 3, hair);
+    px(hx+11, hy+2, 2, 3, hair); px(hx+12, hy+5, 2, 4, hair); px(hx+12, hy+8, 1, 2, hair);
+    px(hx+2, hy-1, 4, 1, hairHi);
   } else if (hs === 'messy') {
-    px(hx-1, hy-2, 12, 3, hair); px(hx+1, hy-3, 2, 1, hair); px(hx+6, hy-3, 3, 1, hair);
-    px(hx-1, hy+1, 1, 3, hair); px(hx+10, hy+1, 1, 3, hair);
+    px(hx-1, hy-2, 14, 3, hair);
+    px(hx+1, hy-3, 2, 1, hair); px(hx+6, hy-3, 3, 1, hair);
+    px(hx-1, hy+1, 1, 3, hair); px(hx+12, hy+1, 1, 3, hair);
+    px(hx+2, hy-2, 3, 1, hairHi);
+  } else if (hs === 'buzz') {
+    px(hx, hy-1, 12, 2, hair);
+    px(hx, hy+1, 1, 1, hair); px(hx+11, hy+1, 1, 1, hair);
+    px(hx+3, hy-1, 3, 1, hairHi);
   }
-  // bald = no hair drawn
+  // bald = no hair
 
-  // ── EYES ──
+  // Eyebrows
+  px(hx+2, hy+3, 3, 1, darker(hair, 20)); px(hx+7, hy+3, 3, 1, darker(hair, 20));
+
+  // ── EYES (3px wide) ──
   const es = a.eyeStyle || 'normal';
-  const lex = hx+2, rex = hx+6, ey = hy+4;
+  const lex = hx+2, rex = hx+7, ey = hy+4;
+  px(lex, ey, 3, 2, '#fff'); px(rex, ey, 3, 2, '#fff');
   if (es === 'normal') {
-    px(lex, ey, 2, 2, '#fff'); px(lex+1, ey, 1, 2, eye);
-    px(rex, ey, 2, 2, '#fff'); px(rex, ey, 1, 2, eye);
+    px(lex+1, ey, 1, 2, eye); px(lex+1, ey, 1, 1, '#111');
+    px(rex+1, ey, 1, 2, eye); px(rex+1, ey, 1, 1, '#111');
   } else if (es === 'angry') {
-    px(lex, ey, 2, 1, '#fff'); px(lex+1, ey, 1, 1, eye); px(lex, ey-1, 1, 1, hair);
-    px(rex, ey, 2, 1, '#fff'); px(rex, ey, 1, 1, eye); px(rex+1, ey-1, 1, 1, hair);
+    px(lex+1, ey+1, 1, 1, eye); px(lex, ey, 2, 1, '#111');
+    px(rex+1, ey+1, 1, 1, eye); px(rex+1, ey, 2, 1, '#111');
   } else if (es === 'happy') {
-    px(lex, ey, 2, 1, eye); px(lex, ey-1, 2, 1, '#fff');
-    px(rex, ey, 2, 1, eye); px(rex, ey-1, 2, 1, '#fff');
+    px(lex, ey+1, 3, 1, eye); px(lex, ey, 3, 1, skinHi);
+    px(rex, ey+1, 3, 1, eye); px(rex, ey, 3, 1, skinHi);
   } else if (es === 'cool') {
-    px(lex-1, ey, 3, 1, '#1a1a2e'); px(rex-1, ey, 3, 1, '#1a1a2e');
-    px(lex, ey, 1, 1, '#333'); px(rex+1, ey, 1, 1, '#333');
+    px(lex-1, ey, 4, 2, '#1a1a2e'); px(lex, ey, 2, 1, '#333');
+    px(rex-1, ey, 4, 2, '#1a1a2e'); px(rex, ey, 2, 1, '#333');
   } else if (es === 'sleepy') {
-    px(lex, ey, 2, 1, skin); px(lex, ey+1, 2, 1, eye);
-    px(rex, ey, 2, 1, skin); px(rex, ey+1, 2, 1, eye);
+    px(lex, ey, 3, 1, skin); px(lex, ey+1, 3, 1, eye);
+    px(rex, ey, 3, 1, skin); px(rex, ey+1, 3, 1, eye);
   } else if (es === 'wide') {
-    px(lex, ey-1, 2, 3, '#fff'); px(lex+1, ey, 1, 1, eye);
-    px(rex, ey-1, 2, 3, '#fff'); px(rex, ey, 1, 1, eye);
+    px(lex, ey-1, 3, 3, '#fff'); px(lex+1, ey, 1, 1, eye); px(lex+1, ey, 1, 1, '#111');
+    px(rex, ey-1, 3, 3, '#fff'); px(rex+1, ey, 1, 1, eye); px(rex+1, ey, 1, 1, '#111');
   } else if (es === 'dot') {
-    px(lex+1, ey, 1, 1, eye); px(rex, ey, 1, 1, eye);
+    px(lex+1, ey, 1, 1, eye); px(rex+1, ey, 1, 1, eye);
   } else if (es === 'wink') {
-    px(lex, ey, 2, 2, '#fff'); px(lex+1, ey, 1, 2, eye);
-    px(rex, ey, 2, 1, eye);
+    px(lex+1, ey, 1, 2, eye); px(lex+1, ey, 1, 1, '#111');
+    px(rex, ey+1, 3, 1, eye);
   }
+
+  // Nose
+  px(hx+5, hy+7, 2, 1, skinShade);
 
   // ── MOUTH ──
   const ms = a.mouthStyle || 'smile';
-  const mx = hx+3, my = hy+7;
-  if (ms === 'smile') { px(mx, my, 4, 1, darker(skin, 60)); px(mx+1, my+1, 2, 1, darker(skin, 60)); }
-  else if (ms === 'neutral') { px(mx, my, 4, 1, darker(skin, 60)); }
+  const mx = hx+4, my = hy+8;
+  if (ms === 'smile') { px(mx, my, 4, 1, darker(skin, 50)); px(mx+1, my+1, 2, 1, darker(skin, 60)); }
+  else if (ms === 'neutral') { px(mx, my, 4, 1, darker(skin, 50)); }
   else if (ms === 'open') { px(mx+1, my, 2, 2, '#2c1b0e'); px(mx+1, my+1, 2, 1, '#c0392b'); }
-  else if (ms === 'smirk') { px(mx+1, my, 3, 1, darker(skin, 60)); px(mx+3, my-1, 1, 1, darker(skin, 60)); }
+  else if (ms === 'smirk') { px(mx+1, my, 3, 1, darker(skin, 50)); px(mx+3, my-1, 1, 1, darker(skin, 60)); }
   else if (ms === 'frown') { px(mx+1, my+1, 2, 1, darker(skin, 60)); px(mx, my, 4, 1, darker(skin, 40)); }
   else if (ms === 'teeth') { px(mx, my, 4, 1, darker(skin, 60)); px(mx+1, my, 2, 1, '#fff'); }
   else if (ms === 'tiny') { px(mx+1, my, 2, 1, darker(skin, 50)); }
 
-  // ── NECK ──
-  px(hx+3, hy+10, 4, 2, skin);
+  // ── NECK (wider, with shading) ──
+  px(hx+4, hy+11, 4, 2, skin); px(hx+5, hy+11, 2, 1, skinShade);
 
   // ── BODY / OUTFIT ──
-  const bx = 12, by = hy + 12;
+  const bx = 12, by = hy + 13;
   const outfit = a.outfit || 'tshirt';
 
   // Body base
   px(bx, by, 16, 14, outfitC);
-  px(bx+1, by, 14, 14, outfitC);
+  // Collar
+  px(bx+5, by, 6, 1, outfitShade);
+  // Side shadows
+  px(bx, by+1, 1, 12, outfitShade); px(bx+15, by+1, 1, 12, outfitShade);
+  // Top highlight
+  px(bx+1, by, 4, 1, outfitHi); px(bx+11, by, 4, 1, outfitHi);
 
   if (outfit === 'tshirt') {
-    // Short sleeves
     px(bx-3, by, 3, 6, outfitC); px(bx+16, by, 3, 6, outfitC);
-    px(bx+6, by+10, 4, 1, outfitShade); // fold line
+    px(bx-3, by, 3, 1, outfitHi); px(bx+16, by, 3, 1, outfitHi);
+    px(bx+5, by+10, 6, 1, outfitShade); // fold
+    px(bx+6, by+6, 4, 3, outfitShade); // crease
   } else if (outfit === 'tank') {
-    // No sleeves, show skin on shoulders
     px(bx, by, 2, 3, skin); px(bx+14, by, 2, 3, skin);
     px(bx+2, by, 12, 14, outfitC);
-    px(bx+5, by, 6, 2, outfitShade); // neckline
+    px(bx+5, by, 6, 2, outfitShade);
+    px(bx+7, by+6, 2, 4, outfitShade); // center crease
   } else if (outfit === 'hoodie') {
     px(bx-3, by, 3, 10, outfitC); px(bx+16, by, 3, 10, outfitC);
+    px(bx-3, by, 3, 1, outfitHi); px(bx+16, by, 3, 1, outfitHi);
     px(bx+5, by, 6, 4, outfitShade); // hood shadow
     px(bx+4, by+6, 8, 3, outfitShade); // pocket
+    px(bx+5, by+7, 6, 1, outfitC); // pocket opening
+    px(bx+7, by, 2, 3, darker(outfitC, 20)); // drawstrings
   } else if (outfit === 'vest') {
     px(bx-2, by, 2, 5, skin); px(bx+16, by, 2, 5, skin);
     px(bx+7, by, 2, 14, outfitShade); // center seam
+    px(bx+1, by+1, 2, 10, outfitHi); px(bx+13, by+1, 2, 10, outfitHi); // lapels
+    px(bx+7, by+2, 1, 1, '#c8a060'); // button 1
+    px(bx+7, by+5, 1, 1, '#c8a060'); // button 2
+    px(bx+7, by+8, 1, 1, '#c8a060'); // button 3
   } else if (outfit === 'robe') {
     px(bx-3, by, 3, 14, outfitC); px(bx+16, by, 3, 14, outfitC);
-    px(bx+7, by, 2, 14, outfitShade); // center seam
-    px(bx, by+14, 16, 4, outfitC); // robe extension
+    px(bx+7, by, 2, 14, outfitShade);
+    px(bx, by+14, 16, 4, outfitC);
+    px(bx+1, by+14, 14, 1, outfitHi);
+    px(bx+5, by+1, 2, 5, outfitHi); // robe trim left
+    px(bx+9, by+1, 2, 5, outfitHi); // robe trim right
   } else if (outfit === 'armor_light') {
     px(bx-3, by, 3, 8, '#888'); px(bx+16, by, 3, 8, '#888');
+    px(bx-3, by, 3, 1, '#aaa'); px(bx+16, by, 3, 1, '#aaa');
     px(bx+5, by+1, 6, 5, '#aaa'); // chest plate
     px(bx+6, by+2, 4, 3, '#ccc'); // plate highlight
+    px(bx+7, by+3, 2, 1, '#ddd'); // plate gleam
     px(bx, by+10, 16, 2, '#888'); // belt
+    px(bx+7, by+10, 2, 1, '#b8860b'); // belt buckle
+    // Rivets
+    px(bx+4, by+1, 1, 1, '#666'); px(bx+11, by+1, 1, 1, '#666');
   }
 
-  // ── ARMS (skin below outfit) ──
+  // Belt
+  if (outfit !== 'armor_light') {
+    px(bx+1, by+12, 14, 1, '#4a3728');
+    px(bx+7, by+12, 2, 1, '#8b7355'); // buckle
+  }
+
+  // ── ARMS ──
   const armLen = outfit === 'robe' ? 4 : 8;
   const armStart = outfit === 'tank' ? by + 3 : by + (outfit === 'hoodie' ? 10 : 6);
   if (outfit !== 'armor_light') {
     px(bx-3, armStart, 3, armLen, skin); px(bx+16, armStart, 3, armLen, skin);
+    px(bx-3, armStart, 1, armLen, skinHi); px(bx+18, armStart, 1, armLen, skinShade);
   } else {
     px(bx-3, by+8, 3, 6, skin); px(bx+16, by+8, 3, 6, skin);
   }
-  // Hands
-  const handY = outfit === 'robe' ? armStart + armLen : armStart + armLen;
-  px(bx-3, handY, 3, 2, skin); px(bx+16, handY, 3, 2, skin);
+  // Hands with finger detail
+  const handY = armStart + armLen;
+  px(bx-4, handY, 4, 3, skin); px(bx+16, handY, 4, 3, skin);
+  px(bx-4, handY+2, 1, 1, skinShade); px(bx-2, handY+2, 1, 1, skinShade); // left fingers
+  px(bx+16, handY+2, 1, 1, skinShade); px(bx+18, handY+2, 1, 1, skinShade); // right fingers
 
-  // ── EQUIPPED WEAPON (right hand) ──
+  // ── WEAPON (type-specific) ──
   if (eq.weapon) {
     const wy = handY - 2;
-    const wx = bx + 18;
+    const wx = bx + 19;
     const wRarity = eq.weapon.rarity || 'common';
-    const wColor = wRarity === 'legendary' ? '#fbbf24' : wRarity === 'epic' ? '#c084fc' : wRarity === 'rare' ? '#60a5fa' : wRarity === 'uncommon' ? '#4ade80' : '#aaa';
-    // Sword blade
-    px(wx+1, wy-8, 1, 8, wColor);
-    px(wx, wy-9, 3, 1, wColor);
-    // Hilt
-    px(wx, wy, 3, 1, '#8b4513');
-    px(wx+1, wy+1, 1, 2, '#654321');
+    const wColor = wRarity === 'legendary' ? '#fbbf24' : wRarity === 'mythic' ? '#ff4500' : wRarity === 'epic' ? '#c084fc' : wRarity === 'rare' ? '#60a5fa' : wRarity === 'uncommon' ? '#4ade80' : '#aaa';
+    const wDark = darker(wColor, 40);
+    const wn = (eq.weapon.name || eq.weapon.id || '').toLowerCase();
+    const isAxe = wn.includes('axe') || wn.includes('cleaver');
+    const isDagger = wn.includes('dagger') || wn.includes('knife');
+    const isScythe = wn.includes('scythe');
+    const isPick = wn.includes('pick');
+
+    if (isAxe) {
+      // Axe: wooden handle + wide blade head
+      px(wx, wy-6, 1, 10, '#8b6914'); px(wx+1, wy-5, 1, 8, '#6b4914'); // handle
+      px(wx-2, wy-7, 3, 2, wColor); px(wx-3, wy-6, 4, 3, wColor); px(wx-3, wy-4, 3, 2, wDark); // blade
+      px(wx-3, wy-7, 1, 1, wDark); // blade edge
+    } else if (isDagger) {
+      // Dagger: short tapered blade
+      px(wx, wy-4, 1, 3, wColor); px(wx, wy-5, 1, 1, wDark); // blade
+      px(wx-1, wy-2, 3, 1, '#8b6914'); // guard
+      px(wx, wy-1, 1, 3, '#654321'); // grip
+      px(wx, wy+2, 1, 1, '#8b6914'); // pommel
+    } else if (isScythe) {
+      // Scythe: long pole + curved blade
+      px(wx, wy-9, 1, 12, '#6b4914'); px(wx+1, wy-8, 1, 10, '#5a3808'); // pole
+      px(wx-3, wy-10, 4, 1, wColor); px(wx-4, wy-9, 3, 1, wColor); px(wx-4, wy-8, 2, 1, wDark); // curved blade
+    } else if (isPick) {
+      // Pickaxe: T-shape
+      px(wx, wy-4, 1, 6, '#8b6914'); // handle
+      px(wx-2, wy-5, 5, 2, '#888'); px(wx-3, wy-5, 1, 1, wColor); px(wx+3, wy-5, 1, 1, wColor); // head
+    } else {
+      // Sword (default): detailed with fuller + crossguard + pommel
+      px(wx, wy-8, 1, 7, wColor); // blade
+      px(wx+1, wy-7, 1, 5, wDark); // fuller shadow
+      px(wx, wy-9, 1, 1, '#fff'); // tip gleam
+      px(wx-1, wy-1, 3, 1, '#8b6914'); // crossguard
+      px(wx, wy, 1, 3, '#654321'); // grip
+      px(wx-1, wy, 1, 3, '#5a3a1a'); // grip shadow
+      px(wx, wy+3, 1, 1, '#8b6914'); // pommel
+    }
   }
 
-  // ── EQUIPPED ARMOR VISUAL ──
+  // ── ARMOR OVERLAY ──
   if (eq.armor && outfit !== 'armor_light') {
     const aRarity = eq.armor.rarity || 'common';
-    const aColor = aRarity === 'legendary' ? '#fbbf24' : aRarity === 'epic' ? '#c084fc' : aRarity === 'rare' ? '#60a5fa' : '#aaa';
-    // Shoulder pads
+    const aColor = aRarity === 'legendary' ? '#fbbf24' : aRarity === 'mythic' ? '#ff4500' : aRarity === 'epic' ? '#c084fc' : aRarity === 'rare' ? '#60a5fa' : '#aaa';
+    // Shoulder pads with rivets
     px(bx-1, by-1, 4, 2, aColor); px(bx+13, by-1, 4, 2, aColor);
+    px(bx, by-1, 1, 1, darker(aColor, -20)); px(bx+15, by-1, 1, 1, darker(aColor, -20)); // highlight
+    px(bx+1, by, 1, 1, darker(aColor, 30)); px(bx+14, by, 1, 1, darker(aColor, 30)); // rivet
     // Belt
-    px(bx+2, by+10, 12, 1, aColor);
+    px(bx+2, by+12, 12, 1, aColor);
+    // Chest emblem
+    px(bx+7, by+3, 2, 2, aColor); px(bx+7, by+3, 1, 1, darker(aColor, -20));
   }
 
-  // ── EQUIPPED ACCESSORY VISUAL ──
+  // ── ACCESSORY ──
   if (eq.accessory) {
     const acRarity = eq.accessory.rarity || 'common';
     const acColor = acRarity === 'legendary' ? '#fbbf24' : acRarity === 'epic' ? '#c084fc' : acRarity === 'rare' ? '#60a5fa' : '#aaa';
-    // Ring on left hand or amulet
     px(bx-4, handY, 1, 1, acColor);
     px(bx-4, handY+1, 1, 1, darker(acColor, 40));
   }
 
-  // ── LEGS ──
+  // ── LEGS (with more detail) ──
   const ly = by + (outfit === 'robe' ? 18 : 14);
-  px(bx+2, ly, 5, 8, '#2c3e50'); // left leg (pants)
-  px(bx+9, ly, 5, 8, '#2c3e50'); // right leg
-  // Shoes
-  px(bx+1, ly+8, 6, 2, '#1a1a2e'); px(bx+9, ly+8, 6, 2, '#1a1a2e');
+  const pantC = '#2c3e50', pantSh = '#1e2d3d', pantHi = '#3d5068';
+  px(bx+2, ly, 5, 8, pantC); px(bx+9, ly, 5, 8, pantC);
+  px(bx+3, ly, 1, 6, pantSh); px(bx+10, ly, 1, 6, pantSh); // crease
+  px(bx+5, ly+1, 1, 4, pantHi); px(bx+12, ly+1, 1, 4, pantHi); // highlight
+  // Boots with soles + straps
+  const bootC = '#1a1a2e', bootHi = '#2a2a40', bootSole = '#0a0a16';
+  px(bx+1, ly+8, 6, 2, bootC); px(bx+9, ly+8, 6, 2, bootC);
+  px(bx+2, ly+8, 4, 1, bootHi); px(bx+10, ly+8, 4, 1, bootHi); // highlight
+  px(bx+1, ly+9, 6, 1, bootSole); px(bx+9, ly+9, 6, 1, bootSole); // sole
+  // Boot strap
+  px(bx+2, ly+8, 4, 1, '#3a3a50'); px(bx+10, ly+8, 4, 1, '#3a3a50');
 
-  // ── NAME TAG ──
-  ctx.fillStyle = '#fff';
+  // ── NAME TAG with shadow ──
   ctx.font = 'bold 10px Inter, sans-serif';
   ctx.textAlign = 'center';
+  ctx.fillStyle = '#000';
+  ctx.fillText(username || 'Player', W / 2 + 1, H - 3);
+  ctx.fillStyle = '#fff';
   ctx.fillText(username || 'Player', W / 2, H - 4);
 }
 

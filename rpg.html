@@ -6783,113 +6783,239 @@ function darkerC(hex,amt){
 
 function drawPixelChar(c,sx,sy,S,a,eq,dir,wf,swing,name,nameColor){
   a=a||{};eq=eq||{};
-  const skin=a.skinColor||'#f5d0a9',skinShade=darkerC(skin,30),skinHi=darkerC(skin,-20);
-  const hair=a.hairColor||'#2c1b0e',hairHi=darkerC(hair,-25),eye=a.eyeColor||'#3498db';
-  const outfitC=a.outfitColor||'#3498db',outfitShade=darkerC(outfitC,40),outfitHi=darkerC(outfitC,-25);
+  const skin=a.skinColor||'#f5d0a9',skinShade=darkerC(skin,30),skinHi=darkerC(skin,-20),skinDark=darkerC(skin,50);
+  const hair=a.hairColor||'#2c1b0e',hairHi=darkerC(hair,-25),hairSh=darkerC(hair,30),eye=a.eyeColor||'#3498db';
+  const outfitC=a.outfitColor||'#3498db',outfitShade=darkerC(outfitC,40),outfitHi=darkerC(outfitC,-25),outfitDark=darkerC(outfitC,60);
   const outfit=a.outfit||'tshirt';
   function p(x,y,w,h,col){c.fillStyle=col;c.fillRect(sx+x*S,sy+y*S,w*S,h*S)}
   const bob=Math.sin(wf*Math.PI/2)*((wf%4!==0)?1.5:0);
   const offy=-20+bob;
   // Shadow
-  c.fillStyle='rgba(0,0,0,0.35)';c.beginPath();c.ellipse(sx+10*S,sy+2*S,9*S,3*S,0,0,Math.PI*2);c.fill();
-  // Head
-  const hx=5,hy=offy+0;
-  p(hx+1,hy,8,10,skin);p(hx,hy+1,10,8,skin);
-  // Head shading — jawline + cheeks
-  p(hx+1,hy+8,2,1,skinShade);p(hx+7,hy+8,2,1,skinShade);
-  p(hx,hy+7,1,2,skinShade);p(hx+9,hy+7,1,2,skinShade);
-  p(hx+1,hy+1,2,1,skinHi); // forehead highlight
-  // Ears
-  p(hx-1,hy+3,1,3,skin);p(hx+10,hy+3,1,3,skin);
-  p(hx-1,hy+4,1,1,skinShade);p(hx+10,hy+4,1,1,skinShade);
+  c.fillStyle='rgba(0,0,0,0.4)';c.beginPath();c.ellipse(sx+10*S,sy+2*S,9*S,3*S,0,0,Math.PI*2);c.fill();
+  // Head (12x11 for more detail)
+  const hx=4,hy=offy+0;
+  // Head base shape with rounded corners
+  p(hx+2,hy,8,1,skin);p(hx+1,hy+1,10,1,skin);p(hx,hy+2,12,7,skin);p(hx+1,hy+9,10,1,skin);p(hx+2,hy+10,8,1,skin);
+  // Head shading — jawline + cheeks + forehead
+  p(hx+1,hy+9,2,1,skinShade);p(hx+9,hy+9,2,1,skinShade);
+  p(hx,hy+7,1,2,skinShade);p(hx+11,hy+7,1,2,skinShade);
+  p(hx+3,hy+1,3,1,skinHi); // forehead highlight left
+  p(hx+7,hy+1,3,1,skinHi); // forehead highlight right
+  // Chin
+  p(hx+4,hy+10,4,1,skinShade);
+  // Ears with inner detail
+  p(hx-1,hy+3,1,4,skin);p(hx+12,hy+3,1,4,skin);
+  p(hx-1,hy+4,1,2,skinShade);p(hx+12,hy+4,1,2,skinShade);
   // Hair
   const hs=a.hairStyle||'spiky';
-  if(hs==='spiky'){p(hx,hy-2,10,3,hair);p(hx+1,hy-3,2,1,hair);p(hx+4,hy-4,2,1,hair);p(hx+7,hy-3,2,1,hair);p(hx,hy+1,1,3,hair);p(hx+9,hy+1,1,3,hair);p(hx+2,hy-2,2,1,hairHi);p(hx+5,hy-3,2,1,hairHi)}
-  else if(hs==='flat'){p(hx,hy-1,10,2,hair);p(hx,hy+1,1,2,hair);p(hx+9,hy+1,1,2,hair);p(hx+2,hy-1,3,1,hairHi)}
-  else if(hs==='mohawk'){p(hx+3,hy-4,4,5,hair);p(hx+4,hy-5,2,1,hair);p(hx+4,hy-4,2,1,hairHi)}
-  else if(hs==='long'){p(hx,hy-1,10,2,hair);p(hx-1,hy+1,2,9,hair);p(hx+9,hy+1,2,9,hair);p(hx,hy+1,1,4,hair);p(hx+9,hy+1,1,4,hair);p(hx+2,hy-1,3,1,hairHi)}
-  else if(hs==='curly'){p(hx-1,hy-1,12,2,hair);p(hx-1,hy+1,2,5,hair);p(hx+9,hy+1,2,5,hair);p(hx,hy-2,3,1,hair);p(hx+5,hy-2,3,1,hair);p(hx+1,hy-1,2,1,hairHi)}
-  else if(hs==='ponytail'){p(hx,hy-1,10,2,hair);p(hx+9,hy+1,1,3,hair);p(hx+10,hy+2,1,6,hair);p(hx+11,hy+5,1,4,hair);p(hx+2,hy-1,3,1,hairHi)}
-  else if(hs==='messy'){p(hx-1,hy-2,12,3,hair);p(hx+1,hy-3,2,1,hair);p(hx+6,hy-3,3,1,hair);p(hx-1,hy+1,1,3,hair);p(hx+10,hy+1,1,3,hair);p(hx+3,hy-2,2,1,hairHi)}
-  // Eyes
-  const lex=hx+2,rex=hx+6,eey=hy+4;
+  if(hs==='spiky'){
+    p(hx+1,hy-2,10,3,hair);p(hx,hy+1,1,3,hair);p(hx+11,hy+1,1,3,hair);
+    p(hx+1,hy-3,3,1,hair);p(hx+5,hy-4,3,1,hair);p(hx+8,hy-3,3,1,hair);
+    p(hx+2,hy-4,2,1,hair);p(hx+6,hy-5,2,1,hair);p(hx+9,hy-4,1,1,hair);
+    p(hx+3,hy-2,2,1,hairHi);p(hx+7,hy-3,2,1,hairHi);p(hx+2,hy-3,1,1,hairHi);
+  }else if(hs==='flat'){
+    p(hx+1,hy-1,10,2,hair);p(hx,hy+1,1,3,hair);p(hx+11,hy+1,1,3,hair);
+    p(hx+2,hy-1,4,1,hairHi);p(hx+7,hy-1,3,1,hairHi);
+    p(hx+1,hy,3,1,hairSh);
+  }else if(hs==='mohawk'){
+    p(hx+3,hy-4,6,5,hair);p(hx+4,hy-6,4,2,hair);p(hx+5,hy-7,2,1,hair);
+    p(hx+5,hy-5,2,1,hairHi);p(hx+4,hy-3,3,1,hairHi);
+    p(hx+3,hy,6,1,hairSh);
+  }else if(hs==='long'){
+    p(hx+1,hy-1,10,2,hair);p(hx-1,hy+1,2,10,hair);p(hx+11,hy+1,2,10,hair);
+    p(hx,hy+1,1,5,hair);p(hx+11,hy+1,1,5,hair);
+    p(hx-1,hy+10,2,1,hairSh);p(hx+11,hy+10,2,1,hairSh);
+    p(hx+3,hy-1,3,1,hairHi);p(hx+7,hy-1,2,1,hairHi);
+  }else if(hs==='curly'){
+    p(hx,hy-2,12,3,hair);p(hx-1,hy+1,2,6,hair);p(hx+11,hy+1,2,6,hair);
+    p(hx,hy-3,3,1,hair);p(hx+5,hy-3,4,1,hair);p(hx+9,hy-3,2,1,hair);
+    p(hx+1,hy-2,2,1,hairHi);p(hx+6,hy-3,2,1,hairHi);
+    p(hx-1,hy+5,1,2,hairSh);p(hx+12,hy+5,1,2,hairSh);
+  }else if(hs==='ponytail'){
+    p(hx+1,hy-1,10,2,hair);p(hx+11,hy+1,1,4,hair);
+    p(hx+12,hy+2,1,7,hair);p(hx+13,hy+5,1,5,hair);p(hx+12,hy+9,1,1,hairSh);
+    p(hx+12,hy+3,1,1,hairHi);
+    p(hx+3,hy-1,3,1,hairHi);
+  }else if(hs==='messy'){
+    p(hx,hy-2,12,3,hair);p(hx+1,hy-3,3,1,hair);p(hx+6,hy-4,3,1,hair);p(hx+10,hy-3,2,1,hair);
+    p(hx-1,hy+1,1,4,hair);p(hx+12,hy+1,1,4,hair);
+    p(hx+2,hy-3,1,1,hairHi);p(hx+7,hy-4,2,1,hairHi);p(hx+4,hy-2,2,1,hairHi);
+  }
+  // bald = no hair
+  // Eyes (larger, 3px wide each)
+  const lex=hx+1,rex=hx+7,eey=hy+4;
   const es=a.eyeStyle||'normal';
   if(dir==='up'){}
-  else if(dir==='left'){p(lex,eey,1,1,eye);p(lex,eey+1,1,1,darkerC(eye,30))}
-  else if(dir==='right'){p(rex+1,eey,1,1,eye);p(rex+1,eey+1,1,1,darkerC(eye,30))}
+  else if(dir==='left'){p(lex,eey,2,2,eye);p(lex,eey+1,1,1,darkerC(eye,30))}
+  else if(dir==='right'){p(rex+1,eey,2,2,eye);p(rex+2,eey+1,1,1,darkerC(eye,30))}
   else{
-    if(es==='normal'){p(lex,eey,2,2,'#fff');p(lex+1,eey,1,2,eye);p(lex+1,eey+1,1,1,darkerC(eye,40));p(rex,eey,2,2,'#fff');p(rex,eey,1,2,eye);p(rex,eey+1,1,1,darkerC(eye,40))}
-    else if(es==='angry'){p(lex,eey,2,1,'#fff');p(lex+1,eey,1,1,eye);p(lex,eey-1,1,1,hair);p(rex,eey,2,1,'#fff');p(rex,eey,1,1,eye);p(rex+1,eey-1,1,1,hair)}
-    else if(es==='happy'){p(lex,eey,2,1,eye);p(lex,eey-1,2,1,'#fff');p(rex,eey,2,1,eye);p(rex,eey-1,2,1,'#fff')}
-    else if(es==='cool'){p(lex-1,eey-1,4,2,'#1a1a2e');p(lex,eey,1,1,'#333');p(rex-1,eey-1,4,2,'#1a1a2e');p(rex,eey,1,1,'#333')}
-    else if(es==='sleepy'){p(lex,eey,2,1,skin);p(lex,eey+1,2,1,eye);p(rex,eey,2,1,skin);p(rex,eey+1,2,1,eye)}
-    else if(es==='wide'){p(lex,eey-1,2,3,'#fff');p(lex+1,eey,1,1,eye);p(rex,eey-1,2,3,'#fff');p(rex,eey,1,1,eye)}
-    else if(es==='dot'){p(lex+1,eey,1,1,eye);p(rex,eey,1,1,eye)}
-    else if(es==='wink'){p(lex,eey,2,2,'#fff');p(lex+1,eey,1,2,eye);p(rex,eey,2,1,eye)}
-    else{p(lex,eey,2,2,'#fff');p(lex+1,eey,1,2,eye);p(rex,eey,2,2,'#fff');p(rex,eey,1,2,eye)}
+    if(es==='normal'){p(lex,eey,3,2,'#fff');p(lex+1,eey,1,2,eye);p(lex+2,eey+1,1,1,darkerC(eye,40));p(lex,eey+1,1,1,'#eee');p(rex,eey,3,2,'#fff');p(rex+1,eey,1,2,eye);p(rex,eey+1,1,1,'#eee');p(rex+2,eey+1,1,1,darkerC(eye,40))}
+    else if(es==='angry'){p(lex,eey,3,2,'#fff');p(lex+1,eey,2,1,eye);p(lex,eey-1,2,1,hair);p(rex,eey,3,2,'#fff');p(rex+1,eey,2,1,eye);p(rex+1,eey-1,2,1,hair)}
+    else if(es==='happy'){p(lex,eey,3,1,eye);p(lex,eey-1,3,1,'#fff');p(lex+1,eey-1,1,1,eye);p(rex,eey,3,1,eye);p(rex,eey-1,3,1,'#fff');p(rex+1,eey-1,1,1,eye)}
+    else if(es==='cool'){p(lex-1,eey-1,5,3,'#1a1a2e');p(lex,eey,2,1,'#333');p(lex+2,eey,1,1,'#444');p(rex-1,eey-1,5,3,'#1a1a2e');p(rex,eey,2,1,'#333');p(rex+2,eey,1,1,'#444')}
+    else if(es==='sleepy'){p(lex,eey,3,1,skin);p(lex+1,eey,1,1,skinShade);p(lex,eey+1,3,1,eye);p(rex,eey,3,1,skin);p(rex+1,eey,1,1,skinShade);p(rex,eey+1,3,1,eye)}
+    else if(es==='wide'){p(lex,eey-1,3,3,'#fff');p(lex+1,eey,1,2,eye);p(lex+1,eey-1,1,1,darkerC(eye,-20));p(rex,eey-1,3,3,'#fff');p(rex+1,eey,1,2,eye);p(rex+1,eey-1,1,1,darkerC(eye,-20))}
+    else if(es==='dot'){p(lex+1,eey+1,1,1,eye);p(rex+1,eey+1,1,1,eye)}
+    else if(es==='wink'){p(lex,eey,3,2,'#fff');p(lex+1,eey,1,2,eye);p(lex+2,eey+1,1,1,darkerC(eye,40));p(rex,eey+1,3,1,eye);p(rex+1,eey,1,1,darkerC(eye,30))}
+    else{p(lex,eey,3,2,'#fff');p(lex+1,eey,1,2,eye);p(rex,eey,3,2,'#fff');p(rex+1,eey,1,2,eye)}
   }
-  // Nose  
-  if(dir!=='up'){p(hx+5,hy+6,1,1,skinShade)}
+  // Eyebrows (subtle)
+  if(dir!=='up'&&es!=='angry'&&es!=='cool'){p(lex,eey-1,3,1,darkerC(skin,25));p(rex,eey-1,3,1,darkerC(skin,25))}
+  // Nose (2px for more detail)
+  if(dir!=='up'){p(hx+5,hy+7,2,1,skinShade);p(hx+5,hy+6,1,1,skinDark)}
   // Mouth
-  const ms=a.mouthStyle||'smile',mx=hx+3,my=hy+7;
+  const ms=a.mouthStyle||'smile',mx=hx+3,my=hy+8;
   if(dir!=='up'){
-    if(ms==='smile'){p(mx,my,4,1,darkerC(skin,60));p(mx+1,my+1,2,1,darkerC(skin,60))}
-    else if(ms==='neutral'){p(mx,my,4,1,darkerC(skin,60))}
-    else if(ms==='open'){p(mx+1,my,2,2,'#2c1b0e');p(mx+1,my+1,2,1,'#c0392b')}
-    else if(ms==='smirk'){p(mx+1,my,3,1,darkerC(skin,60));p(mx+3,my-1,1,1,darkerC(skin,60))}
-    else if(ms==='frown'){p(mx+1,my+1,2,1,darkerC(skin,60));p(mx,my,4,1,darkerC(skin,40))}
-    else if(ms==='teeth'){p(mx,my,4,1,darkerC(skin,60));p(mx+1,my,2,1,'#fff')}
-    else{p(mx+1,my,2,1,darkerC(skin,50))}
+    if(ms==='smile'){p(mx,my,6,1,darkerC(skin,55));p(mx+1,my+1,4,1,darkerC(skin,55));p(mx+2,my+1,2,1,darkerC(skin,35))}
+    else if(ms==='neutral'){p(mx+1,my,4,1,darkerC(skin,55))}
+    else if(ms==='open'){p(mx+1,my,4,2,'#2c1b0e');p(mx+2,my+1,2,1,'#c0392b');p(mx+1,my,4,1,'#1a0d06')}
+    else if(ms==='smirk'){p(mx+1,my,4,1,darkerC(skin,55));p(mx+4,my-1,1,1,darkerC(skin,55));p(mx+3,my,2,1,darkerC(skin,35))}
+    else if(ms==='frown'){p(mx+1,my+1,4,1,darkerC(skin,55));p(mx,my,6,1,darkerC(skin,35));p(mx+2,my,2,1,darkerC(skin,55))}
+    else if(ms==='teeth'){p(mx,my,6,1,darkerC(skin,55));p(mx+1,my,4,1,'#fff');p(mx+3,my,1,1,'#ddd')}
+    else{p(mx+2,my,2,1,darkerC(skin,50))}
   }
-  // Neck
-  p(hx+3,hy+10,4,2,skin);p(hx+4,hy+10,2,1,skinShade);
-  // Body
-  const bx=2,by=hy+12;
-  p(bx,by,16,14,outfitC);p(bx+1,by,14,14,outfitC);
-  // Shoulder highlights
-  p(bx+1,by,14,1,outfitHi);
+  // Neck (wider for proportion)
+  p(hx+3,hy+11,6,2,skin);p(hx+4,hy+11,4,1,skinShade);p(hx+5,hy+11,2,1,skinHi);
+  // Body (16 wide, 14 tall)
+  const bx=2,by=hy+13;
+  p(bx,by,16,14,outfitC);p(bx+1,by,14,1,outfitHi);
+  // Body shading — side shadows and folds
+  p(bx,by+1,1,12,outfitShade);p(bx+15,by+1,1,12,outfitShade);
+  p(bx+1,by+12,14,1,outfitShade);
+  // Collar
+  p(hx+2,by,8,1,outfitShade);p(hx+3,by,6,1,outfitDark);p(hx+4,by+1,4,1,outfitShade);
   // Belt
-  p(bx+1,by+11,14,1,'#4a3728');p(bx+7,by+11,2,1,'#8b7355');
-  if(outfit==='tshirt'){p(bx-3,by,3,6,outfitC);p(bx+16,by,3,6,outfitC);p(bx-3,by,3,1,outfitHi);p(bx+16,by,3,1,outfitHi);p(bx+6,by+8,4,1,outfitShade);p(bx+2,by+1,2,1,outfitHi)}
-  else if(outfit==='tank'){p(bx,by,2,3,skin);p(bx+14,by,2,3,skin);p(bx+2,by,12,14,outfitC);p(bx+3,by,10,1,outfitHi)}
-  else if(outfit==='hoodie'){p(bx-3,by,3,10,outfitC);p(bx+16,by,3,10,outfitC);p(bx+5,by,6,4,outfitShade);p(bx+4,by+6,8,3,outfitShade);p(bx-3,by,3,1,outfitHi);p(bx+16,by,3,1,outfitHi);p(bx+4,by+1,2,2,outfitHi)}
-  else if(outfit==='vest'){p(bx-2,by,2,5,skin);p(bx+16,by,2,5,skin);p(bx+7,by,2,14,outfitShade);p(bx+1,by,2,12,outfitHi);p(bx+13,by,2,12,outfitHi)}
-  else if(outfit==='robe'){p(bx-3,by,3,14,outfitC);p(bx+16,by,3,14,outfitC);p(bx+7,by,2,14,outfitShade);p(bx,by+14,16,4,outfitC);p(bx+7,by+14,2,4,outfitShade);p(bx+1,by,1,14,outfitHi)}
-  else if(outfit==='armor_light'){p(bx-3,by,3,8,'#888');p(bx+16,by,3,8,'#888');p(bx+5,by+1,6,5,'#aaa');p(bx+6,by+2,4,3,'#ccc');p(bx+7,by+3,2,1,'#ddd');p(bx,by+10,16,2,'#888');p(bx+1,by,14,1,'#999')}
+  p(bx+1,by+11,14,1,'#4a3728');p(bx+7,by+11,2,1,'#b8960e');p(bx+1,by+11,1,1,'#3a2718');p(bx+14,by+11,1,1,'#3a2718');
+  if(outfit==='tshirt'){
+    p(bx-3,by,3,7,outfitC);p(bx+16,by,3,7,outfitC);
+    p(bx-3,by,3,1,outfitHi);p(bx+16,by,3,1,outfitHi);
+    p(bx-3,by+6,3,1,outfitShade);p(bx+16,by+6,3,1,outfitShade);
+    p(bx+5,by+8,6,1,outfitShade);p(bx+6,by+5,4,1,outfitShade); // creases
+    p(bx+3,by+2,2,1,outfitHi);
+  }else if(outfit==='tank'){
+    p(bx,by,2,4,skin);p(bx+14,by,2,4,skin);
+    p(bx+2,by,12,14,outfitC);p(bx+3,by,10,1,outfitHi);
+    p(bx+6,by+4,4,1,outfitShade);p(bx+2,by+1,1,12,outfitShade);p(bx+13,by+1,1,12,outfitShade);
+  }else if(outfit==='hoodie'){
+    p(bx-3,by,3,10,outfitC);p(bx+16,by,3,10,outfitC);
+    p(bx-3,by,3,1,outfitHi);p(bx+16,by,3,1,outfitHi);
+    // Hood shadow on shoulders
+    p(hx+1,by-1,10,2,outfitShade);p(hx+2,by-2,8,1,outfitC);
+    // Pocket
+    p(bx+3,by+6,10,4,outfitShade);p(bx+4,by+7,8,2,outfitDark);
+    // Drawstrings
+    p(bx+7,by+1,1,3,outfitHi);p(bx+8,by+1,1,3,outfitHi);
+    p(bx+4,by+2,2,1,outfitHi);
+  }else if(outfit==='vest'){
+    p(bx-2,by,2,6,skin);p(bx+16,by,2,6,skin);
+    p(bx+7,by,2,14,outfitShade);p(bx+8,by,1,14,outfitDark);
+    p(bx+1,by,2,12,outfitHi);p(bx+13,by,2,12,outfitHi);
+    p(bx+3,by+3,1,1,'#b8960e');p(bx+3,by+6,1,1,'#b8960e');p(bx+3,by+9,1,1,'#b8960e'); // buttons
+  }else if(outfit==='robe'){
+    p(bx-3,by,3,14,outfitC);p(bx+16,by,3,14,outfitC);
+    p(bx+7,by,2,14,outfitShade);p(bx+8,by,1,18,outfitDark);
+    p(bx,by+14,16,4,outfitC);p(bx+7,by+14,2,4,outfitShade);
+    p(bx+1,by,1,14,outfitHi);p(bx-3,by,1,14,outfitShade);
+    // Rune symbols
+    p(bx+4,by+4,1,1,'rgba(255,215,0,0.3)');p(bx+11,by+6,1,1,'rgba(255,215,0,0.3)');
+  }else if(outfit==='armor_light'){
+    p(bx-3,by,3,8,'#777');p(bx+16,by,3,8,'#777');
+    p(bx-3,by,3,1,'#999');p(bx+16,by,3,1,'#999');
+    p(bx+4,by+1,8,6,'#aaa');p(bx+5,by+2,6,4,'#bbb');p(bx+6,by+3,4,2,'#ccc');p(bx+7,by+3,2,1,'#ddd');
+    p(bx,by+10,16,2,'#888');p(bx+1,by+10,14,1,'#999');p(bx+7,by+10,2,1,'#aaa');
+    p(bx+1,by,14,1,'#999');
+    // Rivets
+    p(bx+2,by+2,1,1,'#666');p(bx+13,by+2,1,1,'#666');
+  }
   // Arms
   const armLen=outfit==='robe'?4:8;
-  const armStart=outfit==='tank'?by+3:by+(outfit==='hoodie'?10:6);
-  if(outfit!=='armor_light'){p(bx-3,armStart,3,armLen,skin);p(bx+16,armStart,3,armLen,skin);p(bx-3,armStart,3,1,skinHi)}
-  else{p(bx-3,by+8,3,6,skin);p(bx+16,by+8,3,6,skin)}
-  // Hands
+  const armStart=outfit==='tank'?by+4:by+(outfit==='hoodie'?10:7);
+  if(outfit!=='armor_light'){
+    p(bx-3,armStart,3,armLen,skin);p(bx+16,armStart,3,armLen,skin);
+    p(bx-3,armStart,3,1,skinHi);p(bx-2,armStart,1,armLen,skinHi);
+    p(bx-3,armStart+armLen-1,3,1,skinShade);
+  }else{
+    p(bx-3,by+8,3,6,skin);p(bx+16,by+8,3,6,skin);
+    p(bx-2,by+8,1,6,skinHi);
+  }
+  // Hands (3x3 with finger detail)
   const handY=armStart+armLen;
-  p(bx-3,handY,3,2,skin);p(bx+16,handY,3,2,skin);
-  // Weapon
+  p(bx-4,handY,4,2,skin);p(bx-4,handY+2,3,1,skin);p(bx-4,handY,1,1,skinHi);
+  p(bx+16,handY,4,2,skin);p(bx+17,handY+2,3,1,skin);p(bx+19,handY,1,1,skinHi);
+  // Weapon rendering with type-specific shapes
   if(eq.weapon||miningTarget||attackTarget){
-    const wy2=handY-2,wx=bx+18;
+    const wy2=handY-2,wx=bx+19;
     const wRarity=(eq.weapon&&eq.weapon.rarity)||'common';
+    const wId=(eq.weapon&&eq.weapon.id)||'';
+    const wName=((eq.weapon&&eq.weapon.name)||'').toLowerCase();
     const isToolSwing=miningTarget&&!eq.weapon;
     const wColor=isToolSwing?'#888':wRarity==='mythic'?'#ff4500':wRarity==='legendary'?'#fbbf24':wRarity==='epic'?'#c084fc':wRarity==='rare'?'#60a5fa':wRarity==='uncommon'?'#4ade80':'#aaa';
-    const wShade=darkerC(wColor,40);
+    const wShade=darkerC(wColor,40);const wHi=darkerC(wColor,-30);
     const swAngle=swing>0?Math.sin(swing*Math.PI)*(-Math.PI/3):0;
-    c.save();c.translate(sx+(wx+1)*S,sy+(wy2+1)*S);c.rotate(swAngle);
+    c.save();c.translate(sx+(wx)*S,sy+(wy2+1)*S);c.rotate(swAngle);
+    const isAxe=wName.includes('axe')||wName.includes('cleaver');
+    const isDagger=wName.includes('dagger')||wName.includes('knife');
+    const isScythe=wName.includes('scythe');
     if(activeTool==='pickaxe'&&miningTarget){
-      c.fillStyle='#8b4513';c.fillRect(-1*S,-1*S,S,4*S);
-      c.fillStyle=wColor;c.fillRect(-2*S,-4*S,3*S,2*S);
-      c.fillStyle=wShade;c.fillRect(-2*S,-3*S,3*S,1*S);
+      // Pickaxe — T-shaped with curved head
+      c.fillStyle='#6b4226';c.fillRect(-S,-S,1.5*S,5*S);c.fillStyle='#8b5a2b';c.fillRect(-0.5*S,0,S,4*S);
+      c.fillStyle=wColor;c.fillRect(-3*S,-5*S,5*S,2*S);c.fillStyle=wHi;c.fillRect(-3*S,-5*S,5*S,S);
+      c.fillStyle=wShade;c.fillRect(-2*S,-3*S,1*S,1*S);c.fillRect(1*S,-3*S,1*S,1*S);
+    }else if(isAxe){
+      // AXE — distinct axe head on wooden handle
+      // Handle
+      c.fillStyle='#6b4226';c.fillRect(-0.5*S,0,1.5*S,3*S);
+      c.fillStyle='#8b5a2b';c.fillRect(-0.5*S,-S,1.5*S,1*S);
+      c.fillStyle='#5a3418';c.fillRect(0,-6*S,S,6*S);
+      // Axe head (wide curved blade on one side)
+      c.fillStyle=wColor;
+      c.fillRect(-3*S,-8*S,4*S,5*S); // main blade
+      c.fillRect(-4*S,-7*S,1*S,3*S); // blade edge extension
+      c.fillStyle=wHi;
+      c.fillRect(-3*S,-8*S,4*S,S); // top highlight
+      c.fillRect(-4*S,-7*S,1*S,1*S);
+      c.fillStyle=wShade;
+      c.fillRect(-3*S,-4*S,3*S,S); // bottom shadow
+      // Edge gleam
+      c.fillStyle='rgba(255,255,255,0.35)';c.fillRect(-4*S,-6*S,S,2*S);
+      // Binding
+      c.fillStyle='#4a3018';c.fillRect(-S,-3*S,2*S,S);
+    }else if(isDagger){
+      // DAGGER — short curved blade
+      c.fillStyle='#3a2518';c.fillRect(-0.5*S,0,1.5*S,2*S); // grip
+      c.fillStyle='#2a1a10';c.fillRect(0,2*S,S,S); // pommel
+      c.fillStyle=wColor;c.fillRect(-S,-S,3*S,S); // crossguard
+      // Blade (short + tapered)
+      c.fillStyle=wColor;c.fillRect(0,-5*S,S,4*S);
+      c.fillStyle=wHi;c.fillRect(0,-5*S,S,S);
+      c.fillStyle='rgba(255,255,255,0.3)';c.fillRect(0,-4*S,S,2*S);
+      c.fillStyle=wShade;c.fillRect(S*0.5,-5*S,S*0.5,S*0.5);
+    }else if(isScythe){
+      // SCYTHE — long handle with curved blade
+      c.fillStyle='#4a3018';c.fillRect(0,0,S,4*S);c.fillStyle='#3a2510';c.fillRect(0,-8*S,S,8*S);
+      // Curved scythe blade
+      c.fillStyle=wColor;
+      c.fillRect(-4*S,-10*S,5*S,2*S);c.fillRect(-5*S,-9*S,2*S,2*S);c.fillRect(-5*S,-7*S,S,2*S);
+      c.fillStyle=wHi;c.fillRect(-4*S,-10*S,5*S,S);
+      c.fillStyle=wShade;c.fillRect(-5*S,-6*S,S,S);
+      c.fillStyle='rgba(255,255,255,0.25)';c.fillRect(-4*S,-9*S,3*S,S);
     }else{
+      // SWORD — detailed blade with fuller, crossguard, pommel
       // Blade
-      c.fillStyle=wColor;c.fillRect(0,-8*S,S,8*S);
-      c.fillStyle=darkerC(wColor,-30);c.fillRect(0,-8*S,S,1*S); // blade tip highlight
-      c.fillStyle=wShade;c.fillRect(0,-2*S,S,2*S); // blade base shade
-      // Crossguard
-      c.fillStyle=wColor;c.fillRect(-S*1.5,-9*S,4*S,S);
-      c.fillStyle=darkerC(wColor,-20);c.fillRect(-S,-9*S,3*S,S*0.5);
-      // Grip
-      c.fillStyle='#8b4513';c.fillRect(-S*0.5,0,2*S,S);
-      c.fillStyle='#654321';c.fillRect(0,S,S,2*S);
+      c.fillStyle=wColor;c.fillRect(-0.5*S,-9*S,2*S,9*S);
+      c.fillStyle=wHi;c.fillRect(-0.5*S,-9*S,2*S,S); // tip highlight
+      c.fillStyle='rgba(255,255,255,0.2)';c.fillRect(0,-8*S,S*0.5,7*S); // fuller (center groove)
+      c.fillStyle=wShade;c.fillRect(-0.5*S,-2*S,2*S,2*S);
+      // Crossguard (ornate)
+      c.fillStyle=wColor;c.fillRect(-2*S,-10*S,5*S,1.5*S);
+      c.fillStyle=wHi;c.fillRect(-2*S,-10*S,5*S,S*0.5);
+      c.fillStyle=darkerC(wColor,20);c.fillRect(-1.5*S,-10*S,S*0.5,1.5*S);c.fillRect(2*S,-10*S,S*0.5,1.5*S);
+      // Grip (wrapped leather)
+      c.fillStyle='#5a3418';c.fillRect(-0.5*S,0,2*S,3*S);
+      c.fillStyle='#4a2a10';c.fillRect(0,0.5*S,S,0.5*S);c.fillRect(0,1.5*S,S,0.5*S);// wrapping lines
       // Pommel
-      c.fillStyle=wColor;c.fillRect(-S*0.5,3*S,2*S,S);
+      c.fillStyle=wColor;c.fillRect(-S,3*S,3*S,1.5*S);
+      c.fillStyle=wHi;c.fillRect(-0.5*S,3*S,2*S,S*0.5);
     }
     c.restore();
   }
@@ -6897,288 +7023,487 @@ function drawPixelChar(c,sx,sy,S,a,eq,dir,wf,swing,name,nameColor){
   if(eq.armor&&outfit!=='armor_light'){
     const aR=eq.armor.rarity||'common';
     const aC=aR==='mythic'?'#ff4500':aR==='legendary'?'#fbbf24':aR==='epic'?'#c084fc':aR==='rare'?'#60a5fa':aR==='uncommon'?'#4ade80':'#aaa';
-    const aSh=darkerC(aC,40);
-    // Shoulder pads
-    p(bx-2,by-1,4,2,aC);p(bx-2,by-1,4,1,darkerC(aC,-20));
-    p(bx+14,by-1,4,2,aC);p(bx+14,by-1,4,1,darkerC(aC,-20));
-    // Chest plate
-    p(bx+4,by+2,8,4,aC);p(bx+5,by+3,6,2,darkerC(aC,-15));
-    p(bx+6,by+4,4,1,aSh);
+    const aSh=darkerC(aC,40);const aHi=darkerC(aC,-20);
+    // Shoulder pads with rivets
+    p(bx-2,by-1,5,3,aC);p(bx-2,by-1,5,1,aHi);p(bx-1,by+1,3,1,aSh);
+    p(bx+13,by-1,5,3,aC);p(bx+13,by-1,5,1,aHi);p(bx+14,by+1,3,1,aSh);
+    p(bx-1,by,1,1,darkerC(aC,60));p(bx+15,by,1,1,darkerC(aC,60)); // rivets
+    // Chest plate with emblem
+    p(bx+3,by+2,10,5,aC);p(bx+4,by+3,8,3,aHi);p(bx+5,by+4,6,1,aSh);
+    p(bx+7,by+3,2,2,darkerC(aC,-35)); // emblem center
     // Belt buckle
-    p(bx+6,by+11,4,1,aC);
+    p(bx+6,by+11,4,1,aC);p(bx+7,by+11,2,1,aHi);
   }
   if(eq.accessory){
     const acR=eq.accessory.rarity||'common';
     const acC=acR==='mythic'?'#ff4500':acR==='legendary'?'#fbbf24':acR==='epic'?'#c084fc':acR==='rare'?'#60a5fa':acR==='uncommon'?'#4ade80':'#aaa';
-    p(bx-4,handY-1,2,2,acC);p(bx-4,handY-1,2,1,darkerC(acC,-20));
+    p(bx-5,handY-1,2,3,acC);p(bx-5,handY-1,2,1,darkerC(acC,-20));
+    p(bx-5,handY+1,1,1,darkerC(acC,30));
   }
-  // Legs
+  // Legs (wider with more detail)
   const ly=by+(outfit==='robe'?18:14);
   const isWalking=wf%4!==0;
-  const pantC='#2c3e50',pantSh='#1e2d3d',bootC='#1a1a2e',bootHi='#2a2a3e';
+  const pantC='#2c3e50',pantHi='#3a5068',pantSh='#1e2d3d',bootC='#1a1a2e',bootHi='#2a2a3e',bootSh='#111118',bootSole='#0d0d15';
   if(isWalking){
     if(wf%2===0){
       const stride=3;
-      p(bx+1,ly,5,7,pantC);p(bx+2,ly,1,5,pantSh);p(bx+1,ly+7,6,2,bootC);p(bx+2,ly+7,4,1,bootHi);
-      p(bx+10,ly+stride,5,7-stride,pantC);p(bx+11,ly+stride,1,5-stride,pantSh);p(bx+10,ly+7,6,2,bootC);p(bx+11,ly+7,4,1,bootHi);
+      // Front leg
+      p(bx+1,ly,6,7,pantC);p(bx+2,ly,2,1,pantHi);p(bx+1,ly+6,1,1,pantSh);
+      p(bx+1,ly+7,7,2,bootC);p(bx+2,ly+7,5,1,bootHi);p(bx+1,ly+9,7,1,bootSole);
+      // Back leg
+      p(bx+9,ly+stride,6,7-stride,pantC);p(bx+10,ly+stride,2,1,pantHi);
+      p(bx+9,ly+7,7,2,bootC);p(bx+10,ly+7,5,1,bootHi);p(bx+9,ly+9,7,1,bootSole);
     }else{
-      p(bx+3,ly,5,8,pantC);p(bx+4,ly,1,6,pantSh);p(bx+3,ly+8,6,2,bootC);p(bx+4,ly+8,4,1,bootHi);
-      p(bx+8,ly,5,8,pantC);p(bx+9,ly,1,6,pantSh);p(bx+8,ly+8,6,2,bootC);p(bx+9,ly+8,4,1,bootHi);
+      // Together step
+      p(bx+3,ly,5,8,pantC);p(bx+4,ly,2,1,pantHi);p(bx+3,ly+7,1,1,pantSh);
+      p(bx+3,ly+8,6,2,bootC);p(bx+4,ly+8,4,1,bootHi);p(bx+3,ly+10,6,1,bootSole);
+      p(bx+8,ly,5,8,pantC);p(bx+9,ly,2,1,pantHi);
+      p(bx+8,ly+8,6,2,bootC);p(bx+9,ly+8,4,1,bootHi);p(bx+8,ly+10,6,1,bootSole);
     }
   }else{
-    p(bx+2,ly,5,8,pantC);p(bx+3,ly,1,6,pantSh);p(bx+9,ly,5,8,pantC);p(bx+10,ly,1,6,pantSh);
-    p(bx+1,ly+8,6,2,bootC);p(bx+2,ly+8,4,1,bootHi);p(bx+9,ly+8,6,2,bootC);p(bx+10,ly+8,4,1,bootHi);
+    // Standing
+    p(bx+2,ly,5,8,pantC);p(bx+3,ly,2,1,pantHi);p(bx+2,ly+7,1,1,pantSh);p(bx+6,ly+2,1,6,pantSh);
+    p(bx+9,ly,5,8,pantC);p(bx+10,ly,2,1,pantHi);p(bx+9,ly+7,1,1,pantSh);
+    // Boots
+    p(bx+1,ly+8,6,2,bootC);p(bx+2,ly+8,4,1,bootHi);p(bx+1,ly+10,6,1,bootSole);
+    p(bx+9,ly+8,6,2,bootC);p(bx+10,ly+8,4,1,bootHi);p(bx+9,ly+10,6,1,bootSole);
+    // Boot detail
+    p(bx+1,ly+9,1,1,bootSh);p(bx+14,ly+9,1,1,bootSh);
+    p(bx+3,ly+9,2,1,'#252535'); // boot strap
+    p(bx+11,ly+9,2,1,'#252535');
   }
-  // Name
+  // Name with shadow
   c.font='bold 9px sans-serif';c.textAlign='center';
-  c.fillStyle='#000';c.fillText(name||'?',sx+10*S+1,sy+offy*S-3);
+  c.fillStyle='rgba(0,0,0,0.6)';c.fillText(name||'?',sx+10*S+1,sy+offy*S-3);
   c.fillStyle=nameColor||'#fbbf24';c.fillText(name||'?',sx+10*S,sy+offy*S-4);
 }
 
 // ═══ Wearable Cosmetics Drawing ═══
 const RARITY_GLOW={common:null,uncommon:'#4ade80',rare:'#60a5fa',epic:'#c084fc',legendary:'#fbbf24',mythic:'#ff4500'};
-let _wearAnimT=0;setInterval(()=>{_wearAnimT=((_wearAnimT+1)%120)},50);
+let _wearAnimT=0;setInterval(()=>{_wearAnimT=((_wearAnimT+1)%360)},50);
+// Cape physics state
+let _capeWave=[0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+let _capeVel=[0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+let _lastWf=0;
+function updateCapePhysics(wf){
+  const isMoving=wf%4!==0;
+  const windBase=isMoving?2.5:0.4;
+  const changeDir=wf!==_lastWf;_lastWf=wf;
+  for(let i=0;i<_capeWave.length;i++){
+    const target=Math.sin(_wearAnimT*0.06+i*0.7)*windBase+(isMoving?1.8+i*0.3:Math.sin(_wearAnimT*0.03+i)*0.5);
+    const spring=0.12,damp=0.8;
+    _capeVel[i]+=((target-_capeWave[i])*spring);
+    if(changeDir)_capeVel[i]+=(isMoving?1.5:-0.3)*Math.sin(i*1.2);
+    _capeVel[i]*=damp;
+    _capeWave[i]+=_capeVel[i];
+  }
+}
 function drawWearables(c,sx,sy,S,wf,wear){
   if(!wear)return;
   const bob=Math.sin(wf*Math.PI/2)*((wf%4!==0)?1.5:0);
   const offy=-20+bob;
   const t=_wearAnimT;
+  updateCapePhysics(wf);
   function p(x,y,w,h,col){c.fillStyle=col;c.fillRect(sx+x*S,sy+y*S,w*S,h*S)}
   function glow(x,y,w,h,col,r){c.shadowColor=col;c.shadowBlur=r*S;p(x,y,w,h,col);c.shadowBlur=0;c.shadowColor='transparent'}
-  const hx=5,hy=offy+0,bx=2,by=hy+12;
+  const hx=4,hy=offy+0,bx=2,by=hy+13;
 
   // ── Hat ──
   if(wear.hat){
     const id=wear.hat;
     if(id==='straw_hat'){
-      // Wide brim with woven texture
-      p(hx-3,hy-3,16,2,'#daa520');p(hx-2,hy-3,1,2,'#c8961e');p(hx+2,hy-3,1,2,'#c8961e');p(hx+6,hy-3,1,2,'#c8961e');p(hx+10,hy-3,1,2,'#c8961e');
-      // Crown
-      p(hx,hy-6,10,3,'#c8961e');p(hx+1,hy-5,8,1,'#daa520');p(hx+2,hy-7,6,1,'#b8860b');
-      // Band
-      p(hx,hy-4,10,1,'#8b1a1a');
-      // Brim highlight
-      p(hx-3,hy-3,16,1,'rgba(255,255,200,0.2)');
+      // Wide-brimmed straw hat with woven texture + red band
+      p(hx-4,hy-3,20,2,'#daa520');p(hx-3,hy-3,18,1,'#e6b422');
+      // Woven texture on brim
+      for(let i=0;i<18;i+=2){p(hx-3+i,hy-3,1,1,i%4===0?'#c8961e':'#daa520')}
+      p(hx-4,hy-2,1,1,'#b8860b');p(hx+15,hy-2,1,1,'#b8860b'); // brim shadow edges
+      // Crown (taller, rounded)
+      p(hx,hy-7,12,4,'#c8961e');p(hx+1,hy-8,10,1,'#d4a520');p(hx+2,hy-9,8,1,'#b8860b');
+      p(hx+1,hy-6,10,1,'#daa520'); // crown highlight
+      // Red band
+      p(hx,hy-4,12,1,'#8b1a1a');p(hx+1,hy-4,10,1,'#a02020');
+      p(hx+8,hy-4,2,1,'#c02828'); // band knot
       // Brim underside shadow
-      p(hx-2,hy-1,14,1,'rgba(0,0,0,0.15)');
+      p(hx-3,hy-1,18,1,'rgba(0,0,0,0.12)');
     }
     else if(id==='party_hat'){
-      // Cone body with stripes
-      p(hx+2,hy-4,6,3,'#ff69b4');p(hx+3,hy-6,4,2,'#ff1493');p(hx+4,hy-8,2,2,'#ff69b4');p(hx+4,hy-9,2,1,'#e91e8b');
-      // Stripes
-      p(hx+2,hy-3,6,1,'#ffd700');p(hx+3,hy-5,4,1,'#00bfff');
-      // Pom-pom on top
-      glow(hx+4,hy-10,2,1,'#ffd700',3);
+      // Colorful cone hat with pompom + polka dots + elastic
+      p(hx+2,hy-4,8,3,'#ff69b4');p(hx+3,hy-7,6,3,'#ff1493');p(hx+4,hy-9,4,2,'#ff69b4');p(hx+5,hy-11,2,2,'#e91e8b');
+      // Polka dots
+      p(hx+3,hy-3,1,1,'#fff');p(hx+7,hy-5,1,1,'#ffd700');p(hx+5,hy-7,1,1,'#00bfff');p(hx+4,hy-9,1,1,'#fff');
+      // Gold stripes
+      p(hx+2,hy-3,8,1,'#ffd700');p(hx+4,hy-7,4,1,'#00bfff');
+      // Fluffy pom-pom (animated bounce)
+      const pomBob=Math.sin(t*0.15)*0.5;
+      glow(hx+4,hy-13+pomBob,4,2,'#ffd700',4);p(hx+5,hy-14+pomBob,2,1,'#ffe44d');
       // Elastic band
-      p(hx+1,hy-1,8,1,'#ccc');
+      p(hx,hy-1,2,1,'#ddd');p(hx+10,hy-1,2,1,'#ddd');
     }
     else if(id==='wizard_hat'){
-      // Tall pointed hat with stars
-      p(hx-1,hy-2,12,1,'#6a0dad');
-      p(hx+1,hy-4,8,2,'#4b0082');p(hx+2,hy-6,6,2,'#3c006e');p(hx+3,hy-8,4,2,'#2e0054');p(hx+4,hy-10,2,2,'#1f003a');p(hx+4,hy-11,1,1,'#4b0082');
-      // Brim
-      p(hx-1,hy-2,12,1,'#6a0dad');p(hx-2,hy-1,14,1,'#5a0dbd');
-      // Star & moon decorations
-      const twinkle=Math.sin(t*0.15)>0;
-      if(twinkle){glow(hx+3,hy-5,1,1,'#ffd700',2);glow(hx+6,hy-8,1,1,'#ffd700',2)}
-      // Band
-      p(hx+1,hy-3,8,1,'#9b59b6');
+      // Tall wizard hat with star/moon + sparkle band + droopy tip
+      p(hx-2,hy-1,16,1,'#5a0dbd'); // wide brim
+      p(hx-1,hy-2,14,1,'#6a0dad');
+      p(hx+1,hy-4,10,2,'#4b0082');p(hx+2,hy-6,8,2,'#3c006e');p(hx+3,hy-8,6,2,'#2e0054');
+      p(hx+4,hy-10,4,2,'#1f003a');p(hx+5,hy-12,3,2,'#1f003a');p(hx+6,hy-13,2,1,'#4b0082');
+      // Droopy tip curves right
+      p(hx+7,hy-14,2,1,'#4b0082');p(hx+8,hy-13,2,1,'#3c006e');
+      // Sparkle band
+      p(hx+1,hy-3,10,1,'#9b59b6');
+      // Animated stars
+      const tw1=Math.sin(t*0.12)>0.3,tw2=Math.sin(t*0.15+2)>0.2;
+      if(tw1)glow(hx+3,hy-5,1,1,'#ffd700',3);
+      if(tw2)glow(hx+7,hy-9,1,1,'#ffd700',3);
+      // Moon crescent
+      p(hx+4,hy-8,2,2,'#ffd700');p(hx+5,hy-8,1,1,'#3c006e');
+      // Brim edge highlight
+      p(hx-2,hy-1,16,1,'rgba(180,130,255,0.2)');
     }
     else if(id==='pirate_hat'){
-      // Tricorn shape
-      p(hx,hy-4,10,3,'#2c2c2c');p(hx-1,hy-2,12,1,'#3c3c3c');p(hx+1,hy-5,8,1,'#2c2c2c');
-      // Brim folds
-      p(hx-2,hy-2,3,1,'#444');p(hx+9,hy-2,3,1,'#444');
-      // Skull & crossbones
-      p(hx+4,hy-4,2,2,'#fff');p(hx+3,hy-3,1,1,'#fff');p(hx+6,hy-3,1,1,'#fff');
-      p(hx+4,hy-3,1,1,'#111');p(hx+5,hy-3,1,1,'#111');
-      // Gold trim
-      p(hx,hy-2,10,1,'#b8860b');
+      // Detailed tricorn with gold edges + skull crossbones
+      p(hx-1,hy-5,14,4,'#1a1a1a');p(hx,hy-6,12,1,'#222');
+      // Tricorn folds (upturned sides)
+      p(hx-3,hy-3,4,2,'#2a2a2a');p(hx+11,hy-3,4,2,'#2a2a2a');
+      p(hx-3,hy-4,3,1,'#333');p(hx+12,hy-4,3,1,'#333');
+      // Gold trim all around
+      p(hx-3,hy-2,18,1,'#b8860b');p(hx-1,hy-6,14,1,'#8b6914');
+      // Skull & crossbones (centered, detailed)
+      p(hx+4,hy-5,4,3,'#e8e0d0');p(hx+5,hy-5,2,1,'#fff');
+      p(hx+4,hy-4,1,1,'#111');p(hx+7,hy-4,1,1,'#111'); // eye sockets
+      p(hx+5,hy-3,2,1,'#ccc'); // jaw
+      // Crossbones
+      p(hx+3,hy-3,1,1,'#ddd');p(hx+8,hy-3,1,1,'#ddd');
+      p(hx+3,hy-5,1,1,'#ddd');p(hx+8,hy-5,1,1,'#ddd');
+      // Feather plume
+      p(hx+10,hy-7,1,3,'#cc2200');p(hx+11,hy-8,1,2,'#dd3311');p(hx+11,hy-9,1,1,'#ee4422');
     }
     else if(id==='top_hat'){
-      // Tall cylinder with satin sheen
-      p(hx+2,hy-10,6,7,'#111');p(hx+3,hy-10,4,1,'#333');
-      p(hx+2,hy-10,1,7,'#222');p(hx+7,hy-10,1,7,'#0a0a0a');
-      // Brim
-      p(hx-1,hy-3,12,2,'#111');p(hx-1,hy-3,12,1,'#222');
-      // Band (purple silk)
-      p(hx+2,hy-4,6,1,'#c084fc');p(hx+2,hy-4,2,1,'#d4a0ff');
+      // Tall silk top hat with satin sheen + buckle
+      p(hx+2,hy-12,8,9,'#0a0a0a');p(hx+3,hy-13,6,1,'#111');
+      // Satin sheen (vertical gradient)
+      p(hx+3,hy-12,2,8,'#1a1a1a');p(hx+5,hy-12,1,8,'#222');
+      p(hx+8,hy-12,1,8,'#050505');
+      // Brim (wide)
+      p(hx-1,hy-3,14,2,'#0a0a0a');p(hx,hy-3,12,1,'#1a1a1a');
+      // Silk band (with buckle)
+      p(hx+2,hy-4,8,1,'#6a0dad');p(hx+3,hy-4,2,1,'#8020c0'); // purple silk
+      p(hx+6,hy-4,2,1,'#ffd700');p(hx+6,hy-4,1,1,'#ffe44d'); // gold buckle
     }
     else if(id==='crown_thorns'){
-      // Twisted thorny vine crown
-      p(hx,hy-3,10,2,'#5a3a1a');p(hx+1,hy-2,8,1,'#6b4a2a');
-      // Thorns sticking up
-      p(hx-1,hy-5,1,2,'#3a2a0a');p(hx+2,hy-5,1,2,'#4a3a1a');p(hx+5,hy-6,1,3,'#3a2a0a');p(hx+7,hy-5,1,2,'#4a3a1a');p(hx+10,hy-5,1,2,'#3a2a0a');
-      // Blood drops
-      p(hx+2,hy-3,1,1,'#8b0000');p(hx+7,hy-3,1,1,'#8b0000');
+      // Organic twisted vine crown with thorns + blood
+      p(hx-1,hy-3,14,3,'#5a3a1a');p(hx,hy-2,12,1,'#6b4a2a');
+      p(hx-1,hy-3,1,3,'#4a2a0a');p(hx+12,hy-3,1,3,'#4a2a0a');
+      // Vine texture
+      p(hx+1,hy-3,2,1,'#7a5a3a');p(hx+5,hy-2,3,1,'#7a5a3a');p(hx+9,hy-3,2,1,'#7a5a3a');
+      // Sharp thorns (more and varied)
+      p(hx-2,hy-5,1,2,'#3a2a0a');p(hx+1,hy-6,1,3,'#4a3a1a');p(hx+4,hy-6,1,3,'#3a2a0a');
+      p(hx+6,hy-7,1,4,'#3a2a0a');p(hx+9,hy-6,1,3,'#4a3a1a');p(hx+12,hy-5,1,2,'#3a2a0a');
+      // Blood drops (animated drip)
+      const drip=Math.sin(t*0.04)*0.5;
+      p(hx+1,hy-3,1,1,'#8b0000');p(hx+4,hy-2,1,1,'#8b0000');p(hx+9,hy-3,1,1,'#8b0000');
+      if(drip>0)p(hx+4,hy-1,1,1,'rgba(139,0,0,0.5)');
+      // Leaves
+      p(hx+7,hy-5,1,1,'#2d5a1e');p(hx+3,hy-4,1,1,'#2d5a1e');
     }
     else if(id==='devil_horns'){
-      // Curved demon horns with gradient
-      p(hx,hy-3,2,3,'#cc2200');p(hx-1,hy-5,2,2,'#dd3311');p(hx-1,hy-6,1,1,'#ee4422');
-      p(hx+8,hy-3,2,3,'#cc2200');p(hx+9,hy-5,2,2,'#dd3311');p(hx+10,hy-6,1,1,'#ee4422');
-      // Horn ridges
-      p(hx,hy-4,1,1,'#aa1100');p(hx+9,hy-4,1,1,'#aa1100');
-      // Glowing tips
-      glow(hx-1,hy-6,1,1,'#ff6633',3);glow(hx+10,hy-6,1,1,'#ff6633',3);
+      // Curved demon horns with gradient ridges + glowing tips
+      // Left horn (3 segments going up-left)
+      p(hx,hy-2,2,3,'#cc2200');p(hx-1,hy-5,2,3,'#dd3311');p(hx-2,hy-7,2,2,'#ee4422');p(hx-2,hy-8,1,1,'#ff5533');
+      // Right horn
+      p(hx+10,hy-2,2,3,'#cc2200');p(hx+11,hy-5,2,3,'#dd3311');p(hx+12,hy-7,2,2,'#ee4422');p(hx+13,hy-8,1,1,'#ff5533');
+      // Horn ridges (rings)
+      p(hx,hy-3,2,1,'#aa1100');p(hx-1,hy-5,2,1,'#bb2200');
+      p(hx+10,hy-3,2,1,'#aa1100');p(hx+11,hy-5,2,1,'#bb2200');
+      // Horn shading
+      p(hx+1,hy-2,1,3,'#992200');p(hx+10,hy-2,1,3,'#992200');
+      // Glowing tips (pulsing)
+      const hornPulse=0.5+Math.sin(t*0.1)*0.5;
+      glow(hx-2,hy-8,1,1,`rgba(255,100,50,${hornPulse})`,4);
+      glow(hx+13,hy-8,1,1,`rgba(255,100,50,${hornPulse})`,4);
     }
     else if(id==='santa_hat'){
-      // Slouching hat with fur trim
-      p(hx+1,hy-3,8,2,'#cc0000');p(hx+2,hy-5,6,2,'#dd1111');p(hx+3,hy-7,5,2,'#cc0000');p(hx+5,hy-8,4,1,'#cc0000');p(hx+7,hy-9,3,1,'#cc0000');
-      // White pom-pom
-      p(hx+8,hy-10,3,2,'#fff');p(hx+9,hy-11,2,1,'#fff');p(hx+9,hy-10,1,1,'#eee');
-      // Fur trim
-      p(hx-1,hy-1,12,2,'#fff');p(hx,hy-1,10,1,'#eee');
+      // Fluffy Santa hat with slouch + fur trim + pompom
+      p(hx+1,hy-3,10,3,'#cc0000');p(hx+2,hy-6,8,3,'#dd1111');
+      p(hx+3,hy-8,6,2,'#cc0000');p(hx+5,hy-10,5,2,'#cc0000');
+      // Slouch to the right
+      p(hx+8,hy-11,4,1,'#cc0000');p(hx+10,hy-12,3,1,'#cc0000');p(hx+11,hy-11,2,1,'#dd1111');
+      // Fabric folds
+      p(hx+2,hy-5,3,1,'#aa0000');p(hx+6,hy-7,2,1,'#aa0000');
+      // White fur trim (fluffy with texture)
+      p(hx-1,hy,14,2,'#fff');p(hx,hy,12,1,'#f5f5f5');p(hx,hy+1,12,1,'#eee');
+      p(hx-1,hy,1,2,'#ddd');p(hx+12,hy,1,2,'#ddd');
+      // Fur texture dots
+      p(hx+1,hy,1,1,'#eaeaea');p(hx+4,hy+1,1,1,'#e0e0e0');p(hx+8,hy,1,1,'#eaeaea');p(hx+10,hy+1,1,1,'#e0e0e0');
+      // Pompom
+      const pomB=Math.sin(t*0.1)*0.5;
+      p(hx+11,hy-13+pomB,3,3,'#fff');p(hx+12,hy-14+pomB,2,1,'#fff');p(hx+12,hy-13+pomB,1,1,'#eee');
     }
     else if(id==='halo'){
-      // Glowing golden ring with pulsing aura
+      // Glowing golden ring with pulsing ethereal aura
       const pulse=0.5+Math.sin(t*0.12)*0.3;
       c.save();
-      c.shadowColor='#ffd700';c.shadowBlur=(6+pulse*4)*S;
-      c.strokeStyle=`rgba(255,215,0,${0.7+pulse*0.3})`;c.lineWidth=2*S;
+      // Outer glow
+      c.shadowColor='#ffd700';c.shadowBlur=(8+pulse*6)*S;
+      c.strokeStyle=`rgba(255,215,0,${0.6+pulse*0.3})`;c.lineWidth=2.5*S;
+      c.beginPath();c.ellipse(sx+10*S,sy+(hy-5)*S,7*S,2.5*S,0,0,Math.PI*2);c.stroke();
+      // Inner bright core
+      c.shadowBlur=(3+pulse*2)*S;
+      c.strokeStyle=`rgba(255,255,200,${0.4+pulse*0.3})`;c.lineWidth=1.5*S;
       c.beginPath();c.ellipse(sx+10*S,sy+(hy-5)*S,6*S,2*S,0,0,Math.PI*2);c.stroke();
-      // Inner bright ring
-      c.strokeStyle='rgba(255,255,200,0.5)';c.lineWidth=1*S;
-      c.beginPath();c.ellipse(sx+10*S,sy+(hy-5)*S,5*S,1.5*S,0,0,Math.PI*2);c.stroke();
+      // Light rays
+      c.strokeStyle=`rgba(255,240,180,${0.15+pulse*0.1})`;c.lineWidth=0.5*S;
+      for(let i=0;i<6;i++){
+        const angle=i*Math.PI/3+t*0.005;
+        c.beginPath();c.moveTo(sx+10*S+Math.cos(angle)*5*S,sy+(hy-5)*S+Math.sin(angle)*1.5*S);
+        c.lineTo(sx+10*S+Math.cos(angle)*9*S,sy+(hy-5)*S+Math.sin(angle)*3*S);c.stroke();
+      }
       c.shadowBlur=0;c.restore();
     }
     else if(id==='void_crown'){
-      // Dark crown with pulsing void gems
-      p(hx,hy-4,10,3,'#1a0a2e');p(hx+1,hy-3,8,1,'#250e40');
-      // Crown points
-      p(hx-1,hy-6,2,2,'#1a0a2e');p(hx+3,hy-7,2,3,'#1a0a2e');p(hx+7,hy-7,2,3,'#1a0a2e');p(hx+9,hy-6,2,2,'#1a0a2e');
-      // Void gems — pulsing orange/red
-      const vp=0.6+Math.sin(t*0.1)*0.4;
-      glow(hx,hy-5,1,1,`rgba(255,69,0,${vp})`,4);
-      glow(hx+4,hy-6,1,1,`rgba(255,69,0,${vp})`,4);
-      glow(hx+8,hy-6,1,1,`rgba(255,69,0,${vp})`,4);
-      // Dark energy wisps
-      const wy=Math.sin(t*0.08)*2;
-      p(hx+2,hy-5+Math.round(wy),1,1,'rgba(128,0,255,0.5)');
-      p(hx+6,hy-6-Math.round(wy),1,1,'rgba(128,0,255,0.5)');
+      // Obsidian crown with void energy + floating shards
+      p(hx-1,hy-5,14,4,'#0d0520');p(hx,hy-4,12,2,'#150830');
+      // Crown spires
+      p(hx-1,hy-8,3,3,'#0d0520');p(hx+3,hy-9,3,4,'#0d0520');p(hx+7,hy-10,3,5,'#0d0520');p(hx+10,hy-8,3,3,'#0d0520');
+      // Spire tips
+      p(hx,hy-8,1,1,'#1a0a35');p(hx+4,hy-9,1,1,'#1a0a35');p(hx+8,hy-10,1,1,'#1a0a35');p(hx+11,hy-8,1,1,'#1a0a35');
+      // Void gems (pulsing orange-purple)
+      const vp=0.5+Math.sin(t*0.08)*0.5;
+      glow(hx,hy-6,2,1,`rgba(255,69,0,${vp})`,5);
+      glow(hx+5,hy-7,2,1,`rgba(255,69,0,${vp})`,5);
+      glow(hx+9,hy-7,2,1,`rgba(255,69,0,${vp})`,5);
+      // Void energy wisps (floating particles)
+      const wy1=Math.sin(t*0.06)*2,wy2=Math.cos(t*0.07)*2;
+      p(hx+2,hy-7+Math.round(wy1),1,1,'rgba(128,0,255,0.6)');
+      p(hx+7,hy-8-Math.round(wy2),1,1,'rgba(128,0,255,0.6)');
+      p(hx+11,hy-6+Math.round(wy1*0.7),1,1,'rgba(180,50,255,0.4)');
+      // Dark aura outline
+      p(hx-2,hy-5,1,3,'rgba(50,0,100,0.3)');p(hx+13,hy-5,1,3,'rgba(50,0,100,0.3)');
     }
   }
 
-  // ── Cape ──
+  // ── Cape (with physics!) ──
   if(wear.cape){
     const id=wear.cape;
     const capeY=by+1;
+    const cw=_capeWave;
     if(id==='tattered_cape'){
-      // Worn ragged cape with tears
-      p(bx+1,capeY,14,13,'rgba(100,80,60,0.55)');
-      p(bx+2,capeY,12,1,'rgba(120,100,80,0.5)');
-      // Tattered edges
-      p(bx+2,capeY+13,3,2,'rgba(100,80,60,0.35)');p(bx+7,capeY+13,2,1,'rgba(100,80,60,0.3)');p(bx+11,capeY+13,2,2,'rgba(100,80,60,0.35)');
-      // Holes/tears
-      p(bx+5,capeY+5,2,2,'rgba(0,0,0,0)');p(bx+9,capeY+8,1,2,'rgba(0,0,0,0)');
-      // Stitching
-      p(bx+4,capeY+3,1,1,'rgba(80,60,40,0.7)');p(bx+4,capeY+5,1,1,'rgba(80,60,40,0.7)');p(bx+10,capeY+6,1,1,'rgba(80,60,40,0.7)');
+      // Ragged torn cape with stitches and holes - physics wave
+      for(let row=0;row<14;row++){
+        const wave=Math.round(cw[row]*0.4);
+        const alpha=0.55-row*0.01;
+        const baseW=12-Math.abs(row-7)*0.3;
+        const ox=2+wave;
+        p(bx+ox,capeY+row,Math.round(baseW),1,`rgba(90,70,50,${alpha})`);
+        // Tattered edges
+        if(row>8&&row%2===0)p(bx+ox-1,capeY+row,1,1,`rgba(70,55,38,${alpha*0.5})`);
+        if(row>10&&(row+1)%3===0)p(bx+ox+Math.round(baseW),capeY+row,1,1,`rgba(60,45,30,${alpha*0.4})`);
+      }
+      // Holes
+      const h1w=Math.round(cw[5]*0.3);
+      p(bx+5+h1w,capeY+5,2,2,'rgba(0,0,0,0)');p(bx+9+Math.round(cw[8]*0.3),capeY+8,1,2,'rgba(0,0,0,0)');
+      // Stitches
+      p(bx+4+Math.round(cw[3]*0.3),capeY+3,1,1,'rgba(120,90,60,0.7)');
+      p(bx+4+Math.round(cw[5]*0.3),capeY+5,1,1,'rgba(120,90,60,0.7)');
+      p(bx+10+Math.round(cw[6]*0.3),capeY+6,1,1,'rgba(120,90,60,0.7)');
+      // Tattered bottom fringe
+      for(let i=0;i<5;i++){
+        const fw=Math.round(cw[12]*0.4);
+        p(bx+2+i*3+fw,capeY+14,2,1+Math.round(Math.sin(t*0.05+i)*0.5),'rgba(80,60,40,0.4)');
+      }
     }
     else if(id==='woodland_cloak'){
-      // Deep green forest cloak with leaf pattern
-      p(bx,capeY,16,14,'rgba(34,120,50,0.65)');
-      p(bx+1,capeY,14,1,'rgba(50,140,60,0.6)');
-      // Leaf pattern
-      p(bx+3,capeY+3,2,1,'rgba(60,160,70,0.4)');p(bx+8,capeY+5,2,1,'rgba(60,160,70,0.4)');p(bx+5,capeY+8,2,1,'rgba(60,160,70,0.4)');p(bx+10,capeY+10,2,1,'rgba(60,160,70,0.4)');
-      // Bottom hem
-      p(bx+1,capeY+14,5,2,'rgba(34,120,50,0.45)');p(bx+8,capeY+14,6,2,'rgba(34,120,50,0.45)');
-      // Clasp
-      p(bx+7,capeY,2,1,'rgba(180,150,80,0.8)');
+      // Green forest cloak with leaf pattern + hood drape - physics wave
+      for(let row=0;row<15;row++){
+        const wave=Math.round(cw[row]*0.35);
+        const alpha=0.65-row*0.008;
+        const w=14-Math.abs(row-7)*0.3;
+        const ox=1+wave;
+        // Two-tone green
+        const shade=row<5?'rgba(40,130,55,':'rgba(30,110,45,';
+        p(bx+ox,capeY+row,Math.round(w),1,shade+alpha+')');
+      }
+      // Hood drape at top
+      p(bx+1+Math.round(cw[0]*0.2),capeY,14,2,'rgba(50,140,60,0.6)');
+      // Leaf embroidery (scattered)
+      const leaves=[[3,3],[8,5],[5,8],[10,10],[4,12]];
+      leaves.forEach(([lx,ly])=>{
+        const lw=Math.round(cw[ly]*0.3);
+        p(bx+lx+lw,capeY+ly,2,1,'rgba(70,180,80,0.4)');
+        p(bx+lx+1+lw,capeY+ly-1,1,1,'rgba(60,160,70,0.3)');
+      });
+      // Bronze clasp at neck
+      p(bx+7+Math.round(cw[0]*0.15),capeY,2,1,'rgba(180,150,80,0.8)');
+      p(bx+7+Math.round(cw[0]*0.15),capeY+1,2,1,'rgba(150,120,60,0.6)');
+      // Bottom hem with fringe
+      for(let i=0;i<7;i++){
+        const fw=Math.round(cw[13]*0.35);
+        p(bx+1+i*2+fw,capeY+15,2,1,'rgba(34,120,50,0.45)');
+      }
     }
     else if(id==='shadow_cape'){
-      // Dark flowing cape with purple edge glow
-      p(bx,capeY,16,15,'rgba(20,0,50,0.75)');
-      p(bx+1,capeY,14,1,'rgba(40,0,80,0.6)');
-      // Edge shimmer
-      const shimmer=0.3+Math.sin(t*0.08)*0.2;
-      p(bx,capeY+2,1,12,`rgba(100,0,200,${shimmer})`);p(bx+15,capeY+2,1,12,`rgba(100,0,200,${shimmer})`);
-      // Bottom wisps
-      p(bx+1,capeY+15,4,1,`rgba(60,0,120,${shimmer+0.1})`);p(bx+9,capeY+15,5,1,`rgba(60,0,120,${shimmer})`);
-      p(bx+3,capeY+16,2,1,`rgba(40,0,80,${shimmer*0.5})`);p(bx+11,capeY+16,2,1,`rgba(40,0,80,${shimmer*0.5})`);
-      // Dark particles
-      const dp=t%30;
-      p(bx+3+Math.round(Math.sin(dp*0.3)*3),capeY+4+Math.round(dp*0.3),1,1,'rgba(128,0,255,0.4)');
+      // Dark ethereal shadow cape with purple edges + wisp particles - physics
+      for(let row=0;row<16;row++){
+        const wave=Math.round(cw[row]*0.5);
+        const alpha=0.75-row*0.015;
+        const w=14+row*0.3;
+        const ox=1+wave;
+        p(bx+ox,capeY+row,Math.round(w),1,`rgba(15,0,40,${alpha})`);
+      }
+      // Purple edge shimmer (animated)
+      const shimmer=0.3+Math.sin(t*0.06)*0.2;
+      for(let row=2;row<14;row++){
+        const wave=Math.round(cw[row]*0.5);
+        p(bx+1+wave,capeY+row,1,1,`rgba(120,0,220,${shimmer})`);
+        p(bx+14+wave,capeY+row,1,1,`rgba(120,0,220,${shimmer})`);
+      }
+      // Shadow wisps (floating particles at bottom)
+      const nWisps=5;
+      for(let i=0;i<nWisps;i++){
+        const wx=bx+3+i*3+Math.round(cw[12]*0.4);
+        const wy=capeY+14+Math.round(Math.sin(t*0.04+i*1.5)*1.5);
+        const wa=0.4-Math.abs(Math.sin(t*0.05+i))*0.2;
+        p(wx,wy,1,1,`rgba(80,0,160,${wa})`);
+        p(wx,wy+1,1,1,`rgba(60,0,120,${wa*0.5})`);
+      }
+      // Dark energy veins
+      p(bx+5+Math.round(cw[4]*0.3),capeY+4,1,3,`rgba(100,0,200,${shimmer*0.6})`);
+      p(bx+9+Math.round(cw[7]*0.3),capeY+7,1,3,`rgba(100,0,200,${shimmer*0.5})`);
     }
     else if(id==='fire_cape'){
-      // ANIMATED FIRE CAPE — flickering flames
-      // Base cape (dark red-orange)
-      p(bx,capeY,16,14,'rgba(180,40,0,0.7)');
-      p(bx+1,capeY,14,1,'rgba(200,60,0,0.6)');
-      // Ember gradient from top to bottom
-      p(bx+1,capeY+1,14,3,'rgba(200,50,0,0.65)');
-      p(bx+1,capeY+4,14,3,'rgba(220,80,0,0.6)');
-      p(bx+1,capeY+7,14,3,'rgba(240,120,0,0.55)');
-      p(bx+1,capeY+10,14,4,'rgba(255,160,0,0.5)');
-      // Animated flame tongues at bottom
-      const f1=Math.sin(t*0.2)*2,f2=Math.cos(t*0.17)*2,f3=Math.sin(t*0.23+1)*2;
-      glow(bx+1,capeY+13+Math.round(f1),3,2,'rgba(255,200,0,0.8)',4);
-      glow(bx+6,capeY+12+Math.round(f2),4,3,'rgba(255,150,0,0.75)',5);
-      glow(bx+12,capeY+13+Math.round(f3),3,2,'rgba(255,180,0,0.7)',4);
-      // Side flames
-      glow(bx-1,capeY+8+Math.round(f2),2,3,'rgba(255,100,0,0.5)',3);
-      glow(bx+15,capeY+7+Math.round(f1),2,4,'rgba(255,100,0,0.5)',3);
-      // Sparks/embers floating up
-      const sp1=(t*2)%20,sp2=(t*2+7)%20,sp3=(t*2+14)%20;
-      glow(bx+4,capeY+14-sp1*0.7,1,1,`rgba(255,220,50,${Math.max(0,1-sp1/20)})`,2);
-      glow(bx+9,capeY+14-sp2*0.7,1,1,`rgba(255,180,50,${Math.max(0,1-sp2/20)})`,2);
-      glow(bx+13,capeY+14-sp3*0.7,1,1,`rgba(255,200,50,${Math.max(0,1-sp3/20)})`,2);
+      // ANIMATED FIRE CAPE — flickering flames with physics wave
+      // Dark ember base layer
+      for(let row=0;row<14;row++){
+        const wave=Math.round(cw[row]*0.45);
+        const w=14+row*0.2;
+        const ox=1+wave;
+        // Gradient from dark red at top to bright orange at bottom
+        const rr=160+row*7,gg=30+row*9,bb=0;
+        const alpha=0.7-row*0.01;
+        p(bx+ox,capeY+row,Math.round(w),1,`rgba(${rr},${gg},${bb},${alpha})`);
+      }
+      // Animated flame tongues at bottom with physics
+      const f1=Math.sin(t*0.18)*2+cw[12]*0.5;
+      const f2=Math.cos(t*0.15)*2+cw[11]*0.5;
+      const f3=Math.sin(t*0.22+1)*2+cw[13]*0.5;
+      glow(bx+1+Math.round(f1),capeY+13,3,3,'rgba(255,200,0,0.8)',5);
+      glow(bx+6+Math.round(f2),capeY+12,4,4,'rgba(255,150,0,0.75)',6);
+      glow(bx+12+Math.round(f3),capeY+13,3,3,'rgba(255,180,0,0.7)',5);
+      // Mid-cape flames
+      glow(bx+3+Math.round(cw[7]*0.3),capeY+7,2,2,'rgba(255,120,0,0.4)',3);
+      glow(bx+10+Math.round(cw[9]*0.3),capeY+9,2,2,'rgba(255,100,0,0.35)',3);
+      // Side flames (trailing with physics)
+      glow(bx+Math.round(cw[8]*0.5),capeY+8,2,3,'rgba(255,100,0,0.5)',4);
+      glow(bx+14+Math.round(cw[7]*0.5),capeY+7,2,4,'rgba(255,100,0,0.5)',4);
+      // Rising sparks/embers
+      const nSparks=4;
+      for(let i=0;i<nSparks;i++){
+        const sp=(t*2+i*15)%25;
+        const sparkX=bx+3+i*4+Math.round(cw[Math.min(13,12-Math.floor(sp*0.4))]*0.3);
+        const sparkY=capeY+14-sp*0.7;
+        const sparkA=Math.max(0,1-sp/25);
+        glow(sparkX,sparkY,1,1,`rgba(255,220,50,${sparkA})`,2);
+      }
       // Inner fire veins
-      p(bx+4,capeY+3,1,4,'rgba(255,200,0,0.3)');p(bx+8,capeY+2,1,5,'rgba(255,180,0,0.3)');p(bx+11,capeY+4,1,3,'rgba(255,200,0,0.25)');
+      p(bx+4+Math.round(cw[3]*0.2),capeY+3,1,4,'rgba(255,200,0,0.25)');
+      p(bx+8+Math.round(cw[4]*0.2),capeY+2,1,5,'rgba(255,180,0,0.25)');
+      p(bx+11+Math.round(cw[5]*0.2),capeY+4,1,3,'rgba(255,200,0,0.2)');
     }
     else if(id==='royal_mantle'){
-      // Regal purple cape with gold trim & ermine
-      p(bx,capeY,16,15,'rgba(80,0,130,0.75)');
-      p(bx+1,capeY,14,1,'rgba(100,20,160,0.7)');
+      // Regal purple cape with gold trim + ermine + crown emblem - physics
+      for(let row=0;row<15;row++){
+        const wave=Math.round(cw[row]*0.3);
+        const w=14+row*0.15;
+        const ox=1+wave;
+        p(bx+ox,capeY+row,Math.round(w),1,`rgba(70,0,120,0.75)`);
+      }
       // Gold border top
-      p(bx+1,capeY+1,14,1,'rgba(255,215,0,0.7)');
+      p(bx+1+Math.round(cw[1]*0.2),capeY+1,14,1,'rgba(255,215,0,0.7)');
+      // Side gold trim (flowing with physics)
+      for(let row=1;row<13;row++){
+        const wave=Math.round(cw[row]*0.3);
+        p(bx+1+wave,capeY+row,1,1,'rgba(255,215,0,0.4)');
+        p(bx+14+wave,capeY+row,1,1,'rgba(255,215,0,0.4)');
+      }
       // Gold border bottom
-      p(bx+1,capeY+14,14,1,'rgba(255,215,0,0.7)');
-      // Side gold trim
-      p(bx,capeY+1,1,13,'rgba(255,215,0,0.4)');p(bx+15,capeY+1,1,13,'rgba(255,215,0,0.4)');
-      // Ermine (white with black dots)
-      p(bx+1,capeY+12,14,2,'rgba(255,255,255,0.6)');
-      p(bx+3,capeY+12,1,1,'rgba(0,0,0,0.6)');p(bx+7,capeY+12,1,1,'rgba(0,0,0,0.6)');p(bx+11,capeY+12,1,1,'rgba(0,0,0,0.6)');
-      // Crown emblem center
-      p(bx+6,capeY+5,4,3,'rgba(255,215,0,0.5)');p(bx+7,capeY+4,2,1,'rgba(255,215,0,0.4)');
+      p(bx+1+Math.round(cw[14]*0.3),capeY+14,14,1,'rgba(255,215,0,0.7)');
+      // Ermine trim (white with black spots)
+      for(let i=0;i<14;i++){
+        const ew=Math.round(cw[12]*0.3);
+        p(bx+1+i+ew,capeY+12,1,2,i%4===0?'rgba(0,0,0,0.5)':'rgba(255,255,255,0.6)');
+      }
+      // Crown emblem (center)
+      const ew=Math.round(cw[5]*0.2);
+      p(bx+6+ew,capeY+5,4,4,'rgba(255,215,0,0.5)');p(bx+7+ew,capeY+4,2,1,'rgba(255,215,0,0.4)');
+      p(bx+6+ew,capeY+4,1,1,'rgba(255,215,0,0.3)');p(bx+9+ew,capeY+4,1,1,'rgba(255,215,0,0.3)');
       // Jewel clasp
-      glow(bx+7,capeY,2,1,'rgba(255,50,50,0.8)',3);
+      glow(bx+7+Math.round(cw[0]*0.15),capeY,2,1,'rgba(255,50,50,0.8)',4);
     }
   }
 
   // ── Wrist ──
   if(wear.wrist){
     const id=wear.wrist;
-    const handY=by+14+(by<0?8:6);
+    const wristY=by+13;
     if(id==='leather_band'){
-      // Braided leather with buckle
-      p(bx-4,handY-2,3,2,'#8b4513');p(bx-4,handY-1,3,1,'#6b3500');
-      p(bx-3,handY-2,1,1,'#a0522d'); // buckle highlight
-      p(bx+17,handY-2,3,2,'#8b4513');p(bx+17,handY-1,3,1,'#6b3500');
+      // Braided leather wristband with stitching + small buckle
+      p(bx-4,wristY,4,2,'#8b4513');p(bx-4,wristY+1,4,1,'#6b3500');
+      p(bx-3,wristY,2,1,'#a0622d'); // highlight
+      p(bx-2,wristY,1,1,'#c8a060');p(bx-4,wristY,1,1,'#5a2a00'); // buckle + edge
+      // Right wrist
+      p(bx+16,wristY,4,2,'#8b4513');p(bx+16,wristY+1,4,1,'#6b3500');
+      p(bx+17,wristY,2,1,'#a0622d');
     }
     else if(id==='gold_watch'){
-      // Detailed watch with face
-      p(bx-5,handY-3,4,3,'#ffd700');p(bx-5,handY-2,4,1,'#b8860b');
-      p(bx-4,handY-3,2,2,'#334');p(bx-4,handY-3,1,1,'#fff'); // watch face
-      p(bx+17,handY-3,4,3,'#ffd700');p(bx+17,handY-2,4,1,'#b8860b');
+      // Gold watch with visible clock face + leather strap
+      // Left wrist
+      p(bx-5,wristY-1,5,4,'#4a3018'); // leather strap
+      p(bx-4,wristY,3,2,'#ffd700'); // gold case
+      p(bx-3,wristY,1,2,'#334'); // watch face
+      p(bx-3,wristY,1,1,'#fff'); // 12 o'clock
+      p(bx-4,wristY+1,1,1,'#b8860b'); // case shadow
+      // Right wrist
+      p(bx+16,wristY-1,5,4,'#4a3018');
+      p(bx+17,wristY,3,2,'#ffd700');
+      p(bx+18,wristY,1,2,'#334');
+      p(bx+18,wristY,1,1,'#fff');
     }
     else if(id==='chain_bracelet'){
-      // Chunky chain links
-      p(bx-5,handY-2,4,1,'#ccc');p(bx-4,handY-1,3,1,'#888');p(bx-5,handY-2,1,1,'#eee');
-      p(bx+17,handY-2,4,1,'#ccc');p(bx+18,handY-1,3,1,'#888');p(bx+17,handY-2,1,1,'#eee');
+      // Chunky heavy chain links with metallic sheen
+      // Left
+      for(let i=0;i<4;i++){
+        p(bx-5+i,wristY,1,1,i%2===0?'#ccc':'#999');
+        p(bx-5+i,wristY+1,1,1,i%2===0?'#aaa':'#777');
+      }
+      p(bx-5,wristY,1,1,'#eee'); // highlight
+      // Right
+      for(let i=0;i<4;i++){
+        p(bx+16+i,wristY,1,1,i%2===0?'#ccc':'#999');
+        p(bx+16+i,wristY+1,1,1,i%2===0?'#aaa':'#777');
+      }
+      p(bx+19,wristY,1,1,'#eee');
     }
     else if(id==='crystal_cuff'){
-      // Glowing crystal bracelet
-      const cg=0.6+Math.sin(t*0.1)*0.3;
-      glow(bx-5,handY-3,4,3,`rgba(96,165,250,${cg})`,4);
-      p(bx-4,handY-2,2,1,'#a0c8ff');
-      glow(bx+17,handY-3,4,3,`rgba(96,165,250,${cg})`,4);
-      p(bx+18,handY-2,2,1,'#a0c8ff');
+      // Glowing crystal cuff with pulsing magic + floating particles
+      const cg=0.5+Math.sin(t*0.08)*0.4;
+      // Left
+      glow(bx-5,wristY-1,5,3,`rgba(96,165,250,${cg})`,5);
+      p(bx-4,wristY,3,1,'#a0c8ff');p(bx-3,wristY,1,1,'#d0e8ff');
+      // Floating sparkles
+      if(Math.sin(t*0.12)>0.5)glow(bx-5,wristY-2,1,1,'rgba(150,200,255,0.6)',2);
+      // Right
+      glow(bx+16,wristY-1,5,3,`rgba(96,165,250,${cg})`,5);
+      p(bx+17,wristY,3,1,'#a0c8ff');p(bx+18,wristY,1,1,'#d0e8ff');
     }
     else if(id==='dragon_bangle'){
-      // Ornate gold bangle with ruby
-      p(bx-5,handY-3,4,3,'#fbbf24');p(bx-5,handY-2,4,1,'#d4a017');
-      glow(bx-4,handY-3,2,1,'#ff3333',3); // ruby gem
-      p(bx+17,handY-3,4,3,'#fbbf24');p(bx+17,handY-2,4,1,'#d4a017');
-      glow(bx+18,handY-3,2,1,'#ff3333',3);
+      // Ornate golden dragon bangle with ruby eye + scale texture
+      // Left
+      p(bx-5,wristY-1,5,3,'#fbbf24');p(bx-5,wristY,5,1,'#d4a017'); // base + shadow
+      glow(bx-4,wristY-1,2,1,'#ff3333',3); // ruby gem
+      p(bx-3,wristY+1,2,1,'#e0a000'); // scale texture
+      p(bx-5,wristY-1,1,1,'#ffe44d'); // highlight
+      // Right
+      p(bx+16,wristY-1,5,3,'#fbbf24');p(bx+16,wristY,5,1,'#d4a017');
+      glow(bx+18,wristY-1,2,1,'#ff3333',3);
+      p(bx+17,wristY+1,2,1,'#e0a000');
     }
   }
 
@@ -7187,60 +7512,94 @@ function drawWearables(c,sx,sy,S,wf,wear){
     const id=wear.face;
     const eey=hy+4;
     if(id==='bandana'){
-      // Tied bandana with knot
-      p(hx,hy+6,10,2,'#cc2200');p(hx+1,hy+6,8,1,'#dd3311');
-      // Knot and tails trailing
-      p(hx+10,hy+6,2,1,'#cc2200');p(hx+11,hy+7,2,1,'#cc2200');p(hx+12,hy+8,2,1,'#bb1100');
-      p(hx+10,hy+7,1,2,'#cc2200');p(hx+11,hy+8,1,2,'#bb1100');
-      // Pattern
-      p(hx+2,hy+6,1,1,'#e8e8e8');p(hx+5,hy+6,1,1,'#e8e8e8');p(hx+8,hy+6,1,1,'#e8e8e8');
+      // Red bandana over lower face with knot + white pattern
+      p(hx,hy+6,12,3,'#cc2200');p(hx+1,hy+6,10,1,'#dd3311');
+      p(hx+2,hy+7,8,1,'#bb1100'); // fold crease
+      // White skull/pattern stitching
+      p(hx+4,hy+6,1,1,'#e8e8e8');p(hx+7,hy+6,1,1,'#e8e8e8');
+      p(hx+5,hy+7,2,1,'#e0e0e0');
+      // Knot and flowing tails
+      p(hx+12,hy+6,2,1,'#cc2200');p(hx+13,hy+7,2,2,'#bb1100');p(hx+14,hy+8,2,1,'#aa0000');
+      p(hx+12,hy+7,1,2,'#cc2200');p(hx+13,hy+9,1,1,'#990000');
+      // Edge shadow
+      p(hx,hy+8,12,1,'rgba(80,15,0,0.3)');
     }
     else if(id==='eye_patch'){
-      // Patch with strap
-      p(hx+5,eey-1,3,3,'#1a1a1a');p(hx+6,eey,1,1,'#333');
-      // Strap going around head
-      p(hx+2,eey-2,3,1,'#333');p(hx+8,eey-2,3,1,'#333');p(hx+1,eey-1,1,1,'#333');p(hx+10,eey-1,1,1,'#333');
-      // Skull on patch
-      p(hx+6,eey,1,1,'#888');
+      // Pirate eye patch with detailed skull on patch + leather strap
+      // Patch (over right eye area)
+      p(hx+6,eey-1,4,4,'#111');p(hx+7,eey,2,2,'#222');
+      // Tiny skull on patch
+      p(hx+7,eey,2,1,'#888');p(hx+7,eey+1,2,1,'#666');
+      // Leather strap going around head
+      p(hx+2,eey-2,4,1,'#3a2010');p(hx+10,eey-2,3,1,'#3a2010');
+      p(hx+1,eey-1,1,1,'#3a2010');p(hx+12,eey-1,1,1,'#3a2010');
+      // Strap texture
+      p(hx+4,eey-2,1,1,'#4a3020');p(hx+8,eey-2,1,1,'#4a3020');
+      // Strap buckle
+      p(hx+10,eey-2,1,1,'#b8860b');
     }
     else if(id==='monocle'){
-      // Glass monocle with chain
+      // Ornate monocle with gold frame + chain + lens glint
       c.save();
-      c.strokeStyle='#ffd700';c.lineWidth=1.5*S;
-      c.beginPath();c.arc(sx+(hx+7)*S,sy+(eey+0.5)*S,2.5*S,0,Math.PI*2);c.stroke();
-      c.fillStyle='rgba(200,220,255,0.25)';c.fill();
-      // Chain
-      c.strokeStyle='#b8860b';c.lineWidth=0.5*S;
-      c.beginPath();c.moveTo(sx+(hx+5)*S,sy+(eey+2.5)*S);c.lineTo(sx+(hx+3)*S,sy+(eey+6)*S);c.stroke();
+      // Gold frame (detailed circle)
+      c.strokeStyle='#ffd700';c.lineWidth=2*S;
+      c.beginPath();c.arc(sx+(hx+8.5)*S,sy+(eey+1)*S,3*S,0,Math.PI*2);c.stroke();
+      // Inner decorative ring
+      c.strokeStyle='#e6b800';c.lineWidth=0.8*S;
+      c.beginPath();c.arc(sx+(hx+8.5)*S,sy+(eey+1)*S,2.2*S,0,Math.PI*2);c.stroke();
+      // Lens (subtle tint)
+      c.fillStyle='rgba(200,220,255,0.2)';c.beginPath();c.arc(sx+(hx+8.5)*S,sy+(eey+1)*S,2*S,0,Math.PI*2);c.fill();
       // Lens glint
-      c.fillStyle='rgba(255,255,255,0.4)';c.fillRect(sx+(hx+6)*S,sy+(eey-0.5)*S,S,S);
+      c.fillStyle='rgba(255,255,255,0.5)';c.fillRect(sx+(hx+7)*S,sy+(eey)*S,S,S);
+      // Chain (dangling with sway)
+      c.strokeStyle='#b8860b';c.lineWidth=0.5*S;
+      c.beginPath();
+      c.moveTo(sx+(hx+6)*S,sy+(eey+3.5)*S);
+      const chainSway=Math.sin(t*0.04)*0.5;
+      c.quadraticCurveTo(sx+(hx+4+chainSway)*S,sy+(eey+6)*S,sx+(hx+3)*S,sy+(eey+8)*S);
+      c.stroke();
       c.restore();
     }
     else if(id==='skull_mask'){
-      // Detailed skull with teeth and hollows
-      p(hx+1,hy+1,8,7,'#e8e0d0');p(hx,hy+2,1,4,'#d8d0c0');p(hx+9,hy+2,1,4,'#d8d0c0');
-      // Eye sockets
-      p(hx+2,eey-1,2,3,'#111');p(hx+6,eey-1,2,3,'#111');
-      // Glowing red eyes
-      glow(hx+2,eey,1,1,'rgba(255,0,0,0.7)',2);glow(hx+7,eey,1,1,'rgba(255,0,0,0.7)',2);
-      // Nose
-      p(hx+4,hy+6,2,1,'#333');
-      // Teeth
-      p(hx+2,hy+7,6,2,'#111');p(hx+2,hy+7,1,1,'#ddd');p(hx+4,hy+7,1,1,'#ddd');p(hx+5,hy+7,1,1,'#ddd');p(hx+7,hy+7,1,1,'#ddd');
-      // Jaw line
-      p(hx+1,hy+8,2,1,'#c8c0b0');p(hx+7,hy+8,2,1,'#c8c0b0');
+      // Full skull mask with glowing eyes + detailed teeth + cracks
+      // Skull shape (covers face)
+      p(hx+1,hy+1,10,8,'#e8e0d0');p(hx,hy+2,1,5,'#d8d0c0');p(hx+11,hy+2,1,5,'#d8d0c0');
+      p(hx+2,hy,8,1,'#f0e8d8'); // forehead
+      // Cheekbone highlights
+      p(hx+1,hy+3,2,2,'#f0e8d8');p(hx+9,hy+3,2,2,'#f0e8d8');
+      // Deep eye sockets (larger)
+      p(hx+2,eey-1,3,3,'#0a0a0a');p(hx+7,eey-1,3,3,'#0a0a0a');
+      // Glowing red eyes inside sockets
+      const eyePulse=0.5+Math.sin(t*0.1)*0.3;
+      glow(hx+3,eey,1,1,`rgba(255,0,0,${eyePulse})`,3);
+      glow(hx+8,eey,1,1,`rgba(255,0,0,${eyePulse})`,3);
+      // Nose cavity (triangle)
+      p(hx+5,hy+6,2,2,'#222');p(hx+5,hy+7,1,1,'#333');
+      // Teeth (detailed row)
+      p(hx+2,hy+8,8,1,'#111');
+      for(let i=0;i<8;i++)p(hx+2+i,hy+8,1,1,i%2===0?'#ddd':'#111');
+      // Cracks
+      p(hx+3,hy+1,1,2,'rgba(80,70,60,0.4)');p(hx+9,hy+2,1,3,'rgba(80,70,60,0.3)');
+      // Jaw shadow
+      p(hx+1,hy+8,2,1,'#c8c0b0');p(hx+9,hy+8,2,1,'#c8c0b0');
     }
     else if(id==='phantom_mask'){
-      // Half-face opera mask
-      p(hx,hy+1,5,7,'#fff');p(hx+1,hy,4,1,'#fff');p(hx,hy+1,1,6,'#eee');
-      // Eye hole
-      p(hx+1,eey,2,2,'#111');
-      // Elegant contour
-      p(hx+4,hy+2,1,5,'#ddd');p(hx+1,hy+8,4,1,'rgba(255,255,255,0.4)');
-      // Raised nose/cheek detail
-      p(hx+3,hy+4,1,2,'#eee');
-      // Gold accent
-      p(hx+1,hy+1,3,1,'rgba(255,215,0,0.4)');
+      // Elegant half-face opera mask with gold accent + mysterious
+      // White porcelain half (left side)
+      p(hx,hy+1,6,8,'#fff');p(hx+1,hy,5,1,'#fff');p(hx,hy+1,1,7,'#f0f0f0');
+      // Contour shading
+      p(hx+5,hy+2,1,6,'#e0e0e0'); // right edge shadow
+      p(hx,hy+8,6,1,'rgba(255,255,255,0.4)'); // chin fade
+      // Eye hole (dramatic almond shape)
+      p(hx+1,eey-1,3,3,'#111');p(hx+2,eey,1,1,'#222');
+      // Nose contour
+      p(hx+4,hy+5,1,2,'#eee');p(hx+3,hy+6,1,1,'#ddd');
+      // Gold filigree accents
+      p(hx+1,hy+1,4,1,'rgba(255,215,0,0.35)');
+      p(hx,hy+3,1,2,'rgba(255,215,0,0.25)');
+      p(hx+2,hy+2,1,1,'rgba(255,215,0,0.3)');p(hx+4,hy+3,1,1,'rgba(255,215,0,0.25)');
+      // Porcelain gleam
+      p(hx+2,hy+2,1,1,'rgba(255,255,255,0.8)');
     }
   }
 }
@@ -7249,44 +7608,62 @@ function drawWearables(c,sx,sy,S,wf,wear){
 function drawSittingChar(c,sx,sy,S,a,eq,name,nameColor){
   a=a||{};eq=eq||{};
   const skin=a.skinColor||'#f5d0a9',skinShade=darkerC(skin,30),skinHi=darkerC(skin,-20);
-  const hair=a.hairColor||'#2c1b0e',hairHi=darkerC(hair,-25),eye=a.eyeColor||'#3498db';
+  const hair=a.hairColor||'#2c1b0e',hairHi=darkerC(hair,-25),hairSh=darkerC(hair,30),eye=a.eyeColor||'#3498db';
   const outfitC=a.outfitColor||'#3498db',outfitShade=darkerC(outfitC,40),outfitHi=darkerC(outfitC,-25);
   const ox=sx-10*S,oy=sy-6*S;
   function p(x,y,w,h,col){c.fillStyle=col;c.fillRect(ox+x*S,oy+y*S,w*S,h*S)}
   // Shadow
   c.fillStyle='rgba(0,0,0,0.35)';c.beginPath();c.ellipse(sx,sy+2*S,9*S,3*S,0,0,Math.PI*2);c.fill();
   const offy=-14;
-  const hx=5,hy=offy;
-  // Head
-  p(hx+1,hy,8,10,skin);p(hx,hy+1,10,8,skin);
-  p(hx+1,hy+8,2,1,skinShade);p(hx+7,hy+8,2,1,skinShade);
-  p(hx+1,hy+1,2,1,skinHi);
+  const hx=4,hy=offy;
+  // Head (12x11 rounded)
+  p(hx+1,hy,10,11,skin);p(hx,hy+1,12,9,skin);
+  p(hx+1,hy+9,2,1,skinShade);p(hx+9,hy+9,2,1,skinShade);
+  p(hx+1,hy+1,2,1,skinHi);p(hx+5,hy+1,3,1,skinHi);
+  p(hx,hy+10,1,1,skin);p(hx+11,hy+10,1,1,skin); // chin
   // Ears
-  p(hx-1,hy+3,1,3,skin);p(hx+10,hy+3,1,3,skin);
-  // Hair
+  p(hx-1,hy+3,1,4,skin);p(hx-1,hy+4,1,2,skinShade);
+  p(hx+12,hy+3,1,4,skin);p(hx+12,hy+4,1,2,skinShade);
+  // Hair (matching new drawPixelChar)
   const hs=a.hairStyle||'flat';
-  if(hs==='spiky'){p(hx,hy-2,10,3,hair);p(hx+1,hy-3,2,1,hair);p(hx+4,hy-4,2,1,hair);p(hx+7,hy-3,2,1,hair);p(hx,hy+1,1,3,hair);p(hx+9,hy+1,1,3,hair);p(hx+2,hy-2,2,1,hairHi)}
-  else{p(hx,hy-1,10,2,hair);p(hx,hy+1,1,2,hair);p(hx+9,hy+1,1,2,hair);p(hx+2,hy-1,3,1,hairHi)}
-  // Eyes
-  p(hx+2,hy+4,2,2,'#fff');p(hx+3,hy+4,1,2,eye);p(hx+6,hy+4,2,2,'#fff');p(hx+6,hy+4,1,2,eye);
+  if(hs==='spiky'){p(hx,hy-2,12,3,hair);p(hx+1,hy-4,2,2,hair);p(hx+5,hy-5,2,3,hair);p(hx+9,hy-4,2,2,hair);p(hx,hy+1,1,3,hair);p(hx+11,hy+1,1,3,hair);p(hx+2,hy-2,3,1,hairHi);p(hx+6,hy-3,2,1,hairHi)}
+  else if(hs==='long'){p(hx,hy-1,12,3,hair);p(hx-1,hy+2,2,7,hair);p(hx+11,hy+2,2,7,hair);p(hx,hy+1,1,5,hair);p(hx+11,hy+1,1,5,hair);p(hx+2,hy-1,4,1,hairHi);p(hx-1,hy+3,1,2,hairHi)}
+  else if(hs==='mohawk'){p(hx+4,hy-5,4,6,hair);p(hx+5,hy-6,2,1,hair);p(hx+5,hy-5,2,1,hairHi)}
+  else if(hs==='curly'){p(hx-1,hy-1,14,3,hair);p(hx-1,hy+2,2,4,hair);p(hx+11,hy+2,2,4,hair);p(hx+1,hy-2,3,1,hair);p(hx+8,hy-2,3,1,hair);p(hx+2,hy-1,3,1,hairHi)}
+  else if(hs==='ponytail'){p(hx,hy-1,12,3,hair);p(hx+11,hy+2,2,3,hair);p(hx+12,hy+5,2,4,hair);p(hx+12,hy+8,1,2,hair);p(hx+2,hy-1,4,1,hairHi)}
+  else if(hs==='buzz'){p(hx,hy-1,12,2,hair);p(hx,hy+1,1,1,hair);p(hx+11,hy+1,1,1,hair);p(hx+3,hy-1,3,1,hairHi)}
+  else if(hs==='afro'){p(hx-2,hy-4,16,6,hair);p(hx-2,hy+2,2,3,hair);p(hx+12,hy+2,2,3,hair);p(hx+2,hy-4,4,1,hairHi);p(hx+8,hy-3,3,1,hairHi)}
+  else{p(hx,hy-1,12,2,hair);p(hx,hy+1,1,3,hair);p(hx+11,hy+1,1,3,hair);p(hx+2,hy-1,4,1,hairHi)}
+  // Eyebrows
+  p(hx+2,hy+3,3,1,darkerC(hair,20));p(hx+7,hy+3,3,1,darkerC(hair,20));
+  // Eyes (3px wide)
+  const es=a.eyeStyle||'round';
+  p(hx+2,hy+4,3,2,'#fff');p(hx+7,hy+4,3,2,'#fff');
+  if(es==='narrow'){p(hx+3,hy+5,1,1,eye);p(hx+8,hy+5,1,1,eye);p(hx+3,hy+5,1,1,'#111')}
+  else if(es==='wide'){p(hx+2,hy+4,2,2,eye);p(hx+7,hy+4,2,2,eye);p(hx+2,hy+4,1,1,'#111');p(hx+7,hy+4,1,1,'#111')}
+  else{p(hx+3,hy+4,1,2,eye);p(hx+8,hy+4,1,2,eye);p(hx+3,hy+4,1,1,'#111');p(hx+8,hy+4,1,1,'#111')}
   // Nose + Mouth
-  p(hx+5,hy+6,1,1,skinShade);
-  p(hx+3,hy+7,4,1,darkerC(skin,60));
-  // Neck + body
-  p(hx+3,hy+10,4,2,skin);p(hx+4,hy+10,2,1,skinShade);
-  const bx=2,by=hy+12;
-  p(bx,by,16,10,outfitC);p(bx+1,by,14,1,outfitHi);
+  p(hx+5,hy+7,2,1,skinShade);
+  p(hx+4,hy+8,4,1,darkerC(skin,50));p(hx+5,hy+8,2,1,darkerC(skin,60));
+  // Neck
+  p(hx+4,hy+11,4,2,skin);p(hx+5,hy+11,2,1,skinShade);
+  const bx=2,by=hy+13;
+  // Body
+  p(bx,by,16,10,outfitC);p(bx+1,by,14,1,outfitHi);p(bx+1,by+1,1,8,outfitHi);
+  p(bx+14,by+1,1,8,outfitShade);
   // Belt
   p(bx+1,by+8,14,1,'#4a3728');p(bx+7,by+8,2,1,'#8b7355');
   // Arms resting on lap
   p(bx-2,by+2,3,6,outfitC);p(bx+15,by+2,3,6,outfitC);
   p(bx-2,by+2,3,1,outfitHi);p(bx+15,by+2,3,1,outfitHi);
-  p(bx-2,by+7,3,2,skin);p(bx+15,by+7,3,2,skin);
-  // Sitting legs (bent forward)
+  p(bx-2,by+7,4,3,skin);p(bx+14,by+7,4,3,skin);
+  p(bx-2,by+7,1,1,skinHi);p(bx+14,by+7,1,1,skinHi);
+  // Sitting legs
   const pantC='#2c3e50',pantSh='#1e2d3d',bootC='#1a1a2e',bootHi='#2a2a3e';
   p(bx+2,by+10,5,3,pantC);p(bx+3,by+10,1,2,pantSh);p(bx+9,by+10,5,3,pantC);p(bx+10,by+10,1,2,pantSh);
   p(bx+2,by+13,5,2,bootC);p(bx+3,by+13,3,1,bootHi);p(bx+9,by+13,5,2,bootC);p(bx+10,by+13,3,1,bootHi);
-  // Name
+  p(bx+2,by+14,1,1,'#0a0a1e');p(bx+9,by+14,1,1,'#0a0a1e'); // boot soles
+  // Name with shadow
   c.font='bold 9px sans-serif';c.textAlign='center';
   c.fillStyle='#000';c.fillText(name||'?',sx+1,oy+offy*S-3);
   c.fillStyle=nameColor||'#fbbf24';c.fillText(name||'?',sx,oy+offy*S-4);
