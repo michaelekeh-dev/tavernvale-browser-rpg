@@ -122,6 +122,10 @@ body{font-family:'Segoe UI',sans-serif;background:#0a0a0f;color:#e0e0e0;min-heig
       <button class="btn" id="rpgToggleBtn" onclick="toggleRPG()" style="grid-column:1/-1;font-size:13px">🗡️ Loading RPG status...</button>
       <button class="btn" id="gamblingToggleBtn" onclick="toggleGambling()" style="grid-column:1/-1;font-size:13px">🎰 Loading gambling status...</button>
     </div>
+    <div class="input-row" style="margin-top:8px">
+      <input type="text" id="announceInput" placeholder="Type announcement message..." style="flex:1;padding:8px;background:#1a1a2a;border:1px solid #2a2a3a;border-radius:6px;color:#e0e0e0;font-size:13px">
+      <button class="btn" onclick="sendAnnouncement()" style="background:linear-gradient(90deg,#e94560,#c33);white-space:nowrap">📢 Announce</button>
+    </div>
     <div class="input-row">
       <input type="number" id="sethpInput" placeholder="New HP value...">
       <button class="btn btn-blue" onclick="setHP()">Set HP</button>
@@ -552,6 +556,13 @@ function updateGamblingBtn() {
 function toggleGambling() {
   fetch('/api/admin/gambling-toggle', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled: !gamblingEnabled }) })
     .then(r => r.json()).then(r => { if (r.success) { gamblingEnabled = r.enabled; updateGamblingBtn(); addLog('Gambling ' + (gamblingEnabled ? 'ENABLED' : 'DISABLED'), 'success'); } });
+}
+function sendAnnouncement() {
+  const input = document.getElementById('announceInput');
+  const message = input.value.trim();
+  if (!message) return;
+  fetch('/api/admin/announce', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message }) })
+    .then(r => r.json()).then(r => { if (r.success) { input.value = ''; addLog('📢 Announcement sent: ' + message, 'success'); } });
 }
 function updateGameState(data) {
   const el = document.getElementById('gameState');

@@ -330,6 +330,14 @@ app.get('/api/gambling-status', (req, res) => {
   res.json({ enabled: game.gamblingEnabled });
 });
 
+// Announcement broadcast
+app.post('/api/admin/announce', (req, res) => {
+  const message = (req.body.message || '').trim();
+  if (!message) return res.json({ error: 'No message provided' });
+  broadcast('announcement', { message, timestamp: Date.now() });
+  res.json({ success: true });
+});
+
 // ═══════════════════════════════════════════
 // WebSocket Server (overlay communication)
 // ═══════════════════════════════════════════

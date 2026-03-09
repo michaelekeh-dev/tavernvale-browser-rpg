@@ -719,6 +719,11 @@
 </div>
 
 <div class="toast-container" id="toasts"></div>
+<div id="announce-banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:99999;background:linear-gradient(90deg,#e94560,#c33);color:#fff;padding:12px 20px;font-size:15px;font-weight:700;text-align:center;box-shadow:0 2px 12px rgba(233,69,96,.5);animation:slideDown .3s ease">
+  <span id="announce-text"></span>
+  <button onclick="document.getElementById('announce-banner').style.display='none'" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:#fff;font-size:18px;cursor:pointer">&times;</button>
+</div>
+<style>@keyframes slideDown{from{transform:translateY(-100%)}to{transform:translateY(0)}}</style>
 
 <script>
 // ═══════════════════════════════════════════
@@ -2405,6 +2410,12 @@ function connectChat() {
       if (msg.type === 'full_reset') {
         toast('🔥 SERVER RESET — All data wiped!', 'error');
         doLogout();
+      }
+      if (msg.type === 'announcement') {
+        const banner = document.getElementById('announce-banner');
+        document.getElementById('announce-text').textContent = '📢 ' + msg.data.message;
+        banner.style.display = 'block';
+        banner.style.animation = 'none'; banner.offsetHeight; banner.style.animation = 'slideDown .3s ease';
       }
     } catch {}
   };

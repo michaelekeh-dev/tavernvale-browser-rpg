@@ -152,6 +152,10 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;di
       <div class="hud-bar"><span style="color:var(--red)">HP</span> <span id="hud-hp-text">50/50</span><div class="bar"><div class="bar-fill" id="hud-hp-fill" style="width:100%;background:var(--green)"></div></div></div>
       <div class="hud-bar"><span style="color:var(--accent)">XP</span> <span id="hud-mxp-text">0/30</span><div class="bar"><div class="bar-fill" id="hud-mxp-fill" style="width:0;background:var(--accent)"></div></div></div>
     </div>
+    <div id="rpg-announce-banner" style="display:none;position:absolute;top:0;left:0;right:0;z-index:9999;background:linear-gradient(90deg,#e94560,#c33);color:#fff;padding:10px 16px;font-size:14px;font-weight:700;text-align:center;box-shadow:0 2px 12px rgba(233,69,96,.5)">
+      <span id="rpg-announce-text"></span>
+      <button onclick="document.getElementById('rpg-announce-banner').style.display='none'" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:#fff;font-size:16px;cursor:pointer">&times;</button>
+    </div>
     <div class="controls-hud" id="controls-hud">
       <div class="tool-row">
         <div class="tool active" id="tool-sword"><span class="key">[1]</span> Sword</div>
@@ -689,6 +693,7 @@ function handleMessage(msg){
       document.querySelector('#login-screen .info').innerHTML='<span style="color:var(--red)">'+(d.error||'Session expired.')+'</span><br><a href="/play" style="color:var(--accent)">Re-link on Player Portal</a>';
       if(ws){try{ws.close()}catch{}}ws=null;
       break;
+    case'announcement':showAnnouncement(d.message);break;
   }
 }
 
@@ -7826,6 +7831,12 @@ function logMsg(text,cls){
   const el=document.getElementById('game-log');
   el.innerHTML='<span class="'+(cls||'')+'">'+text+'</span>';
   clearTimeout(logTO);logTO=setTimeout(()=>el.innerHTML='',5000);
+}
+function showAnnouncement(message){
+  const banner=document.getElementById('rpg-announce-banner');
+  document.getElementById('rpg-announce-text').textContent='📢 '+message;
+  banner.style.display='block';
+  logMsg('📢 '+message,'xp');
 }
 
 // Pickaxe shop

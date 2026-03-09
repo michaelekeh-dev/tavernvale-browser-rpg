@@ -327,6 +327,12 @@ body{background:transparent;font-family:'Segoe UI',sans-serif;color:#fff}
 <!-- Toasts -->
 <div id="toasts"></div>
 
+<!-- Announcement Banner -->
+<div id="overlay-announce-banner" style="display:none;position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:99999;background:linear-gradient(90deg,#e94560,#c33);color:#fff;padding:14px 30px;font-size:18px;font-weight:700;text-align:center;border-radius:10px;box-shadow:0 4px 20px rgba(233,69,96,.6);max-width:80%;animation:announceFade 8s forwards">
+  <span id="overlay-announce-text"></span>
+</div>
+<style>@keyframes announceFade{0%{opacity:0;transform:translateX(-50%) translateY(-20px)}5%{opacity:1;transform:translateX(-50%) translateY(0)}85%{opacity:1}100%{opacity:0}}</style>
+
 <!-- Test panel toggle -->
 <div id="test-toggle" onclick="document.getElementById('test-panel').classList.toggle('show')">⚙</div>
 <div id="test-panel">
@@ -471,6 +477,7 @@ function handle(type, d) {
     }
     // Cash
     case 'cash_balance': toast(`💵 ${d.username}: ${d.gold} gold = $${d.cashValue} IRL (rate: ${d.rate}g/$1)`, '#44ff44', 6000); break;
+    case 'announcement': showAnnouncementBanner(d.message); break;
   }
 }
 
@@ -1139,6 +1146,14 @@ function toast(text, color, dur) {
   el.textContent = text;
   document.getElementById('toasts').appendChild(el);
   setTimeout(() => el.remove(), dur || 4000);
+}
+
+function showAnnouncementBanner(message) {
+  const banner = document.getElementById('overlay-announce-banner');
+  document.getElementById('overlay-announce-text').textContent = '📢 ' + message;
+  banner.style.display = 'block';
+  banner.style.animation = 'none'; banner.offsetHeight; banner.style.animation = 'announceFade 8s forwards';
+  setTimeout(() => { banner.style.display = 'none'; }, 8000);
 }
 
 function showStats(d) {
