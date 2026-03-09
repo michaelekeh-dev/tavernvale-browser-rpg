@@ -613,6 +613,41 @@ wss.on('connection', (ws) => {
         if (kickWs) { try { kickWs.close(); } catch {} }
         connectToKick(msg.id);
       }
+      if (msg.type === 'admin_get_market') {
+        ws.send(JSON.stringify({ type: 'admin_market', data: { listings: game.adminGetMarket(), tradeLog: game.adminGetTradeLog() } }));
+      }
+      if (msg.type === 'admin_get_player_full' && msg.username) {
+        const pData = game.adminGetPlayerFull(msg.username);
+        ws.send(JSON.stringify({ type: 'admin_player_full', data: pData ? { player: pData } : { error: 'not_found' } }));
+      }
+      if (msg.type === 'admin_remove_item' && msg.username && msg.uid) {
+        const r = game.adminRemoveItem(msg.username, msg.uid);
+        ws.send(JSON.stringify({ type: 'admin_edit_result', data: r }));
+      }
+      if (msg.type === 'admin_add_item' && msg.username && msg.itemId) {
+        const r = game.adminAddItem(msg.username, msg.itemId, msg.qty || 1);
+        ws.send(JSON.stringify({ type: 'admin_edit_result', data: r }));
+      }
+      if (msg.type === 'admin_add_wearable' && msg.username && msg.key) {
+        const r = game.adminAddWearable(msg.username, msg.key);
+        ws.send(JSON.stringify({ type: 'admin_edit_result', data: r }));
+      }
+      if (msg.type === 'admin_remove_wearable' && msg.username && msg.key) {
+        const r = game.adminRemoveWearable(msg.username, msg.key);
+        ws.send(JSON.stringify({ type: 'admin_edit_result', data: r }));
+      }
+      if (msg.type === 'admin_add_cosmetic' && msg.username && msg.cosmeticId) {
+        const r = game.adminAddCosmetic(msg.username, msg.cosmeticId);
+        ws.send(JSON.stringify({ type: 'admin_edit_result', data: r }));
+      }
+      if (msg.type === 'admin_remove_cosmetic' && msg.username && msg.cosmeticId) {
+        const r = game.adminRemoveCosmetic(msg.username, msg.cosmeticId);
+        ws.send(JSON.stringify({ type: 'admin_edit_result', data: r }));
+      }
+      if (msg.type === 'admin_cancel_listing' && msg.listingId) {
+        const r = game.adminCancelListing(msg.listingId);
+        ws.send(JSON.stringify({ type: 'admin_edit_result', data: r }));
+      }
 
       // Portal chat
       if (msg.type === 'portal_register') {

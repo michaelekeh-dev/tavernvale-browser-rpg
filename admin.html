@@ -123,6 +123,34 @@ body{font-family:'Segoe UI',sans-serif;background:#0a0a0f;color:#e0e0e0;min-heig
 .bg-common{background:rgba(170,170,170,.1);border-color:rgba(170,170,170,.3)}.bg-uncommon{background:rgba(74,222,128,.08);border-color:rgba(74,222,128,.3)}
 .bg-rare{background:rgba(96,165,250,.08);border-color:rgba(96,165,250,.3)}.bg-epic{background:rgba(192,132,252,.08);border-color:rgba(192,132,252,.3)}
 .bg-legendary{background:rgba(251,191,36,.08);border-color:rgba(251,191,36,.3)}.bg-mythic{background:rgba(255,69,0,.08);border-color:rgba(255,69,0,.3)}
+/* ── Tab Navigation ── */
+.tab-bar{display:flex;gap:0;background:#12121a;border-bottom:2px solid #2a2a3a;padding:0 15px}
+.tab-btn{padding:12px 24px;background:none;border:none;color:#888;font-size:14px;font-weight:600;cursor:pointer;border-bottom:3px solid transparent;transition:.2s}
+.tab-btn:hover{color:#e0e0e0;background:rgba(233,69,96,.05)}
+.tab-btn.active{color:#e94560;border-bottom-color:#e94560}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+/* ── Market Table ── */
+.market-table{width:100%;border-collapse:collapse;font-size:12px}
+.market-table th{text-align:left;padding:8px;background:#1a1a2a;color:#888;font-weight:600;position:sticky;top:0}
+.market-table td{padding:6px 8px;border-bottom:1px solid #1a1a2a}
+.market-table tr:hover td{background:#1a1a2a}
+/* ── Inspect Panel ── */
+.inspect-grid{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.inspect-stat{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #1a1a2a;font-size:12px}
+.inspect-stat .label{color:#888}
+.inspect-stat .val{color:#fff;font-weight:600}
+.inv-item{display:flex;align-items:center;gap:8px;padding:6px 10px;background:#1a1a2a;border-radius:6px;margin-bottom:4px;font-size:12px}
+.inv-item .inv-icon{font-size:18px}
+.inv-item .inv-name{flex:1;color:#fff;font-weight:600}
+.inv-item .inv-meta{color:#888;font-size:11px}
+.inv-item .inv-del{background:#dc2626;border:none;color:#fff;padding:2px 8px;border-radius:4px;font-size:10px;cursor:pointer}
+.inv-item .inv-del:hover{background:#f87171}
+.add-item-row{display:flex;gap:6px;margin-top:8px}
+.add-item-row select,.add-item-row input{padding:6px 8px;background:#1a1a2a;border:1px solid #2a2a3a;border-radius:6px;color:#fff;font-size:12px}
+.add-item-row select{flex:2}.add-item-row input{flex:1;width:60px}
+.add-item-row .btn{padding:6px 12px;font-size:11px}
+.inv-scroll{max-height:400px;overflow-y:auto;padding-right:4px}
 </style>
 </head>
 <body>
@@ -132,6 +160,13 @@ body{font-family:'Segoe UI',sans-serif;background:#0a0a0f;color:#e0e0e0;min-heig
   <span class="status disconnected" id="wsStatus">● Disconnected</span>
 </div>
 
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="switchTab('dashboard')">🎮 Dashboard</button>
+  <button class="tab-btn" onclick="switchTab('market')">📦 Market & Trades</button>
+  <button class="tab-btn" onclick="switchTab('inspector')">🔍 Player Inspector</button>
+</div>
+
+<div class="tab-panel active" id="tab-dashboard">
 <div class="grid">
   <!-- Game State -->
   <div class="panel">
@@ -406,6 +441,132 @@ body{font-family:'Segoe UI',sans-serif;background:#0a0a0f;color:#e0e0e0;min-heig
     <div id="dbContent" style="color:#888;text-align:center;padding:20px">Click "Load Data" to fetch game database</div>
   </div>
 </div>
+</div><!-- end tab-dashboard -->
+
+<!-- ═══ TAB: Market & Trades ═══ -->
+<div class="tab-panel" id="tab-market">
+<div class="grid">
+  <!-- Active Market Listings -->
+  <div class="panel full-width">
+    <h2>📦 Active Market Listings <button class="btn btn-blue" style="float:right;padding:4px 12px;font-size:11px" onclick="loadMarketData()">🔄 Refresh</button></h2>
+    <div style="margin-bottom:8px;font-size:12px;color:#888">Total listings: <span id="marketCount" style="color:#fff;font-weight:600">0</span> | Total value: <span id="marketValue" style="color:#fbbf24;font-weight:600">0g</span></div>
+    <input type="text" class="player-search" placeholder="Search by seller or item name..." id="marketSearch" oninput="filterMarket()">
+    <div style="max-height:400px;overflow-y:auto">
+      <table class="market-table">
+        <thead><tr><th>ID</th><th>Seller</th><th>Item</th><th>Rarity</th><th>Type</th><th>Price</th><th>Fee Paid</th><th>Listed</th><th>Actions</th></tr></thead>
+        <tbody id="marketBody"></tbody>
+      </table>
+    </div>
+    <div id="marketEmpty" style="color:#888;text-align:center;padding:20px;display:none">No active listings</div>
+  </div>
+
+  <!-- Trade History -->
+  <div class="panel full-width">
+    <h2>📜 Trade History (Last 200)</h2>
+    <input type="text" class="player-search" placeholder="Search by buyer, seller, or item..." id="tradeSearch" oninput="filterTrades()">
+    <div style="max-height:400px;overflow-y:auto">
+      <table class="market-table">
+        <thead><tr><th>Time</th><th>Buyer</th><th>Seller</th><th>Item</th><th>Rarity</th><th>Price</th><th>Tax</th></tr></thead>
+        <tbody id="tradeBody"></tbody>
+      </table>
+    </div>
+    <div id="tradeEmpty" style="color:#888;text-align:center;padding:20px;display:none">No trade history yet — trades will be logged going forward</div>
+  </div>
+
+  <!-- Market Stats -->
+  <div class="panel full-width">
+    <h2>📊 Market Stats</h2>
+    <div id="marketStats" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:15px;font-size:13px">
+      <div style="background:#1a1a2a;padding:12px;border-radius:8px;text-align:center">
+        <div style="color:#888;font-size:11px">Active Listings</div>
+        <div style="color:#fff;font-size:22px;font-weight:700" id="statListings">0</div>
+      </div>
+      <div style="background:#1a1a2a;padding:12px;border-radius:8px;text-align:center">
+        <div style="color:#888;font-size:11px">Total Trades</div>
+        <div style="color:#4ade80;font-size:22px;font-weight:700" id="statTrades">0</div>
+      </div>
+      <div style="background:#1a1a2a;padding:12px;border-radius:8px;text-align:center">
+        <div style="color:#888;font-size:11px">Total Volume</div>
+        <div style="color:#fbbf24;font-size:22px;font-weight:700" id="statVolume">0g</div>
+      </div>
+      <div style="background:#1a1a2a;padding:12px;border-radius:8px;text-align:center">
+        <div style="color:#888;font-size:11px">Tax Collected</div>
+        <div style="color:#c084fc;font-size:22px;font-weight:700" id="statTax">0g</div>
+      </div>
+    </div>
+  </div>
+</div>
+</div><!-- end tab-market -->
+
+<!-- ═══ TAB: Player Inspector ═══ -->
+<div class="tab-panel" id="tab-inspector">
+<div class="grid">
+  <div class="panel full-width">
+    <h2>🔍 Player Inspector</h2>
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <input type="text" class="player-search" id="inspectSearch" placeholder="Enter exact username..." style="margin:0;flex:1" onkeydown="if(event.key==='Enter')inspectPlayer()">
+      <button class="btn btn-blue" onclick="inspectPlayer()" style="padding:8px 16px">Inspect</button>
+    </div>
+    <div style="font-size:11px;color:#888;margin-bottom:8px">Quick select: <span id="inspectQuickList" style="margin-left:4px"></span></div>
+  </div>
+
+  <!-- Player Info (hidden until inspected) -->
+  <div id="inspectResult" style="display:none;grid-column:1/-1">
+    <div class="grid" style="padding:0">
+      <!-- Stats -->
+      <div class="panel">
+        <h2>📋 Player Stats</h2>
+        <div id="inspectStats"></div>
+      </div>
+      <!-- Combat Stats -->
+      <div class="panel">
+        <h2>⚔️ Combat & Economy</h2>
+        <div id="inspectCombat"></div>
+      </div>
+      <!-- Equipped Items -->
+      <div class="panel">
+        <h2>🗡️ Equipped Gear</h2>
+        <div id="inspectEquipped"></div>
+      </div>
+
+      <!-- Inventory -->
+      <div class="panel two-col">
+        <h2>🎒 Inventory <span id="inspectInvCount" style="color:#888;font-weight:400;font-size:11px"></span></h2>
+        <div class="add-item-row" style="margin-bottom:10px">
+          <select id="addItemSelect"><option value="">— Add Item —</option></select>
+          <input type="number" id="addItemQty" value="1" min="1" max="100" placeholder="Qty">
+          <button class="btn btn-green" onclick="adminAddItem()">+ Add</button>
+        </div>
+        <div class="inv-scroll" id="inspectInventory"></div>
+      </div>
+      <!-- Wearables -->
+      <div class="panel">
+        <h2>👗 Wearables <span id="inspectWearCount" style="color:#888;font-weight:400;font-size:11px"></span></h2>
+        <div class="add-item-row" style="margin-bottom:10px">
+          <select id="addWearSelect"><option value="">— Add Wearable —</option></select>
+          <button class="btn btn-green" onclick="adminAddWearable()">+ Add</button>
+        </div>
+        <div class="inv-scroll" id="inspectWearables"></div>
+      </div>
+
+      <!-- Cosmetics -->
+      <div class="panel two-col">
+        <h2>✨ Cosmetics <span id="inspectCosCount" style="color:#888;font-weight:400;font-size:11px"></span></h2>
+        <div class="add-item-row" style="margin-bottom:10px">
+          <select id="addCosSelect"><option value="">— Add Cosmetic —</option></select>
+          <button class="btn btn-green" onclick="adminAddCosmetic()">+ Add</button>
+        </div>
+        <div class="inv-scroll" id="inspectCosmetics"></div>
+      </div>
+      <!-- Achievements -->
+      <div class="panel">
+        <h2>🏆 Achievements <span id="inspectAchCount" style="color:#888;font-weight:400;font-size:11px"></span></h2>
+        <div class="inv-scroll" id="inspectAchievements"></div>
+      </div>
+    </div>
+  </div>
+</div>
+</div><!-- end tab-inspector -->
 
 <!-- Edit Player Modal -->
 <div class="modal-overlay" id="editModal">
@@ -562,6 +723,22 @@ function handleMessage(msg) {
       break;
     case 'dodge_success':
       addLog('🏃 ' + data.username + ' dodged!', 'info');
+      break;
+    case 'admin_market':
+      marketListings = data.listings || [];
+      tradeHistory = data.tradeLog || [];
+      renderMarket();
+      renderTrades();
+      break;
+    case 'admin_player_full':
+      if (data.error) { toast('Player not found', true); break; }
+      renderInspect(data.player);
+      break;
+    case 'admin_edit_result':
+      if (data.error) { toast('Error: ' + data.error, true); break; }
+      toast(data.removed ? 'Removed: ' + data.removed : data.added ? 'Added: ' + data.added : data.cancelled ? 'Cancelled: ' + data.cancelled : 'Done!');
+      if (inspectedPlayer) setTimeout(() => inspectPlayer(inspectedPlayer), 300);
+      if (data.cancelled) loadMarketData();
       break;
   }
 }
@@ -1164,6 +1341,264 @@ function renderDbAchievements() {
   }
   html += '</div>';
   return html;
+}
+
+// ═══════════════════════════════════════════
+// Tab Navigation
+// ═══════════════════════════════════════════
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelector('.tab-btn[onclick*="' + tab + '"]').classList.add('active');
+  document.getElementById('tab-' + tab).classList.add('active');
+  if (tab === 'market') loadMarketData();
+  if (tab === 'inspector') buildItemSelects();
+}
+
+// ═══════════════════════════════════════════
+// Market & Trades
+// ═══════════════════════════════════════════
+let marketListings = [];
+let tradeHistory = [];
+
+function loadMarketData() {
+  if (ws && ws.readyState === WebSocket.OPEN)
+    ws.send(JSON.stringify({ type: 'admin_get_market' }));
+}
+
+function renderMarket() {
+  const search = (document.getElementById('marketSearch').value || '').toLowerCase();
+  const filtered = marketListings.filter(l =>
+    l.seller.toLowerCase().includes(search) || l.name.toLowerCase().includes(search)
+  );
+  const body = document.getElementById('marketBody');
+  const empty = document.getElementById('marketEmpty');
+  document.getElementById('marketCount').textContent = marketListings.length;
+  document.getElementById('marketValue').textContent = marketListings.reduce((s, l) => s + l.price, 0).toLocaleString() + 'g';
+  document.getElementById('statListings').textContent = marketListings.length;
+  if (!filtered.length) {
+    body.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  body.innerHTML = filtered.map(l =>
+    '<tr>' +
+    '<td style="color:#888">#' + l.id + '</td>' +
+    '<td style="color:#fff;font-weight:600">' + esc(l.seller) + '</td>' +
+    '<td>' + (l.icon || '') + ' ' + esc(l.name) + '</td>' +
+    '<td><span class="dc-rarity rarity-' + l.rarity + '" style="border:1px solid;font-size:10px;padding:1px 6px;border-radius:8px">' + l.rarity + '</span></td>' +
+    '<td style="color:#888">' + l.type + '</td>' +
+    '<td style="color:#fbbf24;font-weight:600">' + l.price.toLocaleString() + 'g</td>' +
+    '<td style="color:#888">' + (l.listFee || 0) + 'g</td>' +
+    '<td style="color:#888;font-size:11px">' + (l.listedAt ? new Date(l.listedAt).toLocaleString() : '—') + '</td>' +
+    '<td><button class="btn btn-red" style="padding:2px 8px;font-size:10px" onclick="adminCancelListing(' + l.id + ')">❌ Cancel</button></td>' +
+    '</tr>'
+  ).join('');
+}
+
+function filterMarket() { renderMarket(); }
+
+function renderTrades() {
+  const search = (document.getElementById('tradeSearch').value || '').toLowerCase();
+  const filtered = tradeHistory.filter(t =>
+    t.buyer.toLowerCase().includes(search) || t.seller.toLowerCase().includes(search) || t.item.toLowerCase().includes(search)
+  );
+  const body = document.getElementById('tradeBody');
+  const empty = document.getElementById('tradeEmpty');
+  // Stats
+  document.getElementById('statTrades').textContent = tradeHistory.length;
+  document.getElementById('statVolume').textContent = tradeHistory.reduce((s, t) => s + t.price, 0).toLocaleString() + 'g';
+  document.getElementById('statTax').textContent = tradeHistory.reduce((s, t) => s + (t.tax || 0), 0).toLocaleString() + 'g';
+  if (!filtered.length) {
+    body.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  body.innerHTML = filtered.map(t =>
+    '<tr>' +
+    '<td style="color:#888;font-size:11px">' + new Date(t.time).toLocaleString() + '</td>' +
+    '<td style="color:#4ade80;font-weight:600">' + esc(t.buyer) + '</td>' +
+    '<td style="color:#f87171;font-weight:600">' + esc(t.seller) + '</td>' +
+    '<td>' + (t.icon || '') + ' ' + esc(t.item) + '</td>' +
+    '<td><span class="dc-rarity rarity-' + (t.rarity || 'common') + '" style="border:1px solid;font-size:10px;padding:1px 6px;border-radius:8px">' + (t.rarity || 'common') + '</span></td>' +
+    '<td style="color:#fbbf24;font-weight:600">' + t.price.toLocaleString() + 'g</td>' +
+    '<td style="color:#888">' + (t.tax || 0) + 'g</td>' +
+    '</tr>'
+  ).join('');
+}
+
+function filterTrades() { renderTrades(); }
+
+function adminCancelListing(id) {
+  if (!confirm('Cancel listing #' + id + '? Item will be returned to seller.')) return;
+  ws.send(JSON.stringify({ type: 'admin_cancel_listing', listingId: id }));
+}
+
+// ═══════════════════════════════════════════
+// Player Inspector
+// ═══════════════════════════════════════════
+let inspectedPlayer = null;
+let inspectedData = null;
+
+function inspectPlayer(name) {
+  const username = name || document.getElementById('inspectSearch').value.trim();
+  if (!username) return;
+  inspectedPlayer = username;
+  document.getElementById('inspectSearch').value = username;
+  ws.send(JSON.stringify({ type: 'admin_get_player_full', username }));
+}
+
+function buildQuickList() {
+  const el = document.getElementById('inspectQuickList');
+  const names = Object.keys(allPlayers).sort((a, b) => (allPlayers[b].gold || 0) - (allPlayers[a].gold || 0)).slice(0, 10);
+  el.innerHTML = names.map(n =>
+    '<a href="#" onclick="inspectPlayer(\'' + esc(n) + '\');return false" style="color:#60a5fa;text-decoration:none;margin-right:6px;font-size:11px">' + esc(n) + '</a>'
+  ).join('');
+}
+
+function buildItemSelects() {
+  buildQuickList();
+  if (!gameDb) return;
+  // Items
+  const itemSel = document.getElementById('addItemSelect');
+  if (itemSel.options.length <= 1 && gameDb.items) {
+    Object.entries(gameDb.items).sort((a, b) => a[1].name.localeCompare(b[1].name)).forEach(([id, i]) => {
+      const o = document.createElement('option');
+      o.value = id; o.textContent = (i.icon || '') + ' ' + i.name + ' (' + i.rarity + ')';
+      itemSel.appendChild(o);
+    });
+  }
+  // Wearables
+  const wearSel = document.getElementById('addWearSelect');
+  if (wearSel.options.length <= 1 && gameDb.wearables) {
+    Object.entries(gameDb.wearables).sort((a, b) => a[1].name.localeCompare(b[1].name)).forEach(([key, w]) => {
+      const o = document.createElement('option');
+      o.value = key; o.textContent = (w.icon || '') + ' ' + w.name + ' (' + w.slot + ')';
+      wearSel.appendChild(o);
+    });
+  }
+  // Cosmetics
+  const cosSel = document.getElementById('addCosSelect');
+  if (cosSel.options.length <= 1 && gameDb.cosmetics) {
+    Object.entries(gameDb.cosmetics).sort((a, b) => a[1].name.localeCompare(b[1].name)).forEach(([id, c]) => {
+      const o = document.createElement('option');
+      o.value = id; o.textContent = c.name + ' (' + c.type + ')';
+      cosSel.appendChild(o);
+    });
+  }
+}
+
+function renderInspect(data) {
+  inspectedData = data;
+  document.getElementById('inspectResult').style.display = 'block';
+  const p = data;
+  // Stats
+  document.getElementById('inspectStats').innerHTML =
+    stat('Username', p.username) + stat('Level', p.level) +
+    stat('XP', p.xp + '/' + (p.level * 100)) +
+    stat('Gold', '<span style="color:#fbbf24">' + p.gold.toLocaleString() + 'g</span>') +
+    stat('Prestige', p.prestige + (p.prestigeBonus ? ' (+' + (p.prestigeBonus * 100).toFixed(0) + '%)' : '')) +
+    stat('Mining Level', (p.miningLevel || 0) + ' (' + (p.miningXp || 0) + ' xp)') +
+    stat('Arena Rating', p.arenaRating || 1000);
+  // Combat
+  document.getElementById('inspectCombat').innerHTML =
+    stat('Total Damage', (p.totalDamage || 0).toLocaleString()) +
+    stat('MVP Count', p.mvpCount || 0) + stat('Boss Kills', p.bossKills || 0) +
+    stat('Dodges', p.dodgeCount || 0) + stat('Gambles Won', p.gamblesWon || 0) +
+    stat('Trade Count', p.tradeCount || 0) +
+    stat('Duels', (p.duelsWon || 0) + 'W / ' + (p.duelsLost || 0) + 'L');
+  // Equipped
+  const eqSlots = ['weapon', 'armor', 'pickaxe'];
+  document.getElementById('inspectEquipped').innerHTML = eqSlots.map(slot => {
+    const item = p.equipped[slot];
+    if (!item) return '<div class="inv-item"><span class="inv-icon">—</span><span class="inv-name" style="color:#888">' + slot + ': empty</span></div>';
+    return '<div class="inv-item"><span class="inv-icon">' + (item.icon || '❓') + '</span><span class="inv-name">' + esc(item.name) + '</span>' +
+      '<span class="inv-meta">' + slot + (item.durability !== undefined ? ' | Dur: ' + item.durability + '/' + item.maxDurability : '') + '</span></div>';
+  }).join('');
+  // Inventory
+  const inv = p.inventory || [];
+  document.getElementById('inspectInvCount').textContent = '(' + inv.length + ' items)';
+  document.getElementById('inspectInventory').innerHTML = inv.length ? inv.map(item =>
+    '<div class="inv-item">' +
+    '<span class="inv-icon">' + (item.icon || '❓') + '</span>' +
+    '<span class="inv-name" style="color:' + rarColor(item.rarity) + '">' + esc(item.name) + (item.qty > 1 ? ' x' + item.qty : '') + '</span>' +
+    '<span class="inv-meta">' + (item.rarity || '') + (item.dmgBonus ? ' DMG+' + item.dmgBonus : '') + (item.defBonus ? ' DEF+' + item.defBonus : '') +
+    (item.durability !== undefined ? ' Dur:' + item.durability + '/' + item.maxDurability : '') + '</span>' +
+    (item.uid ? '<button class="inv-del" onclick="adminRemoveItem(\'' + esc(inspectedPlayer) + '\',\'' + esc(item.uid) + '\')">🗑️</button>' : '') +
+    '</div>'
+  ).join('') : '<div style="color:#888;text-align:center;padding:10px">Empty inventory</div>';
+  // Wearables
+  const wears = p.wearables || [];
+  document.getElementById('inspectWearCount').textContent = '(' + wears.length + ')';
+  document.getElementById('inspectWearables').innerHTML = wears.length ? wears.map(key => {
+    const w = (gameDb && gameDb.wearables) ? gameDb.wearables[key] : null;
+    const active = Object.values(p.activeWearables || {}).includes(key);
+    return '<div class="inv-item">' +
+      '<span class="inv-icon">' + (w ? w.icon || '' : '') + '</span>' +
+      '<span class="inv-name">' + esc(w ? w.name : key) + (active ? ' <span style="color:#4ade80;font-size:10px">EQUIPPED</span>' : '') + '</span>' +
+      '<span class="inv-meta">' + (w ? w.slot : '') + '</span>' +
+      '<button class="inv-del" onclick="adminRemoveWearable(\'' + esc(inspectedPlayer) + '\',\'' + esc(key) + '\')">🗑️</button>' +
+      '</div>';
+  }).join('') : '<div style="color:#888;text-align:center;padding:10px">No wearables</div>';
+  // Cosmetics
+  const cosm = p.cosmetics || [];
+  document.getElementById('inspectCosCount').textContent = '(' + cosm.length + ')';
+  document.getElementById('inspectCosmetics').innerHTML = cosm.length ? cosm.map(id => {
+    const c = (gameDb && gameDb.cosmetics) ? gameDb.cosmetics[id] : null;
+    const active = Object.values(p.activeCosmetics || {}).includes(id);
+    return '<div class="inv-item">' +
+      '<span class="inv-icon">' + (c && c.badgeEmoji ? c.badgeEmoji : '✨') + '</span>' +
+      '<span class="inv-name">' + esc(c ? c.name : id) + (active ? ' <span style="color:#4ade80;font-size:10px">ACTIVE</span>' : '') + '</span>' +
+      '<span class="inv-meta">' + (c ? c.type : '') + '</span>' +
+      '<button class="inv-del" onclick="adminRemoveCosmetic(\'' + esc(inspectedPlayer) + '\',\'' + esc(id) + '\')">🗑️</button>' +
+      '</div>';
+  }).join('') : '<div style="color:#888;text-align:center;padding:10px">No cosmetics</div>';
+  // Achievements
+  const achs = p.achievements || [];
+  document.getElementById('inspectAchCount').textContent = '(' + achs.length + ')';
+  document.getElementById('inspectAchievements').innerHTML = achs.length ? achs.map(id =>
+    '<div class="inv-item"><span class="inv-icon">🏆</span><span class="inv-name">' + esc(id) + '</span></div>'
+  ).join('') : '<div style="color:#888;text-align:center;padding:10px">No achievements</div>';
+}
+
+function stat(label, val) {
+  return '<div class="inspect-stat"><span class="label">' + label + '</span><span class="val">' + val + '</span></div>';
+}
+function rarColor(r) {
+  const m = { common:'#aaa', uncommon:'#4ade80', rare:'#60a5fa', epic:'#c084fc', legendary:'#fbbf24', mythic:'#ff4500' };
+  return m[r] || '#fff';
+}
+
+/* ── Admin Inventory Actions ── */
+function adminRemoveItem(username, uid) {
+  if (!confirm('Remove this item from ' + username + '?')) return;
+  ws.send(JSON.stringify({ type: 'admin_remove_item', username, uid }));
+}
+function adminAddItem() {
+  const itemId = document.getElementById('addItemSelect').value;
+  const qty = parseInt(document.getElementById('addItemQty').value) || 1;
+  if (!itemId || !inspectedPlayer) return;
+  ws.send(JSON.stringify({ type: 'admin_add_item', username: inspectedPlayer, itemId, qty }));
+}
+function adminAddWearable() {
+  const key = document.getElementById('addWearSelect').value;
+  if (!key || !inspectedPlayer) return;
+  ws.send(JSON.stringify({ type: 'admin_add_wearable', username: inspectedPlayer, key }));
+}
+function adminRemoveWearable(username, key) {
+  if (!confirm('Remove wearable from ' + username + '?')) return;
+  ws.send(JSON.stringify({ type: 'admin_remove_wearable', username, key }));
+}
+function adminAddCosmetic() {
+  const cosmeticId = document.getElementById('addCosSelect').value;
+  if (!cosmeticId || !inspectedPlayer) return;
+  ws.send(JSON.stringify({ type: 'admin_add_cosmetic', username: inspectedPlayer, cosmeticId }));
+}
+function adminRemoveCosmetic(username, cosmeticId) {
+  if (!confirm('Remove cosmetic from ' + username + '?')) return;
+  ws.send(JSON.stringify({ type: 'admin_remove_cosmetic', username, cosmeticId }));
 }
 
 connect();

@@ -391,6 +391,7 @@ class Game {
     // Market
     this.market = [];
     this.marketIdCounter = 1;
+    this.tradeLog = [];
 
     // Pending direct trades
     this.pendingTrades = {};
@@ -429,6 +430,7 @@ class Game {
         this.players = d.players || {};
         this.market = d.market || [];
         this.marketIdCounter = d.marketIdCounter || 1;
+        this.tradeLog = d.tradeLog || [];
         this.payoutQueue = d.payoutQueue || [];
         this.payoutIdCounter = d.payoutIdCounter || 1;
         this.discordWebhook = d.discordWebhook || null;
@@ -438,13 +440,13 @@ class Game {
         this.authAccounts = d.authAccounts || {};
         this.linkTokens = d.linkTokens || {};
       }
-    } catch { this.players = {}; this.market = []; }
+    } catch { this.players = {}; this.market = []; this.tradeLog = []; }
   }
 
   saveData() {
     try {
       fs.writeFileSync(DATA_FILE, JSON.stringify({
-        players: this.players, market: this.market, marketIdCounter: this.marketIdCounter,
+        players: this.players, market: this.market, marketIdCounter: this.marketIdCounter, tradeLog: this.tradeLog,
         payoutQueue: this.payoutQueue, payoutIdCounter: this.payoutIdCounter,
         discordWebhook: this.discordWebhook, discordBotConfig: this.discordBotConfig,
         authAccounts: this.authAccounts, linkTokens: this.linkTokens,
@@ -1278,6 +1280,8 @@ class Game {
     this.market.splice(idx, 1);
     buyer.tradeCount = (buyer.tradeCount || 0) + 1;
     seller.tradeCount = (seller.tradeCount || 0) + 1;
+    this.tradeLog.push({ type: 'sale', buyer: username, seller: listing.seller, item: listing.itemData.name, icon: listing.itemData.icon || '', rarity: listing.itemData.rarity || 'common', price: listing.price, tax, time: Date.now() });
+    if (this.tradeLog.length > 500) this.tradeLog = this.tradeLog.slice(-500);
     this.saveData();
     this.emitAchievements(username);
     this.emitAchievements(listing.seller);
@@ -1762,6 +1766,107 @@ class Game {
   getLootTables() { return BOSS_LOOT; }
   getCosmetics() { return COSMETICS; }
   getAchievementDefs() { return ACHIEVEMENTS; }
+
+  // ── Admin: Market & Trades ──────────────
+  adminGetMarket() {
+    return this.market.map(l => ({
+      id: l.id, seller: l.seller, type: l.type,
+      name: l.itemData.name, icon: l.itemData.icon || '', rarity: l.itemData.rarity || 'common',
+      price: l.price, listFee: l.listFee, listedAt: l.listedAt,
+    }));
+  }
+  adminGetTradeLog() { return this.tradeLog.slice(-200).reverse(); }
+  adminGetPlayerFull(username) {
+    if (!this.players[username]) return null;
+    const p = this.players[username];
+    return {
+      username,
+      level: p.level, xp: p.xp, gold: p.gold, totalDamage: p.totalDamage,
+      prestige: p.prestige, prestigeBonus: p.prestigeBonus,
+      mvpCount: p.mvpCount, bossKills: p.bossKills, gamblesWon: p.gamblesWon,
+      tradeCount: p.tradeCount || 0, dodgeCount: p.dodgeCount,
+      duelsWon: p.duelsWon, duelsLost: p.duelsLost, arenaRating: p.arenaRating,
+      inventory: p.inventory, equipped: p.equipped,
+      wearables: p.wearables, activeWearables: p.activeWearables,
+      cosmetics: p.cosmetics, activeCosmetics: p.activeCosmetics,
+      achievements: p.achievements,
+      miningLevel: p.miningLevel || 0, miningXp: p.miningXp || 0,
+    };
+  }
+  adminRemoveItem(username, uid) {
+    const p = this.players[username];
+    if (!p) return { error: 'player_not_found' };
+    // check equipped slots
+    for (const [slot, item] of Object.entries(p.equipped)) {
+      if (item && item.uid === uid) { p.equipped[slot] = null; this.saveData(); return { success: true, removed: item.name, from: 'equipped:' + slot }; }
+    }
+    const idx = p.inventory.findIndex(i => i.uid === uid);
+    if (idx === -1) return { error: 'item_not_found' };
+    const removed = p.inventory.splice(idx, 1)[0];
+    this.saveData();
+    return { success: true, removed: removed.name };
+  }
+  adminAddItem(username, itemId, qty) {
+    const p = this.player(username);
+    const added = this.addItemToInventory(p, itemId, qty || 1);
+    if (!added) return { error: 'invalid_item' };
+    this.saveData();
+    return { success: true, added: added.name, qty: qty || 1 };
+  }
+  adminAddWearable(username, key) {
+    const p = this.player(username);
+    if (!WEARABLES[key]) return { error: 'invalid_wearable' };
+    if (p.wearables.includes(key)) return { error: 'already_owned' };
+    p.wearables.push(key);
+    this.saveData();
+    return { success: true, added: WEARABLES[key].name };
+  }
+  adminRemoveWearable(username, key) {
+    const p = this.players[username];
+    if (!p) return { error: 'player_not_found' };
+    const idx = p.wearables.indexOf(key);
+    if (idx === -1) return { error: 'not_owned' };
+    p.wearables.splice(idx, 1);
+    // unequip if active
+    for (const [slot, val] of Object.entries(p.activeWearables)) {
+      if (val === key) p.activeWearables[slot] = null;
+    }
+    this.saveData();
+    return { success: true, removed: WEARABLES[key]?.name || key };
+  }
+  adminAddCosmetic(username, cosmeticId) {
+    const p = this.player(username);
+    if (!COSMETICS[cosmeticId]) return { error: 'invalid_cosmetic' };
+    if (p.cosmetics.includes(cosmeticId)) return { error: 'already_owned' };
+    p.cosmetics.push(cosmeticId);
+    this.saveData();
+    return { success: true, added: COSMETICS[cosmeticId].name };
+  }
+  adminRemoveCosmetic(username, cosmeticId) {
+    const p = this.players[username];
+    if (!p) return { error: 'player_not_found' };
+    const idx = p.cosmetics.indexOf(cosmeticId);
+    if (idx === -1) return { error: 'not_owned' };
+    p.cosmetics.splice(idx, 1);
+    for (const [slot, val] of Object.entries(p.activeCosmetics)) {
+      if (val === cosmeticId) p.activeCosmetics[slot] = null;
+    }
+    this.saveData();
+    return { success: true, removed: COSMETICS[cosmeticId]?.name || cosmeticId };
+  }
+  adminCancelListing(listingId) {
+    const lid = parseInt(listingId);
+    const idx = this.market.findIndex(l => l.id === lid);
+    if (idx === -1) return { error: 'not_found' };
+    const listing = this.market.splice(idx, 1)[0];
+    const p = this.player(listing.seller);
+    if (listing.type === 'equipment') p.inventory.push(listing.itemData);
+    else if (listing.type === 'material') this.addItemToInventory(p, listing.itemData.id, listing.itemData.qty || 1);
+    else if (listing.type === 'cosmetic') p.cosmetics.push(listing.itemData.key);
+    else if (listing.type === 'wearable') { if (!p.wearables.includes(listing.itemData.key)) p.wearables.push(listing.itemData.key); }
+    this.saveData();
+    return { success: true, cancelled: listing.itemData.name, seller: listing.seller };
+  }
 
   // ── Player Portal Auth ────────────────────
   generateLinkCode(username) {
