@@ -79,8 +79,11 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;di
 .bottombar{background:var(--bg2);border-top:1px solid var(--border);padding:8px 16px;display:flex;align-items:center;gap:16px;flex-shrink:0;min-height:44px;font-size:14px}
 .action-info{color:var(--dim);flex:1;font-size:14px}
 .action-info b{color:var(--gold)}
-.log{color:var(--dim);max-width:50%;text-align:right;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:13px}
+.log{color:var(--dim);max-width:50%;text-align:right;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:13px;display:none}
 .log .loot{color:var(--gold)}.log .xp{color:var(--green)}.log .dmg{color:var(--red)}.log .crit{color:var(--purple);font-weight:700}
+.float-log{position:fixed;top:70px;left:50%;transform:translateX(-50%);z-index:800;pointer-events:none;font-family:'Press Start 2P',monospace;font-size:12px;background:rgba(0,0,0,.7);padding:8px 20px;border-radius:8px;border:1px solid var(--border);text-align:center;white-space:nowrap;opacity:0;transition:opacity .3s}
+.float-log.show{opacity:1}
+.float-log .loot{color:var(--gold)}.float-log .xp{color:var(--green)}.float-log .dmg{color:var(--red)}.float-log .crit{color:var(--purple);font-weight:700}
 
 /* Duel Overlay */
 .duel-overlay{display:none;position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(5,5,15,.97);z-index:100;flex-direction:column;align-items:center;justify-content:center;gap:8px}
@@ -254,7 +257,7 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;di
 .trade-incoming .ti-btns{display:flex;gap:8px;justify-content:center}
 .trade-incoming .ti-btns button{font-family:inherit;font-size:9px;padding:5px 14px;border:none;border-radius:6px;cursor:pointer}
 /* Chat overlay */
-.rpg-chat{position:fixed;bottom:60px;left:10px;width:320px;z-index:900;pointer-events:none}
+.rpg-chat{position:fixed;top:10px;left:10px;width:320px;z-index:900;pointer-events:none}
 .rpg-chat-messages{max-height:200px;overflow:hidden;display:flex;flex-direction:column-reverse;pointer-events:none}
 .rpg-chat-msg{font-family:'Press Start 2P',monospace;font-size:8px;color:#eee;padding:2px 6px;margin:1px 0;background:rgba(0,0,0,.5);border-radius:4px;line-height:1.4;opacity:1;transition:opacity .5s}
 .rpg-chat-msg.faded{opacity:.3}
@@ -380,6 +383,7 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;di
     <div class="log" id="game-log"></div>
   </div>
 </div>
+<div class="float-log" id="float-log"></div>
 
 <div class="modal-overlay" id="pickaxe-modal">
   <div class="modal">
@@ -6992,7 +6996,24 @@ function drawPixelChar(c,sx,sy,S,a,eq,dir,wf,swing,name,nameColor){
   p(hx+3,hy+11,6,2,skin);p(hx+4,hy+11,4,1,skinShade);p(hx+5,hy+11,2,1,skinHi);
   // Body (16 wide, 14 tall)
   const bx=2,by=hy+13;
-  p(bx,by,16,14,outfitC);p(bx+1,by,14,1,outfitHi);
+  const isFemale=(a.gender==='female');
+  if(isFemale){
+    // Female shape: narrower waist, wider hips
+    p(bx+1,by,14,5,outfitC);       // upper torso
+    p(bx,by+5,16,3,outfitC);       // chest area
+    p(bx+2,by+8,12,2,outfitC);     // waist (narrow)
+    p(bx,by+10,16,4,outfitC);      // hips (wider)
+    p(bx+1,by,14,1,outfitHi);
+    // Bra / top detail
+    p(bx+3,by+4,4,3,outfitShade);p(bx+9,by+4,4,3,outfitShade);
+    p(bx+4,by+4,2,2,outfitHi);p(bx+10,by+4,2,2,outfitHi);
+    p(bx+7,by+5,2,1,outfitShade);
+    // Waist curve shading
+    p(bx+2,by+8,1,2,outfitShade);p(bx+13,by+8,1,2,outfitShade);
+    p(bx+1,by+9,1,1,outfitShade);p(bx+14,by+9,1,1,outfitShade);
+  }else{
+    p(bx,by,16,14,outfitC);p(bx+1,by,14,1,outfitHi);
+  }
   // Body shading — side shadows and folds
   p(bx,by+1,1,12,outfitShade);p(bx+15,by+1,1,12,outfitShade);
   p(bx+1,by+12,14,1,outfitShade);
@@ -7763,7 +7784,15 @@ function drawSittingChar(c,sx,sy,S,a,eq,name,nameColor){
   p(hx+4,hy+11,4,2,skin);p(hx+5,hy+11,2,1,skinShade);
   const bx=2,by=hy+13;
   // Body
-  p(bx,by,16,10,outfitC);p(bx+1,by,14,1,outfitHi);p(bx+1,by+1,1,8,outfitHi);
+  const isFemale=(a.gender==='female');
+  if(isFemale){
+    p(bx+1,by,14,4,outfitC);p(bx,by+4,16,2,outfitC);p(bx+2,by+6,12,2,outfitC);p(bx,by+8,16,2,outfitC);
+    p(bx+1,by,14,1,outfitHi);p(bx+1,by+1,1,3,outfitHi);
+    p(bx+3,by+3,4,2,outfitShade);p(bx+9,by+3,4,2,outfitShade);
+    p(bx+4,by+3,2,1,outfitHi);p(bx+10,by+3,2,1,outfitHi);
+  }else{
+    p(bx,by,16,10,outfitC);p(bx+1,by,14,1,outfitHi);p(bx+1,by+1,1,8,outfitHi);
+  }
   p(bx+14,by+1,1,8,outfitShade);
   // Belt
   p(bx+1,by+8,14,1,'#4a3728');p(bx+7,by+8,2,1,'#8b7355');
@@ -7934,6 +7963,22 @@ function drawOtherPlayer(p){
     drawWearables(ctx,s.x-10*1.4,s.y-6,1.4,0,p.activeWearables||{});
   }
   ctx.globalAlpha=1;
+  // Trade [E] indicator above nearby players in hub
+  if(zoneType==='hub'&&!tradeOpen){
+    const dist=Math.sqrt((px-p.x)**2+(py-p.y)**2);
+    if(dist<80){
+      const pulse=0.7+Math.sin(Date.now()*0.005)*0.3;
+      ctx.globalAlpha=pulse;
+      ctx.font='bold 10px "Press Start 2P",monospace';
+      ctx.textAlign='center';
+      ctx.fillStyle='rgba(0,0,0,0.7)';
+      const ey=s.y-38;
+      ctx.fillRect(s.x-32,ey-10,64,16);
+      ctx.fillStyle='#fbbf24';
+      ctx.fillText('[E] Trade',s.x,ey+2);
+      ctx.globalAlpha=1;
+    }
+  }
 }
 
 function drawMinimap(){
@@ -9065,9 +9110,10 @@ function goHome(){
 function changeZone(zoneId){if(!inDuel)send('rpg_change_zone',{zone:zoneId})}
 let logTO;
 function logMsg(text,cls){
-  const el=document.getElementById('game-log');
+  const el=document.getElementById('float-log');
   el.innerHTML='<span class="'+(cls||'')+'">'+text+'</span>';
-  clearTimeout(logTO);logTO=setTimeout(()=>el.innerHTML='',5000);
+  el.classList.add('show');
+  clearTimeout(logTO);logTO=setTimeout(()=>{el.classList.remove('show');setTimeout(()=>el.innerHTML='',300)},4000);
 }
 function showAnnouncement(message){
   const banner=document.getElementById('rpg-announce-banner');

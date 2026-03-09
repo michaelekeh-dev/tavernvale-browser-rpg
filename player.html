@@ -383,6 +383,10 @@
         <div class="card-header">Customize</div>
         <div class="customize-grid">
           <div class="customize-option">
+            <label>Gender</label>
+            <div class="option-row" id="pick-gender"></div>
+          </div>
+          <div class="customize-option">
             <label>Skin Color</label>
             <div class="color-row" id="pick-skinColor"></div>
           </div>
@@ -2370,6 +2374,7 @@ fetch('/api/vendorprices').then(r => r.json()).then(d => estimatedValues = d);
 let currentAppearance = null;
 let appearanceDirty = false;
 
+const GENDERS = ['male','female'];
 const SKIN_COLORS = ['#f5d0a9','#c68642','#8d5524','#ffdbac','#e0ac69','#6b4226','#f1c27d','#d4a574'];
 const HAIR_STYLES = ['spiky','flat','mohawk','long','bald','curly','ponytail','messy','buzz','afro'];
 const HAIR_COLORS = ['#2c1b0e','#8b4513','#daa520','#c0392b','#2c3e50','#ecf0f1','#8e44ad','#e67e22','#1abc9c','#e74c3c'];
@@ -2391,6 +2396,9 @@ function renderCharacter() {
 
 function buildCustomizeUI() {
   const a = currentAppearance;
+
+  // Gender picker
+  buildOptionPicker('pick-gender', GENDERS, a.gender || 'male', v => { setAppearance('gender', v); });
 
   // Color swatches
   buildColorPicker('pick-skinColor', SKIN_COLORS, a.skinColor, c => { setAppearance('skinColor', c); });
@@ -2439,7 +2447,7 @@ function setAppearance(key, value) {
 function randomizeAppearance() {
   const pick = arr => arr[Math.floor(Math.random() * arr.length)];
   currentAppearance = {
-    skinColor: pick(SKIN_COLORS), hairStyle: pick(HAIR_STYLES), hairColor: pick(HAIR_COLORS),
+    gender: pick(GENDERS), skinColor: pick(SKIN_COLORS), hairStyle: pick(HAIR_STYLES), hairColor: pick(HAIR_COLORS),
     eyeStyle: pick(EYE_STYLES), eyeColor: pick(EYE_COLORS), mouthStyle: pick(MOUTH_STYLES),
     outfit: pick(OUTFITS), outfitColor: pick(OUTFIT_COLORS),
   };
@@ -2619,9 +2627,27 @@ function drawCharacter() {
   // ── BODY / OUTFIT ──
   const bx = 12, by = hy + 13;
   const outfit = a.outfit || 'tshirt';
+  const isFemale = (a.gender === 'female');
 
   // Body base
-  px(bx, by, 16, 14, outfitC);
+  if (isFemale) {
+    // Female shape: narrower waist, wider hips
+    px(bx+1, by, 14, 5, outfitC);       // upper torso (narrower)
+    px(bx, by+5, 16, 3, outfitC);       // chest area
+    px(bx+2, by+8, 12, 2, outfitC);     // waist (narrow)
+    px(bx, by+10, 16, 4, outfitC);      // hips (wider)
+    // Bra / top detail
+    px(bx+3, by+4, 4, 3, outfitShade);  // left cup
+    px(bx+9, by+4, 4, 3, outfitShade);  // right cup
+    px(bx+4, by+4, 2, 2, outfitHi);     // left highlight
+    px(bx+10, by+4, 2, 2, outfitHi);    // right highlight
+    px(bx+7, by+5, 2, 1, outfitShade);  // center
+    // Waist curve shading
+    px(bx+2, by+8, 1, 2, outfitShade);  px(bx+13, by+8, 1, 2, outfitShade);
+    px(bx+1, by+9, 1, 1, outfitShade);  px(bx+14, by+9, 1, 1, outfitShade);
+  } else {
+    px(bx, by, 16, 14, outfitC);
+  }
   // Collar
   px(bx+5, by, 6, 1, outfitShade);
   // Side shadows

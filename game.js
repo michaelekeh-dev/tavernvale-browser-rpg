@@ -505,6 +505,7 @@ class Game {
     const pick = arr => arr[Math.floor(Math.random() * arr.length)];
     return {
       skinColor: pick(['#f5d0a9','#c68642','#8d5524','#ffdbac','#e0ac69','#6b4226','#f1c27d','#d4a574']),
+      gender: pick(['male','female']),
       hairStyle: pick(['spiky','flat','mohawk','long','bald','curly','ponytail','messy']),
       hairColor: pick(['#2c1b0e','#8b4513','#daa520','#c0392b','#2c3e50','#ecf0f1','#8e44ad','#e67e22','#1abc9c','#e74c3c']),
       eyeStyle: pick(['normal','angry','happy','cool','sleepy','wide','dot','wink']),
@@ -517,7 +518,7 @@ class Game {
 
   updateAppearance(username, appearance) {
     const p = this.player(username);
-    const allowed = ['skinColor','hairStyle','hairColor','eyeStyle','eyeColor','mouthStyle','outfit','outfitColor'];
+    const allowed = ['gender','skinColor','hairStyle','hairColor','eyeStyle','eyeColor','mouthStyle','outfit','outfitColor'];
     for (const key of allowed) {
       if (appearance[key] !== undefined) p.appearance[key] = String(appearance[key]).slice(0, 20);
     }
