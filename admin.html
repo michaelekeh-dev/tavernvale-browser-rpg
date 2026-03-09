@@ -462,9 +462,14 @@ function handleMessage(msg) {
     case 'admin_state':
       updateGameState(data);
       break;
-    case 'gamble_result':
-      addLog('🎰 ' + data.username + ' ' + (data.win ? 'WON' : 'LOST') + ' ' + data.bet + 'g', data.win ? 'success' : 'error');
+    case 'gamble_result': {
+      const gIcons = {coinflip:'🪙',dice:'🎲',slots:'🎰',blackjack:'🃏',crash:'📈',roulette:'🎡'};
+      const gIcon = gIcons[data.game] || '🎰';
+      const gName = (data.game || 'gamble').toUpperCase();
+      const detail = data.roll ? ' (Roll:'+data.roll+')' : data.reels ? ' '+data.reels.join('') : data.crashAt ? ' ('+data.crashAt+'x)' : data.spin !== undefined ? ' ('+data.color+' '+data.spin+')' : data.playerTotal ? ' ('+data.playerTotal+' vs '+data.dealerTotal+')' : '';
+      addLog(gIcon+' ['+gName+'] '+data.username+' '+(data.won?'WON +'+data.payout+'g':'LOST -'+data.bet+'g')+detail+' (bal: '+data.gold+'g)', data.won ? 'success' : 'error');
       break;
+    }
     case 'gift_sent':
       addLog('🎁 ' + data.from + ' gifted ' + data.amount + 'g to ' + data.to, 'info');
       break;

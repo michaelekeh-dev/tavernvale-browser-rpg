@@ -917,13 +917,13 @@ class Game {
       p.totalGambleProfit = (p.totalGambleProfit || 0) + (payout - bet);
       this.saveData();
       this.emitAchievements(username);
-      return { username, won: true, bet, payout, gold: p.gold };
+      return { username, won: true, bet, payout, gold: p.gold, game: 'coinflip' };
     } else {
       p.gold -= bet;
       p.gamblesLost = (p.gamblesLost || 0) + 1;
       p.totalGambleProfit = (p.totalGambleProfit || 0) - bet;
       this.saveData();
-      return { username, won: false, bet, gold: p.gold };
+      return { username, won: false, bet, gold: p.gold, game: 'coinflip' };
     }
   }
 
@@ -953,7 +953,7 @@ class Game {
     }
     this.saveData();
     if (mult > 0) this.emitAchievements(username);
-    return { username, roll, mult, tier, bet, payout, won: mult > 0, gold: p.gold };
+    return { username, roll, mult, tier, bet, payout, won: mult > 0, gold: p.gold, game: 'dice' };
   }
 
   handleSlots(username, amount) {
@@ -988,7 +988,7 @@ class Game {
     }
     this.saveData();
     if (mult > 0) this.emitAchievements(username);
-    return { username, reels, mult, bet, payout, won: mult > 0, gold: p.gold };
+    return { username, reels, mult, bet, payout, won: mult > 0, gold: p.gold, game: 'slots' };
   }
 
   handleBlackjack(username, amount) {
@@ -1027,7 +1027,7 @@ class Game {
     }
     this.saveData();
     if (won) this.emitAchievements(username);
-    return { username, playerCards: pc.map(c => c.card), dealerCards: dc.map(c => c.card), playerTotal: pTotal, dealerTotal: dTotal, result, won, bet, payout, gold: p.gold };
+    return { username, playerCards: pc.map(c => c.card), dealerCards: dc.map(c => c.card), playerTotal: pTotal, dealerTotal: dTotal, result, won, bet, payout, gold: p.gold, game: 'blackjack' };
   }
 
   handleCrash(username, amount, cashout) {
@@ -1056,7 +1056,7 @@ class Game {
     }
     this.saveData();
     if (won) this.emitAchievements(username);
-    return { username, crashAt, target, won, bet, payout, gold: p.gold };
+    return { username, crashAt, target, won, bet, payout, gold: p.gold, game: 'crash' };
   }
 
   handleRoulette(username, amount, choice) {
@@ -1096,7 +1096,7 @@ class Game {
     }
     this.saveData();
     if (won) this.emitAchievements(username);
-    return { username, spin: num, color: isGreen ? 'green' : isRed ? 'red' : 'black', choice: pick, won, mult, bet, payout, gold: p.gold };
+    return { username, spin: num, color: isGreen ? 'green' : isRed ? 'red' : 'black', choice: pick, won, mult, bet, payout, gold: p.gold, game: 'roulette' };
   }
 
   handleGift(from, to, amount) {

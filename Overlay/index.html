@@ -683,8 +683,10 @@ function onCombo(d) {
 
 function onGamble(d) {
   if (d.error === 'broke') { toast(`💸 ${d.username} tried to gamble but only has ${d.gold} gold!`, '#ff4444'); return; }
-  if (d.win) toast(`🎰 ${d.username} WON ${d.bet} gold! Now has ${d.gold}g`, '#44ff44', 4000);
-  else toast(`💸 ${d.username} LOST ${d.bet} gold... Down to ${d.gold}g`, '#ff4444', 4000);
+  const icons = {coinflip:'🪙',dice:'🎲',slots:'🎰',blackjack:'🃏',crash:'📈',roulette:'🎡'};
+  const icon = icons[d.game] || '🎰';
+  if (d.won) toast(`${icon} ${d.username} WON +${d.payout}g! Now has ${d.gold}g`, '#44ff44', 4000);
+  else toast(`${icon} ${d.username} LOST ${d.bet}g... Down to ${d.gold}g`, '#ff4444', 4000);
 }
 
 let breakData = null;
