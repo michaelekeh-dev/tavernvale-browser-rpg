@@ -470,6 +470,14 @@
         <div class="cosmetic-filter" id="cosmetic-filter-shop"></div>
         <div class="cosmetic-grid" id="cosmetic-shop"></div>
       </div>
+      <div class="card">
+        <div class="card-header">👒 Your Wearables</div>
+        <div style="font-size:11px;color:var(--dim);margin-bottom:10px;">Earn-only items from mob drops, boss kills &amp; mining. Tradeable on the marketplace!</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;" id="wearable-equip-slots"></div>
+        <div class="cosmetic-filter" id="wearable-filter-owned"></div>
+        <div class="cosmetic-grid" id="owned-wearables"></div>
+        <div id="owned-wearables-empty" style="text-align:center;color:var(--dim);padding:20px;display:none;">No wearables found yet. Keep fighting!</div>
+      </div>
     </div>
 
     <!-- MARKET PANEL -->
@@ -867,15 +875,17 @@ let username = '';
 let authToken = null;
 let profile = null;
 let allCosmetics = {};
+let allWearables = {};
 let allAchievements = {};
 let rarityColors = {};
 let refreshTimer = null;
 let cosmeticFilterOwned = 'all';
 let cosmeticFilterShop = 'all';
+let wearableFilterOwned = 'all';
 
 // Sell modal state
 let sellItemUid = null;
-let sellItemType = null; // 'item' or 'cosmetic'
+let sellItemType = null; // 'item', 'cosmetic', or 'wearable'
 
 // ═══════════════════════════════════════════
 // Login / Logout
@@ -934,10 +944,12 @@ function enterDashboard() {
     fetch('/api/cosmetics').then(r => r.json()),
     fetch('/api/achievements').then(r => r.json()),
     fetch('/api/rarity-colors').then(r => r.json()),
-  ]).then(([cos, ach, rc]) => {
+    fetch('/api/wearables').then(r => r.json()).catch(() => ({})),
+  ]).then(([cos, ach, rc, wear]) => {
     allCosmetics = cos;
     allAchievements = ach;
     rarityColors = rc;
+    allWearables = wear;
     renderAll();
   });
   // Auto-refresh every 10 seconds
@@ -1244,9 +1256,73 @@ function renderCosmetics() {
       ${authToken && !isOwned ? `<button class="btn btn-sm btn-gold" style="margin-top:8px" onclick="doBuyCosmetic('${key}')">Buy</button>` : ''}
     </div>`;
   }).join('');
+
+  // Render wearables section
+  renderWearables();
 }
 
-function renderMarket(listings) {
+function renderWearables() {
+  const p = profile;
+  const ownedKeys = p.wearables || [];
+  const activeW = p.activeWearables || {};
+  const slotEmoji = { hat: '🎩', cape: '🧥', wrist: '⌚', face: '🎭' };
+  const slotLabels = { hat: 'Hat', cape: 'Cape', wrist: 'Wrist', face: 'Face' };
+  const rColors = { common:'#888', uncommon:'#4ade80', rare:'#60a5fa', epic:'#c084fc', legendary:'#fbbf24', mythic:'#ff4444' };
+
+  // Equip slots display
+  const slotsEl = document.getElementById('wearable-equip-slots');
+  if (slotsEl) {
+    slotsEl.innerHTML = ['hat','cape','wrist','face'].map(slot => {
+      const key = activeW[slot];
+      const w = key ? allWearables[key] : null;
+      const rc = w ? (rColors[w.rarity] || '#aaa') : 'var(--border)';
+      return `<div style="flex:1;min-width:100px;background:var(--bg3);border:2px solid ${rc};border-radius:8px;padding:10px;text-align:center;">
+        <div style="font-size:10px;color:var(--dim);text-transform:uppercase;">${slotEmoji[slot]} ${slotLabels[slot]}</div>
+        ${w ? `<div style="font-size:13px;font-weight:700;color:${rc};margin:4px 0;">${w.icon || ''} ${w.name}</div>
+          ${authToken ? `<button class="btn btn-sm btn-outline" style="margin-top:4px" onclick="doUnequipWearable('${slot}')">Remove</button>` : ''}` :
+          `<div style="font-size:12px;color:var(--dim);margin:4px 0;">Empty</div>`}
+      </div>`;
+    }).join('');
+  }
+
+  // Filter bar
+  const filterEl = document.getElementById('wearable-filter-owned');
+  if (filterEl) {
+    const slots = [...new Set(ownedKeys.map(k => allWearables[k]?.slot).filter(Boolean))];
+    filterEl.innerHTML = `<button class="cosmetic-filter-btn${wearableFilterOwned==='all'?' active':''}" onclick="wearableFilterOwned='all';renderWearables()">All</button>` +
+      slots.map(s => `<button class="cosmetic-filter-btn${wearableFilterOwned===s?' active':''}" onclick="wearableFilterOwned='${s}';renderWearables()">${slotEmoji[s]||''} ${slotLabels[s]||s}</button>`).join('');
+  }
+
+  // Wearable cards
+  const gridEl = document.getElementById('owned-wearables');
+  const emptyEl = document.getElementById('owned-wearables-empty');
+  const filtered = wearableFilterOwned === 'all' ? ownedKeys : ownedKeys.filter(k => allWearables[k]?.slot === wearableFilterOwned);
+
+  if (filtered.length === 0) {
+    gridEl.innerHTML = ownedKeys.length > 0 ? '<div style="text-align:center;color:var(--dim);padding:12px;">No wearables in this slot.</div>' : '';
+    emptyEl.style.display = ownedKeys.length === 0 ? 'block' : 'none';
+  } else {
+    emptyEl.style.display = 'none';
+    gridEl.innerHTML = filtered.map(key => {
+      const w = allWearables[key];
+      if (!w) return '';
+      const rc = rColors[w.rarity] || '#aaa';
+      const isActive = Object.values(activeW).includes(key);
+      return `<div class="cosmetic-card${isActive ? ' active' : ''}" style="border-left:3px solid ${rc}">
+        ${isActive ? '<span class="cosmetic-badge active-badge">EQUIPPED</span>' : ''}
+        <div style="font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px;">${slotEmoji[w.slot]||''} ${slotLabels[w.slot]||w.slot}</div>
+        <div class="cosmetic-name" style="color:${rc}">${w.icon || ''} ${w.name}</div>
+        <div style="font-size:10px;color:${rc};margin-bottom:2px;font-weight:600">${w.rarity.toUpperCase()}</div>
+        <div class="cosmetic-desc">${w.desc}</div>
+        <div style="font-size:10px;color:var(--dim);margin-top:4px;">Source: ${w.source || 'Drop'}</div>
+        ${authToken ? `<div style="display:flex;gap:6px;margin-top:8px;">
+          ${!isActive ? `<button class="btn btn-sm btn-primary" onclick="doEquipWearable('${key}')">Equip</button>` : ''}
+          <button class="btn btn-sm btn-outline" onclick="showSellModal('${key}', '${esc(w.name)}', 'wearable')">Sell</button>
+        </div>` : ''}
+      </div>`;
+    }).join('');
+  }
+}
   const myListings = listings.filter(l => l.seller === username);
   const otherListings = listings.filter(l => l.seller !== username);
   const rarityColors = {common:'#888',uncommon:'#4ade80',rare:'#60a5fa',epic:'#c084fc',legendary:'#fbbf24',mythic:'#ff4444'};
@@ -1386,6 +1462,18 @@ function doEquipCosmetic(key) {
   if (!requireLink()) return;
   fetch('/api/equipcosmetic', { method: 'POST', headers: authHeaders(), body: authBody({ key }) })
     .then(r => r.json()).then(r => { if (r.error) toast(r.error, 'error'); else { toast('Cosmetic equipped!', 'success'); refreshProfile(); }});
+}
+
+function doEquipWearable(key) {
+  if (!requireLink()) return;
+  fetch('/api/equipwearable', { method: 'POST', headers: authHeaders(), body: authBody({ key }) })
+    .then(r => r.json()).then(r => { if (r.error) toast(r.error, 'error'); else { toast('Wearable equipped!', 'success'); refreshProfile(); }});
+}
+
+function doUnequipWearable(slot) {
+  if (!requireLink()) return;
+  fetch('/api/unequipwearable', { method: 'POST', headers: authHeaders(), body: authBody({ slot }) })
+    .then(r => r.json()).then(r => { if (r.error) toast(r.error, 'error'); else { toast('Wearable removed', 'success'); refreshProfile(); }});
 }
 
 function doBuyMarket(lid) {
@@ -2168,8 +2256,10 @@ function hideSellModal() {
 function confirmSell() {
   const price = document.getElementById('sell-price').value;
   if (!price || price < 1) return;
-  const endpoint = sellItemType === 'cosmetic' ? '/api/sellcosmetic' : '/api/sell';
-  const bodyData = sellItemType === 'cosmetic' ? { key: sellItemUid, price } : { itemUid: sellItemUid, price };
+  let endpoint, bodyData;
+  if (sellItemType === 'cosmetic') { endpoint = '/api/sellcosmetic'; bodyData = { key: sellItemUid, price }; }
+  else if (sellItemType === 'wearable') { endpoint = '/api/sellwearable'; bodyData = { key: sellItemUid, price }; }
+  else { endpoint = '/api/sell'; bodyData = { itemUid: sellItemUid, price }; }
   fetch(endpoint, { method: 'POST', headers: authHeaders(), body: authBody(bodyData) })
     .then(r => r.json()).then(r => {
       if (r.error) toast(r.error, 'error');

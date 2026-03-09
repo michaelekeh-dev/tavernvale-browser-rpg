@@ -228,6 +228,7 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;di
       <button class="btn btn-purple" id="duel-queue-btn" onclick="toggleDuelQueue()">Duel (<span id="duel-q-count">0</span>)</button>
       <button class="btn btn-gold" onclick="showPickaxeShop()">Shop</button>
       <button class="btn btn-gold" onclick="toggleInventory()">Inv</button>
+      <button class="btn" style="background:#e67e22;color:#fff" onclick="toggleWearPanel()">Wear</button>
       <button class="btn btn-purple" onclick="toggleMarketPanel()">Market</button>
       <button class="btn" id="home-btn" onclick="goHome()" style="display:none">Home</button>
       <a href="/play" class="btn">Portal</a>
@@ -342,6 +343,28 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;di
       <button class="panel-tab" onclick="invTab('material')">Materials</button>
     </div>
     <div class="item-grid" id="inv-grid"></div>
+  </div>
+</div>
+
+<!-- Wearable Cosmetics Panel -->
+<div class="panel-overlay" id="wear-panel">
+  <div class="panel">
+    <h3>👒 WEARABLES <button class="close-btn" onclick="toggleWearPanel()">&times;</button></h3>
+    <div class="equip-slots" id="wear-slots">
+      <div class="equip-slot" id="wslot-hat"><div class="es-label">Hat</div><div class="es-icon">—</div></div>
+      <div class="equip-slot" id="wslot-cape"><div class="es-label">Cape</div><div class="es-icon">—</div></div>
+      <div class="equip-slot" id="wslot-wrist"><div class="es-label">Wrist</div><div class="es-icon">—</div></div>
+      <div class="equip-slot" id="wslot-face"><div class="es-label">Face</div><div class="es-icon">—</div></div>
+    </div>
+    <div class="panel-tabs">
+      <button class="panel-tab active" onclick="wearTab('all')">All</button>
+      <button class="panel-tab" onclick="wearTab('hat')">🎩 Hats</button>
+      <button class="panel-tab" onclick="wearTab('cape')">🧥 Capes</button>
+      <button class="panel-tab" onclick="wearTab('wrist')">⌚ Wrist</button>
+      <button class="panel-tab" onclick="wearTab('face')">🎭 Face</button>
+    </div>
+    <div class="item-grid" id="wear-grid"></div>
+    <div style="text-align:center;color:var(--dim);font-size:11px;margin-top:8px">Earn-only — dropped from mobs, bosses &amp; mining. Tradeable on marketplace!</div>
   </div>
 </div>
 
@@ -621,7 +644,7 @@ let duelFloats=[],duelParticles=[],duelProjectiles=[];
 let duelRafId=null,duelIdleBob=0;
 
 // Appearance
-let myAppearance={},myEquipped={};
+let myAppearance={},myEquipped={},myActiveWearables={};
 
 // Movement sync
 let moveSendTimer=0;
@@ -833,7 +856,7 @@ function handleMessage(msg){
     case'rpg_boss_spawn':boss=d;bossTelegraph=null;logMsg('The boss has respawned!','xp');break;
     case'rpg_boss_summon':if(d.saplings)d.saplings.forEach(s=>mobs.push(s));break;
     case'rpg_player_joined':
-      if(d.username!==username){const ex=otherPlayers.find(p=>p.username===d.username);if(ex){ex.appearance=d.appearance;ex.equipped=d.equipped;ex.x=d.x;ex.y=d.y}else otherPlayers.push(d)}break;
+      if(d.username!==username){const ex=otherPlayers.find(p=>p.username===d.username);if(ex){ex.appearance=d.appearance;ex.equipped=d.equipped;ex.activeWearables=d.activeWearables;ex.x=d.x;ex.y=d.y}else otherPlayers.push(d)}break;
     case'rpg_player_left':otherPlayers=otherPlayers.filter(p=>p.username!==d.username);break;
     case'rpg_player_move':
       if(d.username!==username){const op=otherPlayers.find(p=>p.username===d.username);if(op){op.x=d.x;op.y=d.y;op.targetX=d.x;op.targetY=d.y;op.sitting=null}else otherPlayers.push(d)}break;
@@ -875,6 +898,11 @@ function handleMessage(msg){
     case'market_listed':break;
     case'market_purchased':break;
     case'market_cancelled':break;
+    // Wearable responses
+    case'rpg_wearables_result':if(d){wearableCache=d;renderWearables()}break;
+    case'rpg_equip_wearable_result':if(d&&!d.error){logMsg('Wore '+d.equipped+'!','loot');myActiveWearables[d.slot]=d.key;refreshWearables()}else if(d)logMsg(d.error,'dmg');break;
+    case'rpg_unequip_wearable_result':if(d&&!d.error){logMsg('Removed from '+d.slot,'loot');myActiveWearables[d.slot]=null;refreshWearables()}else if(d)logMsg(d.error,'dmg');break;
+    case'rpg_player_wearable_update':{const op=otherPlayers.find(p=>p.username===d.username);if(op)op.activeWearables=d.activeWearables;break}
   }
 }
 
@@ -884,7 +912,7 @@ function onJoined(d){
   playerLevel=d.level;gold=d.gold;playerMaxHP=d.maxHP;playerHP=d.maxHP;
   miningLevel=d.rpg.miningLevel;miningXP=d.rpg.miningXP;miningXPNeeded=d.rpg.miningLevel*30;
   pickaxeTier=d.rpg.pickaxeTier;baseDmg=d.baseDmg||5;
-  myAppearance=d.appearance||{};myEquipped=d.equipped||{};
+  myAppearance=d.appearance||{};myEquipped=d.equipped||{};myActiveWearables=d.activeWearables||{};
   allZones=d.zones;allPickaxes=d.pickaxes;
   duelQueueCount=d.duelQueueCount||0;
   document.getElementById('duel-q-count').textContent=duelQueueCount;
@@ -972,6 +1000,7 @@ function onMineResult(d){
     if(d.gold>0)logMsg(d.oreType+': +'+d.gold+'g','loot');
     // Show material drops as toast notifications
     if(d.drops&&d.drops.length){d.drops.forEach(dr=>{const def=itemData[dr.itemId]||{};showDropToast(def.icon||'📦',def.name||dr.itemId,def.rarity||'common',dr.qty||1)})}
+    if(d.wearableDrops&&d.wearableDrops.length){d.wearableDrops.forEach(w=>{showDropToast(w.icon||'👒',w.name,w.rarity||'rare',1)})}
     // Quest tracking: mine success
     checkQuestProgress('mine',d.oreType);
     updateHUD();updateZoneGrid();
@@ -1026,6 +1055,7 @@ function onAttackResult(d){
     logMsg(d.mobName+': +'+d.gold+'g +'+d.xp+'XP','loot');updateHUD();
     // Show item drops as toast notifications
     if(d.drops&&d.drops.length){d.drops.forEach(dr=>{const def=itemData[dr.itemId]||{};showDropToast(def.icon||'📦',def.name||dr.itemId,def.rarity||'common',dr.qty||1)})}
+    if(d.wearableDrops&&d.wearableDrops.length){d.wearableDrops.forEach(w=>{showDropToast(w.icon||'👒',w.name,w.rarity||'rare',1)})}
     // Quest tracking: mob kill
     checkQuestProgress('kill',d.mobName);
   }
@@ -1081,6 +1111,7 @@ function onBossAttackResult(d){
     logMsg('BOSS SLAIN: '+d.mobName+'! +'+d.gold+'g +'+d.xp+'XP','loot');updateHUD();
     // Show boss item drops as toast
     if(d.drops&&d.drops.length){d.drops.forEach(dr=>{const def=itemData[dr.itemId]||{};showDropToast(def.icon||'📦',def.name||dr.itemId,def.rarity||'common',dr.qty||1)})}
+    if(d.wearableDrops&&d.wearableDrops.length){d.wearableDrops.forEach(w=>{showDropToast(w.icon||'👒',w.name,w.rarity||'rare',1)})}
     checkQuestProgress('kill',d.mobName);
   }
 }
@@ -6750,6 +6781,64 @@ function drawPixelChar(c,sx,sy,S,a,eq,dir,wf,swing,name,nameColor){
   c.fillStyle=nameColor||'#fbbf24';c.fillText(name||'?',sx+10*S,sy+offy*S-4);
 }
 
+// ═══ Wearable Cosmetics Drawing ═══
+const RARITY_GLOW={common:null,uncommon:'#4ade80',rare:'#60a5fa',epic:'#c084fc',legendary:'#fbbf24',mythic:'#ff4500'};
+function drawWearables(c,sx,sy,S,wf,wear){
+  if(!wear)return;
+  const bob=Math.sin(wf*Math.PI/2)*((wf%4!==0)?1.5:0);
+  const offy=-20+bob;
+  function p(x,y,w,h,col){c.fillStyle=col;c.fillRect(sx+x*S,sy+y*S,w*S,h*S)}
+  const hx=5,hy=offy+0,bx=2,by=hy+12;
+
+  // ── Hat ──
+  if(wear.hat){
+    const id=wear.hat;
+    if(id==='straw_hat'){p(hx-2,hy-4,14,2,'#daa520');p(hx+1,hy-6,8,2,'#c8961e');p(hx+3,hy-7,4,1,'#b8860b')}
+    else if(id==='party_hat'){p(hx+3,hy-8,4,4,'#ff69b4');p(hx+4,hy-9,2,1,'#ff1493');p(hx+2,hy-4,6,1,'#ffd700')}
+    else if(id==='wizard_hat'){p(hx+2,hy-4,6,2,'#4b0082');p(hx+3,hy-6,4,2,'#4b0082');p(hx+4,hy-8,2,2,'#4b0082');p(hx+4,hy-9,1,1,'#4b0082');p(hx,hy-2,10,1,'#6a0dad')}
+    else if(id==='pirate_hat'){p(hx+1,hy-4,8,3,'#2c2c2c');p(hx-1,hy-2,12,1,'#2c2c2c');p(hx+4,hy-5,2,1,'#fff')}
+    else if(id==='top_hat'){p(hx+2,hy-9,6,6,'#1a1a1a');p(hx,hy-3,10,2,'#1a1a1a');p(hx+2,hy-4,6,1,'#c084fc')}
+    else if(id==='crown_thorns'){p(hx+1,hy-3,8,2,'#5a3a1a');p(hx,hy-4,1,2,'#3a2a0a');p(hx+3,hy-5,1,2,'#3a2a0a');p(hx+6,hy-5,1,2,'#3a2a0a');p(hx+9,hy-4,1,2,'#3a2a0a')}
+    else if(id==='devil_horns'){p(hx,hy-4,2,3,'#cc2200');p(hx-1,hy-6,2,2,'#cc2200');p(hx+8,hy-4,2,3,'#cc2200');p(hx+9,hy-6,2,2,'#cc2200')}
+    else if(id==='santa_hat'){p(hx+1,hy-3,8,2,'#cc0000');p(hx+2,hy-5,6,2,'#cc0000');p(hx+3,hy-6,4,1,'#cc0000');p(hx+6,hy-7,3,2,'#fff');p(hx,hy-1,10,1,'#fff')}
+    else if(id==='halo'){c.strokeStyle='#ffd700';c.lineWidth=2*S;c.beginPath();c.ellipse(sx+10*S,sy+(hy-5)*S,5*S,2*S,0,0,Math.PI*2);c.stroke();c.lineWidth=1}
+    else if(id==='void_crown'){p(hx+1,hy-4,8,3,'#1a0a2e');p(hx,hy-5,2,2,'#ff4500');p(hx+4,hy-6,2,2,'#ff4500');p(hx+8,hy-5,2,2,'#ff4500');p(hx+3,hy-2,4,1,'#4b0082')}
+  }
+
+  // ── Cape ──
+  if(wear.cape){
+    const id=wear.cape;
+    const capeY=by+2;
+    if(id==='tattered_cape'){p(bx+2,capeY,12,12,'rgba(100,80,60,0.5)');p(bx+3,capeY+12,4,2,'rgba(100,80,60,0.3)');p(bx+9,capeY+12,3,2,'rgba(100,80,60,0.3)')}
+    else if(id==='woodland_cloak'){p(bx+1,capeY,14,13,'rgba(34,120,50,0.6)');p(bx+2,capeY+13,5,2,'rgba(34,120,50,0.4)');p(bx+9,capeY+13,4,2,'rgba(34,120,50,0.4)')}
+    else if(id==='shadow_cape'){p(bx+1,capeY,14,14,'rgba(30,0,60,0.7)');p(bx+2,capeY+14,4,1,'rgba(60,0,120,0.4)');p(bx+10,capeY+14,3,1,'rgba(60,0,120,0.4)')}
+    else if(id==='fire_cape'){p(bx+1,capeY,14,13,'rgba(200,60,0,0.6)');p(bx+2,capeY+10,3,3,'rgba(255,150,0,0.7)');p(bx+8,capeY+11,4,2,'rgba(255,100,0,0.6)');p(bx+4,capeY+13,6,1,'rgba(255,200,0,0.5)')}
+    else if(id==='royal_mantle'){p(bx+1,capeY,14,14,'rgba(100,0,150,0.7)');p(bx+2,capeY+1,12,1,'rgba(255,215,0,0.6)');p(bx+2,capeY+13,12,1,'rgba(255,215,0,0.6)');p(bx+5,capeY+6,6,3,'rgba(255,215,0,0.3)')}
+  }
+
+  // ── Wrist ──
+  if(wear.wrist){
+    const id=wear.wrist;
+    const handY=by+14+(by<0?8:6);
+    if(id==='leather_band'){p(bx-3,handY-1,3,1,'#8b4513')}
+    else if(id==='gold_watch'){p(bx-4,handY-2,3,2,'#ffd700');p(bx-4,handY-1,1,1,'#b8860b')}
+    else if(id==='chain_bracelet'){p(bx-4,handY-1,3,1,'#aaa');p(bx+16,handY-1,3,1,'#aaa')}
+    else if(id==='crystal_cuff'){p(bx-4,handY-2,3,2,'#60a5fa');p(bx+17,handY-2,3,2,'#60a5fa')}
+    else if(id==='dragon_bangle'){p(bx-4,handY-2,3,2,'#fbbf24');p(bx-4,handY-1,1,1,'#cc2200')}
+  }
+
+  // ── Face ──
+  if(wear.face){
+    const id=wear.face;
+    const eey=hy+4;
+    if(id==='bandana'){p(hx,hy+6,10,2,'#cc2200');p(hx+10,hy+7,3,1,'#cc2200');p(hx+10,hy+8,2,1,'#cc2200')}
+    else if(id==='eye_patch'){p(hx+5,eey-1,3,3,'#1a1a1a');p(hx+4,eey-2,1,1,'#1a1a1a');p(hx+8,eey-2,2,1,'#1a1a1a')}
+    else if(id==='monocle'){c.strokeStyle='#ffd700';c.lineWidth=1*S;c.beginPath();c.arc(sx+(hx+7)*S,sy+(eey+0.5)*S,2*S,0,Math.PI*2);c.stroke();c.fillStyle='rgba(200,200,255,0.3)';c.fill()}
+    else if(id==='skull_mask'){p(hx+1,hy+2,8,6,'#ddd');p(hx+2,eey,2,2,'#111');p(hx+6,eey,2,2,'#111');p(hx+3,hy+7,4,2,'#111');p(hx+3,hy+7,1,1,'#ddd');p(hx+5,hy+7,1,1,'#ddd')}
+    else if(id==='phantom_mask'){p(hx,hy+1,5,7,'#fff');p(hx+1,eey,2,2,'#111');p(hx,hy+7,4,1,'rgba(255,255,255,0.5)')}
+  }
+}
+
 // Sitting character sprite — simplified seated pose
 function drawSittingChar(c,sx,sy,S,a,eq,name,nameColor){
   a=a||{};eq=eq||{};
@@ -6791,15 +6880,18 @@ function drawPlayer(){
   if(damageFlash>0){
     ctx.save();ctx.globalAlpha=.3+Math.abs(Math.sin(damageFlash*10))*.4;
     drawPixelChar(ctx,s.x-10*1.6,s.y-8,1.6,myAppearance,myEquipped,facing,walkFrame,swingAnim,username,'#ff2222');
+    drawWearables(ctx,s.x-10*1.6,s.y-8,1.6,walkFrame,myActiveWearables);
     ctx.restore();
   }
   if(isSitting){
     drawSittingChar(ctx,s.x,s.y,1.6,myAppearance,myEquipped,username,'#fbbf24');
+    drawWearables(ctx,s.x-10*1.6,s.y-8,1.6,0,myActiveWearables);
   } else {
     // Idle breathing — subtle scale pulse when not moving
     const breathScale=idleTimer>300?1+Math.sin(idleTimer*0.004)*0.008:1;
     if(breathScale!==1){ctx.save();ctx.translate(s.x,s.y);ctx.scale(breathScale,breathScale);ctx.translate(-s.x,-s.y)}
     drawPixelChar(ctx,s.x-10*1.6,s.y-8,1.6,myAppearance,myEquipped,facing,walkFrame,swingAnim,username,'#fbbf24');
+    drawWearables(ctx,s.x-10*1.6,s.y-8,1.6,walkFrame,myActiveWearables);
     if(breathScale!==1)ctx.restore();
   }
   if(miningTarget||attackTarget){ctx.strokeStyle='rgba(255,255,255,0.08)';ctx.beginPath();ctx.arc(s.x,s.y,60*ISO_S,0,Math.PI*2);ctx.stroke()}
@@ -6927,8 +7019,10 @@ function drawOtherPlayer(p){
   ctx.globalAlpha=.85;
   if(p.sitting){
     drawSittingChar(ctx,s.x,s.y,1.4,p.appearance||{},p.equipped||{},p.username,'#88ccff');
+    drawWearables(ctx,s.x-10*1.4,s.y-6,1.4,0,p.activeWearables||{});
   } else {
     drawPixelChar(ctx,s.x-10*1.4,s.y-6,1.4,p.appearance||{},p.equipped||{},'down',0,0,p.username,'#88ccff');
+    drawWearables(ctx,s.x-10*1.4,s.y-6,1.4,0,p.activeWearables||{});
   }
   ctx.globalAlpha=1;
 }
@@ -7844,6 +7938,7 @@ document.addEventListener('keydown',e=>{
   if(k==='i'&&!dialogueOpen&&!diceGameOpen){toggleInventory()}
   if(k==='escape'){
     if(document.getElementById('inv-panel').classList.contains('show')){toggleInventory()}
+    else if(document.getElementById('wear-panel').classList.contains('show')){toggleWearPanel()}
     else if(document.getElementById('shop-panel').classList.contains('show')){toggleShopPanel()}
     else if(document.getElementById('craft-panel').classList.contains('show')){toggleCraftPanel()}
     else if(document.getElementById('market-panel').classList.contains('show')){toggleMarketPanel()}
@@ -8079,6 +8174,7 @@ function fetchEconomyData(){
   fetch(base+'/api/items').then(r=>r.json()).then(d=>{itemData=d}).catch(()=>{});
   fetch(base+'/api/shop').then(r=>r.json()).then(d=>{shopData=d}).catch(()=>{});
   fetch(base+'/api/recipes').then(r=>r.json()).then(d=>{recipeData=d}).catch(()=>{});
+  fetch(base+'/api/wearables').then(r=>r.json()).then(d=>{allWearableData=d}).catch(()=>{});
 }
 
 function refreshInventory(){
@@ -8152,6 +8248,64 @@ function doEquip(uid){send('rpg_equip',{uid});setTimeout(refreshInventory,300)}
 function doUnequip(slot){send('rpg_unequip',{slot});setTimeout(refreshInventory,300)}
 function doRepair(uid){send('rpg_repair',{uid});setTimeout(refreshInventory,300)}
 function doUseItem(itemId){send('rpg_use_item',{itemId});setTimeout(refreshInventory,300)}
+
+// ── Wearable Cosmetics Panel ──
+let wearableCache={wearables:[],activeWearables:{}};
+let activeWearTab='all';
+let allWearableData=null;
+
+function fetchWearableData(){
+  if(allWearableData)return;
+  fetch(location.origin+'/api/wearables').then(r=>r.json()).then(d=>{allWearableData=d}).catch(()=>{});
+}
+
+function refreshWearables(){send('rpg_wearables',{})}
+function toggleWearPanel(){
+  const el=document.getElementById('wear-panel');
+  if(el.classList.contains('show')){el.classList.remove('show');return}
+  fetchWearableData();
+  refreshWearables();
+  el.classList.add('show');
+}
+function wearTab(tab){
+  activeWearTab=tab;
+  document.querySelectorAll('#wear-panel .panel-tab').forEach(t=>t.classList.remove('active'));
+  event.target.classList.add('active');
+  renderWearables();
+}
+function renderWearables(){
+  if(!allWearableData)return;
+  const aw=wearableCache.activeWearables||myActiveWearables||{};
+  // Equip slots
+  ['hat','cape','wrist','face'].forEach(slot=>{
+    const el=document.getElementById('wslot-'+slot);
+    const key=aw[slot];
+    if(key&&allWearableData[key]){
+      const w=allWearableData[key];
+      el.className='equip-slot filled';
+      el.innerHTML='<div class="es-label">'+slot+'</div><div class="es-icon">'+w.icon+'</div><div class="es-name" style="color:'+(RARITY_COLORS[w.rarity]||'#ccc')+'">'+w.name+'</div>'
+        +'<button class="btn btn-red" style="margin-top:4px;font-size:9px;padding:2px 8px" onclick="doUnequipWearable(\''+slot+'\')">Remove</button>';
+    } else {
+      el.className='equip-slot';
+      el.innerHTML='<div class="es-label">'+slot+'</div><div class="es-icon">—</div>';
+    }
+  });
+  let items=wearableCache.wearables||[];
+  if(activeWearTab!=='all') items=items.filter(w=>w.slot===activeWearTab);
+  const grid=document.getElementById('wear-grid');
+  if(!items.length){grid.innerHTML='<div style="color:var(--dim);padding:20px;text-align:center;grid-column:1/-1">No wearables yet — kill mobs &amp; mine to find them!</div>';return}
+  grid.innerHTML=items.map(w=>{
+    const rc=RARITY_CLASSES[w.rarity||'common']||'rarity-common';
+    const isEquipped=Object.values(aw).includes(w.key);
+    return '<div class="item-card"><div class="ic-icon" style="font-size:22px">'+w.icon+'</div><div class="ic-name" style="color:'+(RARITY_COLORS[w.rarity]||'#ccc')+'">'+w.name+'</div>'
+      +'<div class="ic-stats">'+w.slot+' • '+(w.source||'Drop')+'</div><span class="ic-rarity '+rc+'">'+w.rarity+'</span>'
+      +(isEquipped?'<div style="color:var(--green);font-size:9px;margin-top:4px;font-weight:700">WEARING</div>'
+        :'<button class="btn btn-gold" style="font-size:9px;padding:2px 8px;margin-top:4px" onclick="doEquipWearable(\''+w.key+'\')">Wear</button>')
+      +'</div>';
+  }).join('');
+}
+function doEquipWearable(key){send('rpg_equip_wearable',{key});setTimeout(refreshWearables,300)}
+function doUnequipWearable(slot){send('rpg_unequip_wearable',{slot});setTimeout(refreshWearables,300)}
 
 // ── NPC Shop Panel ──
 function toggleShopPanel(){

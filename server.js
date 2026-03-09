@@ -2,7 +2,7 @@ const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
 const path = require('path');
-const { Game, CONFIG, COSMETICS, BOSS_LOOT, ITEMS, LOOT_TABLES, RECIPES, NPC_SHOP, ACHIEVEMENTS, RARITY_COLOR, VENDOR_PRICE, RANK_BADGES, getRankBadge, RPG_ZONES, RPG_PICKAXES } = require('./game');
+const { Game, CONFIG, COSMETICS, WEARABLES, BOSS_LOOT, ITEMS, LOOT_TABLES, RECIPES, NPC_SHOP, ACHIEVEMENTS, RARITY_COLOR, VENDOR_PRICE, RANK_BADGES, getRankBadge, RPG_ZONES, RPG_PICKAXES } = require('./game');
 
 // ═══════════════════════════════════════════
 // CONFIGURATION — Edit these values
@@ -56,6 +56,7 @@ app.get('/api/player/:username', (req, res) => {
 app.get('/api/boss', (req, res) => res.json(game.getBossStatus()));
 app.get('/api/market', (req, res) => res.json(game.getMarketListings()));
 app.get('/api/cosmetics', (req, res) => res.json(COSMETICS));
+app.get('/api/wearables', (req, res) => res.json(WEARABLES));
 app.get('/api/achievements', (req, res) => res.json(ACHIEVEMENTS));
 app.get('/api/loot', (req, res) => res.json(BOSS_LOOT));
 app.get('/api/items', (req, res) => res.json(ITEMS));
@@ -95,6 +96,22 @@ app.post('/api/buycosmetic', requireAuth, (req, res) => {
 app.post('/api/equipcosmetic', requireAuth, (req, res) => {
   const r = game.handleEquipCosmetic(req.playerName, req.body.key);
   if (r && !r.error) { broadcast('cosmetic_equipped', r); return res.json(r); }
+  res.status(400).json(r || { error: 'Failed' });
+});
+// Wearables
+app.post('/api/equipwearable', requireAuth, (req, res) => {
+  const r = game.handleEquipWearable(req.playerName, req.body.key);
+  if (r && !r.error) { broadcast('wearable_equipped', r); return res.json(r); }
+  res.status(400).json(r || { error: 'Failed' });
+});
+app.post('/api/unequipwearable', requireAuth, (req, res) => {
+  const r = game.handleUnequipWearable(req.playerName, req.body.slot);
+  if (r && !r.error) { broadcast('wearable_unequipped', r); return res.json(r); }
+  res.status(400).json(r || { error: 'Failed' });
+});
+app.post('/api/sellwearable', requireAuth, (req, res) => {
+  const r = game.handleSellWearable(req.playerName, req.body.key, req.body.price);
+  if (r && !r.error) { broadcast('market_listed', r); return res.json(r); }
   res.status(400).json(r || { error: 'Failed' });
 });
 
@@ -736,6 +753,32 @@ wss.on('connection', (ws) => {
         const r = game.handleCancelListing(ws.rpgUser, msg.listingId);
         ws.send(JSON.stringify({ type: 'rpg_market_cancel_result', data: r }));
         if (r && !r.error) broadcast('market_cancelled', r);
+      }
+      // Wearable handlers
+      if (msg.type === 'rpg_wearables' && ws.isRPG && ws.rpgUser) {
+        const r = game.getWearables(ws.rpgUser);
+        ws.send(JSON.stringify({ type: 'rpg_wearables_result', data: r }));
+      }
+      if (msg.type === 'rpg_equip_wearable' && ws.isRPG && ws.rpgUser) {
+        const r = game.handleEquipWearable(ws.rpgUser, msg.key);
+        ws.send(JSON.stringify({ type: 'rpg_equip_wearable_result', data: r }));
+        if (r && !r.error) {
+          const p = game.player(ws.rpgUser);
+          game.rpgBroadcastZone('hub', { type: 'rpg_player_wearable_update', data: { username: ws.rpgUser, activeWearables: p.activeWearables } }, ws.rpgUser);
+        }
+      }
+      if (msg.type === 'rpg_unequip_wearable' && ws.isRPG && ws.rpgUser) {
+        const r = game.handleUnequipWearable(ws.rpgUser, msg.slot);
+        ws.send(JSON.stringify({ type: 'rpg_unequip_wearable_result', data: r }));
+        if (r && !r.error) {
+          const p = game.player(ws.rpgUser);
+          game.rpgBroadcastZone('hub', { type: 'rpg_player_wearable_update', data: { username: ws.rpgUser, activeWearables: p.activeWearables } }, ws.rpgUser);
+        }
+      }
+      if (msg.type === 'rpg_market_sell_wearable' && ws.isRPG && ws.rpgUser) {
+        const r = game.handleSellWearable(ws.rpgUser, msg.key, msg.price);
+        ws.send(JSON.stringify({ type: 'rpg_market_sell_result', data: r }));
+        if (r && !r.error) broadcast('market_listed', r);
       }
     } catch {}
   });

@@ -142,20 +142,20 @@ const ITEMS = {
 // ═══════════════════════════════════════════
 const LOOT_TABLES = {
   // Forest mobs
-  slime:    { drops: [{ itemId: 'slime_gel',   chance: 0.40 }, { itemId: 'health_potion', chance: 0.05 }] },
-  goblin:   { drops: [{ itemId: 'goblin_ear',  chance: 0.35 }, { itemId: 'iron_ore',      chance: 0.10 }, { itemId: 'health_potion', chance: 0.05 }] },
-  wolf:     { drops: [{ itemId: 'wolf_fang',   chance: 0.30 }, { itemId: 'leather_vest',  chance: 0.02 }, { itemId: 'health_potion', chance: 0.08 }] },
+  slime:    { drops: [{ itemId: 'slime_gel',   chance: 0.40 }, { itemId: 'health_potion', chance: 0.05 }, { itemId: 'party_hat', chance: 0.02, wearable: true }] },
+  goblin:   { drops: [{ itemId: 'goblin_ear',  chance: 0.35 }, { itemId: 'iron_ore',      chance: 0.10 }, { itemId: 'health_potion', chance: 0.05 }, { itemId: 'straw_hat', chance: 0.02, wearable: true }, { itemId: 'leather_band', chance: 0.02, wearable: true }] },
+  wolf:     { drops: [{ itemId: 'wolf_fang',   chance: 0.30 }, { itemId: 'leather_vest',  chance: 0.02 }, { itemId: 'health_potion', chance: 0.08 }, { itemId: 'woodland_cloak', chance: 0.015, wearable: true }, { itemId: 'bandana', chance: 0.02, wearable: true }] },
   // Dungeon mobs
-  skeleton: { drops: [{ itemId: 'bone_fragment', chance: 0.40 }, { itemId: 'iron_ore',      chance: 0.10 }, { itemId: 'health_potion', chance: 0.08 }] },
-  zombie:   { drops: [{ itemId: 'zombie_flesh',  chance: 0.35 }, { itemId: 'bone_fragment',  chance: 0.15 }, { itemId: 'shield_scroll', chance: 0.05 }] },
-  wraith:   { drops: [{ itemId: 'wraith_essence',chance: 0.25 }, { itemId: 'crystal_shard',  chance: 0.05 }, { itemId: 'power_elixir',  chance: 0.05 }] },
-  demon:    { drops: [{ itemId: 'demon_core',    chance: 0.20 }, { itemId: 'wraith_essence', chance: 0.10 }, { itemId: 'repair_kit',    chance: 0.05 }, { itemId: 'void_fragment', chance: 0.02 }] },
+  skeleton: { drops: [{ itemId: 'bone_fragment', chance: 0.40 }, { itemId: 'iron_ore',      chance: 0.10 }, { itemId: 'health_potion', chance: 0.08 }, { itemId: 'tattered_cape', chance: 0.02, wearable: true }, { itemId: 'eye_patch', chance: 0.015, wearable: true }] },
+  zombie:   { drops: [{ itemId: 'zombie_flesh',  chance: 0.35 }, { itemId: 'bone_fragment',  chance: 0.15 }, { itemId: 'shield_scroll', chance: 0.05 }, { itemId: 'chain_bracelet', chance: 0.01, wearable: true }] },
+  wraith:   { drops: [{ itemId: 'wraith_essence',chance: 0.25 }, { itemId: 'crystal_shard',  chance: 0.05 }, { itemId: 'power_elixir',  chance: 0.05 }, { itemId: 'wizard_hat', chance: 0.015, wearable: true }, { itemId: 'shadow_cape', chance: 0.008, wearable: true }] },
+  demon:    { drops: [{ itemId: 'demon_core',    chance: 0.20 }, { itemId: 'wraith_essence', chance: 0.10 }, { itemId: 'repair_kit',    chance: 0.05 }, { itemId: 'void_fragment', chance: 0.02 }, { itemId: 'top_hat', chance: 0.01, wearable: true }, { itemId: 'devil_horns', chance: 0.005, wearable: true }, { itemId: 'skull_mask', chance: 0.005, wearable: true }] },
   // RPG Bosses — guaranteed drop + bonus
-  ancient_treant: { guaranteed: 'treant_bark', drops: [{ itemId: 'crystal_shard', chance: 0.15 }, { itemId: 'iron_sword', chance: 0.08 }, { itemId: 'chain_armor', chance: 0.06 }, { itemId: 'venom_blade', chance: 0.03 }] },
+  ancient_treant: { guaranteed: 'treant_bark', drops: [{ itemId: 'crystal_shard', chance: 0.15 }, { itemId: 'iron_sword', chance: 0.08 }, { itemId: 'chain_armor', chance: 0.06 }, { itemId: 'venom_blade', chance: 0.03 }, { itemId: 'crown_thorns', chance: 0.03, wearable: true }, { itemId: 'santa_hat', chance: 0.01, wearable: true }, { itemId: 'fire_cape', chance: 0.008, wearable: true }] },
   // Mining bonus drops (chance per node break)
   mine_quarry:    { drops: [{ itemId: 'iron_ore',      chance: 0.25 }, { itemId: 'gold_nugget',    chance: 0.05 }] },
-  mine_deep:      { drops: [{ itemId: 'iron_ore',      chance: 0.20 }, { itemId: 'gold_nugget',    chance: 0.12 }, { itemId: 'crystal_shard', chance: 0.04 }] },
-  mine_gold_vein: { drops: [{ itemId: 'gold_nugget',   chance: 0.25 }, { itemId: 'crystal_shard',  chance: 0.10 }, { itemId: 'void_fragment',  chance: 0.02 }] },
+  mine_deep:      { drops: [{ itemId: 'iron_ore',      chance: 0.20 }, { itemId: 'gold_nugget',    chance: 0.12 }, { itemId: 'crystal_shard', chance: 0.04 }, { itemId: 'monocle', chance: 0.005, wearable: true }] },
+  mine_gold_vein: { drops: [{ itemId: 'gold_nugget',   chance: 0.25 }, { itemId: 'crystal_shard',  chance: 0.10 }, { itemId: 'void_fragment',  chance: 0.02 }, { itemId: 'gold_watch', chance: 0.01, wearable: true }, { itemId: 'crystal_cuff', chance: 0.003, wearable: true }, { itemId: 'pirate_hat', chance: 0.005, wearable: true }] },
 };
 
 // ═══════════════════════════════════════════
@@ -208,6 +208,41 @@ function getRankBadge(level) {
   }
   return best;
 }
+
+// ═══════════════════════════════════════════
+// Wearable Cosmetics — earn-only, tradeable on marketplace
+// ═══════════════════════════════════════════
+const WEARABLES = {
+  // ── Hats ──
+  straw_hat:      { name: 'Straw Hat',       rarity: 'common',    slot: 'hat',   icon: '👒', desc: 'A simple farmer\'s hat',      source: 'Goblin drops' },
+  party_hat:      { name: 'Party Hat',        rarity: 'common',    slot: 'hat',   icon: '🥳', desc: 'Time to celebrate',           source: 'Slime drops' },
+  wizard_hat:     { name: 'Wizard Hat',       rarity: 'uncommon',  slot: 'hat',   icon: '🧙', desc: 'Pointy and mystical',         source: 'Wraith drops' },
+  pirate_hat:     { name: 'Pirate Tricorn',   rarity: 'rare',      slot: 'hat',   icon: '🏴‍☠️', desc: 'Yarr matey!',                 source: 'Mining rare find' },
+  top_hat:        { name: 'Top Hat',          rarity: 'rare',      slot: 'hat',   icon: '🎩', desc: 'Distinguished gentleman',      source: 'Demon drops' },
+  crown_thorns:   { name: 'Crown of Thorns',  rarity: 'rare',      slot: 'hat',   icon: '🌿', desc: 'Pain is power',               source: 'Treant Boss' },
+  devil_horns:    { name: 'Devil Horns',      rarity: 'epic',      slot: 'hat',   icon: '😈', desc: 'Embrace the darkness',         source: 'Demon drops' },
+  santa_hat:      { name: 'Santa Hat',        rarity: 'epic',      slot: 'hat',   icon: '🎅', desc: 'Ho ho ho!',                    source: 'Boss reward' },
+  halo:           { name: 'Halo',             rarity: 'legendary',  slot: 'hat',   icon: '😇', desc: 'Angelic presence',            source: 'Boss MVP' },
+  void_crown:     { name: 'Void Crown',       rarity: 'mythic',    slot: 'hat',   icon: '👑', desc: 'Crown of the abyss',          source: 'Boss MVP' },
+  // ── Capes ──
+  tattered_cape:  { name: 'Tattered Cape',    rarity: 'common',    slot: 'cape',  icon: '🧥', desc: 'Seen better days',            source: 'Skeleton drops' },
+  woodland_cloak: { name: 'Woodland Cloak',   rarity: 'uncommon',  slot: 'cape',  icon: '🍃', desc: 'Blends with nature',          source: 'Wolf drops' },
+  shadow_cape:    { name: 'Shadow Cape',      rarity: 'rare',      slot: 'cape',  icon: '🌑', desc: 'Made of pure shadow',         source: 'Wraith drops' },
+  fire_cape:      { name: 'Fire Cape',        rarity: 'epic',      slot: 'cape',  icon: '🔥', desc: 'Burns with fury',             source: 'Boss reward' },
+  royal_mantle:   { name: 'Royal Mantle',     rarity: 'legendary',  slot: 'cape',  icon: '👑', desc: 'Fit for royalty',             source: 'Boss MVP' },
+  // ── Wrist ──
+  leather_band:   { name: 'Leather Band',     rarity: 'common',    slot: 'wrist', icon: '🤎', desc: 'Simple leather wrap',         source: 'Goblin drops' },
+  gold_watch:     { name: 'Gold Watch',       rarity: 'uncommon',  slot: 'wrist', icon: '⌚', desc: 'Tick tock',                    source: 'Mining gold vein' },
+  chain_bracelet: { name: 'Chain Bracelet',   rarity: 'rare',      slot: 'wrist', icon: '⛓️', desc: 'Heavy chain links',           source: 'Zombie drops' },
+  crystal_cuff:   { name: 'Crystal Cuff',     rarity: 'epic',      slot: 'wrist', icon: '💎', desc: 'Glowing crystal band',        source: 'Mining rare find' },
+  dragon_bangle:  { name: 'Dragon Bangle',    rarity: 'legendary',  slot: 'wrist', icon: '🐲', desc: 'Scales of a dragon',         source: 'Boss MVP' },
+  // ── Face ──
+  bandana:        { name: 'Bandana',          rarity: 'common',    slot: 'face',  icon: '🟥', desc: 'Outlaw vibes',                source: 'Wolf drops' },
+  eye_patch:      { name: 'Eye Patch',        rarity: 'uncommon',  slot: 'face',  icon: '🏴‍☠️', desc: 'Lost it in battle',           source: 'Skeleton drops' },
+  monocle:        { name: 'Monocle',          rarity: 'rare',      slot: 'face',  icon: '🧐', desc: 'Quite distinguished',         source: 'Mining rare find' },
+  skull_mask:     { name: 'Skull Mask',       rarity: 'epic',      slot: 'face',  icon: '💀', desc: 'Face of death',               source: 'Demon drops' },
+  phantom_mask:   { name: 'Phantom Mask',     rarity: 'legendary',  slot: 'face',  icon: '🎭', desc: 'Who hides behind it?',       source: 'Boss MVP' },
+};
 
 const COSMETICS = {
   // ── Borders (leaderboard/name frame) ──
@@ -428,6 +463,7 @@ class Game {
         prestige: 0, prestigeBonus: 0,
         duelsWon: 0, duelsLost: 0, duelWinStreak: 0, bestDuelStreak: 0, arenaRating: 1000,
         inventory: [], equipped: {},
+        wearables: [], activeWearables: { hat: null, cape: null, wrist: null, face: null },
         cosmetics: [], activeCosmetics: { border: null, title: null, hitEffect: null, badge: null, killEffect: null },
         achievements: [],
         appearance: this.randomAppearance(),
@@ -438,6 +474,8 @@ class Game {
     if (!p.equipped) p.equipped = {};
     if (!p.cosmetics) p.cosmetics = [];
     if (!p.activeCosmetics) p.activeCosmetics = { border: null, title: null, hitEffect: null, badge: null, killEffect: null };
+    if (!p.wearables) p.wearables = [];
+    if (!p.activeWearables) p.activeWearables = { hat: null, cape: null, wrist: null, face: null };
     if (!p.achievements) p.achievements = [];
     if (p.mvpCount === undefined) p.mvpCount = 0;
     if (p.gamblesWon === undefined) p.gamblesWon = 0;
@@ -738,7 +776,7 @@ class Game {
     // Chance drops
     for (const drop of (table.drops || [])) {
       if (Math.random() < drop.chance) {
-        items.push({ itemId: drop.itemId, qty: drop.qty || 1 });
+        items.push({ itemId: drop.itemId, qty: drop.qty || 1, wearable: !!drop.wearable });
       }
     }
     return items;
@@ -1148,6 +1186,58 @@ class Game {
     return { username, listing, fee: listFee, gold: p.gold };
   }
 
+  // ── Wearable handlers ───────────────────
+  handleEquipWearable(username, wearableKey) {
+    const key = (wearableKey || '').toLowerCase();
+    const w = WEARABLES[key];
+    if (!w) return { error: 'not_found' };
+    const p = this.player(username);
+    if (!p.wearables.includes(key)) return { error: 'not_owned' };
+    p.activeWearables[w.slot] = key;
+    this.saveData();
+    return { username, equipped: w.name, slot: w.slot, key };
+  }
+
+  handleUnequipWearable(username, slot) {
+    const s = (slot || '').toLowerCase();
+    if (!['hat','cape','wrist','face'].includes(s)) return { error: 'invalid_slot' };
+    const p = this.player(username);
+    const key = p.activeWearables[s];
+    if (!key) return { error: 'nothing_equipped' };
+    p.activeWearables[s] = null;
+    this.saveData();
+    return { username, slot: s, unequipped: (WEARABLES[key] || {}).name };
+  }
+
+  handleSellWearable(username, wearableKey, price) {
+    const p = this.player(username);
+    const priceNum = parseInt(price);
+    if (isNaN(priceNum) || priceNum < 1) return { error: 'invalid_price' };
+    const myListings = this.market.filter(l => l.seller === username);
+    if (myListings.length >= 5) return { error: 'max_listings', message: 'Max 5 active listings' };
+    const key = (wearableKey || '').toLowerCase();
+    if (!p.wearables.includes(key)) return { error: 'not_owned' };
+    for (const v of Object.values(p.activeWearables)) { if (v === key) return { error: 'unequip_first' }; }
+    const listFee = Math.max(1, Math.floor(priceNum * 0.02));
+    if (p.gold < listFee) return { error: 'cant_afford_fee', fee: listFee, gold: p.gold };
+    p.gold -= listFee;
+    p.wearables = p.wearables.filter(w => w !== key);
+    const wData = WEARABLES[key];
+    const listing = { id: this.marketIdCounter++, seller: username, type: 'wearable', itemData: { key, name: wData.name, icon: wData.icon, rarity: wData.rarity, slot: wData.slot }, price: priceNum, listFee, listedAt: Date.now() };
+    this.market.push(listing);
+    this.saveData();
+    return { username, listing, fee: listFee, gold: p.gold };
+  }
+
+  getWearables(username) {
+    const p = this.player(username);
+    return {
+      username,
+      wearables: p.wearables.map(key => ({ key, ...WEARABLES[key] })),
+      activeWearables: p.activeWearables,
+    };
+  }
+
   handleMarket(username) {
     return {
       username,
@@ -1183,6 +1273,7 @@ class Game {
     if (listing.type === 'equipment') buyer.inventory.push(listing.itemData);
     else if (listing.type === 'material') this.addItemToInventory(buyer, listing.itemData.id, listing.itemData.qty || 1);
     else if (listing.type === 'cosmetic') buyer.cosmetics.push(listing.itemData.key);
+    else if (listing.type === 'wearable') { if (!buyer.wearables.includes(listing.itemData.key)) buyer.wearables.push(listing.itemData.key); }
     this.market.splice(idx, 1);
     buyer.tradeCount = (buyer.tradeCount || 0) + 1;
     seller.tradeCount = (seller.tradeCount || 0) + 1;
@@ -1201,6 +1292,7 @@ class Game {
     if (listing.type === 'equipment') p.inventory.push(listing.itemData);
     else if (listing.type === 'material') this.addItemToInventory(p, listing.itemData.id, listing.itemData.qty || 1);
     else if (listing.type === 'cosmetic') p.cosmetics.push(listing.itemData.key);
+    else if (listing.type === 'wearable') { if (!p.wearables.includes(listing.itemData.key)) p.wearables.push(listing.itemData.key); }
     this.saveData();
     return { username, cancelled: listing.itemData.name };
   }
@@ -2952,14 +3044,23 @@ class Game {
       const bossKey = zone.boss.name.toLowerCase().replace(/\s+/g, '_');
       const lootDrops = this.rollLootTable(bossKey);
       const droppedItems = [];
+      const droppedWearables = [];
       for (const drop of lootDrops) {
-        const added = this.addItemToInventory(p, drop.itemId, drop.qty);
-        if (added) droppedItems.push({ id: drop.itemId, name: (ITEMS[drop.itemId] || {}).name, qty: drop.qty, icon: (ITEMS[drop.itemId] || {}).icon });
+        if (drop.wearable) {
+          const w = WEARABLES[drop.itemId];
+          if (w && !p.wearables.includes(drop.itemId)) {
+            p.wearables.push(drop.itemId);
+            droppedWearables.push({ id: drop.itemId, name: w.name, icon: w.icon, rarity: w.rarity, slot: w.slot });
+          }
+        } else {
+          const added = this.addItemToInventory(p, drop.itemId, drop.qty);
+          if (added) droppedItems.push({ id: drop.itemId, name: (ITEMS[drop.itemId] || {}).name, qty: drop.qty, icon: (ITEMS[drop.itemId] || {}).icon });
+        }
       }
       this.saveData();
       this.emitAchievements(username);
       this.rpgBroadcastZone(rp.zone, { type: 'rpg_boss_died', data: { bossId: boss.id, killer: username } });
-      return { killed: true, dmg, crit, gold, xp: xpR, leveled, level: p.level, totalGold: p.gold, mobName: boss.name, drops: droppedItems, weaponBroke: wepResult && wepResult.broken ? wepResult.name : null };
+      return { killed: true, dmg, crit, gold, xp: xpR, leveled, level: p.level, totalGold: p.gold, mobName: boss.name, drops: droppedItems, wearableDrops: droppedWearables, weaponBroke: wepResult && wepResult.broken ? wepResult.name : null };
     }
     return { hit: true, dmg, crit, bossHP: boss.hp, bossMaxHP: boss.maxHP, weaponBroke: wepResult && wepResult.broken ? wepResult.name : null };
   }
@@ -2985,6 +3086,7 @@ class Game {
       baseDmg: Math.floor((this.minDmg(p) + this.maxDmg(p)) / 2) || 5,
       appearance: p.appearance,
       equipped: p.equipped,
+      activeWearables: p.activeWearables,
       zones: Object.entries(RPG_ZONES).map(([id, z]) => ({ id, name: z.name, icon: z.icon, minMiningLevel: z.minMiningLevel || 0, type: z.type })),
       pickaxes: RPG_PICKAXES,
       duelQueueCount: this.rpgDuelQueue.length,
@@ -3030,7 +3132,7 @@ class Game {
     rp.maxHP = maxHP;
     // Only broadcast join in hub (multiplayer zone)
     if (zoneId === 'hub') {
-      this.rpgBroadcastZone(zoneId, { type: 'rpg_player_joined', data: { username, x: rp.x, y: rp.y, appearance: p.appearance, equipped: p.equipped } });
+      this.rpgBroadcastZone(zoneId, { type: 'rpg_player_joined', data: { username, x: rp.x, y: rp.y, appearance: p.appearance, equipped: p.equipped, activeWearables: p.activeWearables } });
     }
     return { success: true, zone: this.rpgGetZoneState(zoneId, username) };
   }
@@ -3044,7 +3146,7 @@ class Game {
       .filter(([u, rp]) => rp.zone === zoneId && u !== username)
       .map(([u, rp]) => {
         const pd = this.players[u];
-        return { username: u, x: rp.x, y: rp.y, appearance: pd ? pd.appearance : null, equipped: pd ? pd.equipped : null, sitting: rp.sitting || null };
+        return { username: u, x: rp.x, y: rp.y, appearance: pd ? pd.appearance : null, equipped: pd ? pd.equipped : null, activeWearables: pd ? pd.activeWearables : null, sitting: rp.sitting || null };
       }) : [];
     const bossData = w.boss && !w.boss.dead ? {
       id: w.boss.id, name: w.boss.name, hp: w.boss.hp, maxHP: w.boss.maxHP,
@@ -3115,11 +3217,20 @@ class Game {
     const mineTableId = mineTableMap[rp.zone];
     const mineDrops = mineTableId ? this.rollLootTable(mineTableId) : [];
     const droppedItems = [];
+    const droppedWearables = [];
     for (const drop of mineDrops) {
-      const added = this.addItemToInventory(p, drop.itemId, drop.qty);
-      if (added) droppedItems.push({ id: drop.itemId, name: (ITEMS[drop.itemId] || {}).name, qty: drop.qty, icon: (ITEMS[drop.itemId] || {}).icon });
+      if (drop.wearable) {
+        const w = WEARABLES[drop.itemId];
+        if (w && !p.wearables.includes(drop.itemId)) {
+          p.wearables.push(drop.itemId);
+          droppedWearables.push({ id: drop.itemId, name: w.name, icon: w.icon, rarity: w.rarity, slot: w.slot });
+        }
+      } else {
+        const added = this.addItemToInventory(p, drop.itemId, drop.qty);
+        if (added) droppedItems.push({ id: drop.itemId, name: (ITEMS[drop.itemId] || {}).name, qty: drop.qty, icon: (ITEMS[drop.itemId] || {}).icon });
+      }
     }
-    if (droppedItems.length > 0) this.saveData();
+    if (droppedItems.length > 0 || droppedWearables.length > 0) this.saveData();
 
     return {
       success: true,
@@ -3132,6 +3243,7 @@ class Game {
       leveledUp,
       totalGold: p.gold,
       drops: droppedItems,
+      wearableDrops: droppedWearables,
     };
   }
 
@@ -3168,14 +3280,23 @@ class Game {
       const mobKey = mob.name.toLowerCase().replace(/\s+/g, '_');
       const lootDrops = this.rollLootTable(mobKey);
       const droppedItems = [];
+      const droppedWearables = [];
       for (const drop of lootDrops) {
-        const added = this.addItemToInventory(p, drop.itemId, drop.qty);
-        if (added) droppedItems.push({ id: drop.itemId, name: (ITEMS[drop.itemId] || {}).name, qty: drop.qty, icon: (ITEMS[drop.itemId] || {}).icon });
+        if (drop.wearable) {
+          const w = WEARABLES[drop.itemId];
+          if (w && !p.wearables.includes(drop.itemId)) {
+            p.wearables.push(drop.itemId);
+            droppedWearables.push({ id: drop.itemId, name: w.name, icon: w.icon, rarity: w.rarity, slot: w.slot });
+          }
+        } else {
+          const added = this.addItemToInventory(p, drop.itemId, drop.qty);
+          if (added) droppedItems.push({ id: drop.itemId, name: (ITEMS[drop.itemId] || {}).name, qty: drop.qty, icon: (ITEMS[drop.itemId] || {}).icon });
+        }
       }
       this.saveData();
       this.emitAchievements(username);
       this.rpgBroadcastZone(rp.zone, { type: 'rpg_mob_died', data: { mobId, killer: username } });
-      return { killed: true, dmg, crit, gold, xp: mob.xpReward, leveled, level: p.level, totalGold: p.gold, mobName: mob.name, drops: droppedItems, weaponBroke: wepResult && wepResult.broken ? wepResult.name : null };
+      return { killed: true, dmg, crit, gold, xp: mob.xpReward, leveled, level: p.level, totalGold: p.gold, mobName: mob.name, drops: droppedItems, wearableDrops: droppedWearables, weaponBroke: wepResult && wepResult.broken ? wepResult.name : null };
     }
 
     return { hit: true, dmg, crit, mobHP: mob.hp, mobMaxHP: mob.maxHP, weaponBroke: wepResult && wepResult.broken ? wepResult.name : null };
@@ -3587,4 +3708,4 @@ const RPG_ZONES = {
   },
 };
 
-module.exports = { Game, CONFIG, COSMETICS, BOSS_LOOT, ITEMS, LOOT_TABLES, RECIPES, NPC_SHOP, ACHIEVEMENTS, RARITY_COLOR, VENDOR_PRICE, RANK_BADGES, getRankBadge, RPG_ZONES, RPG_PICKAXES, TILE, TILE_PROPS, TILE_SIZE, MAP_W, MAP_H };
+module.exports = { Game, CONFIG, COSMETICS, WEARABLES, BOSS_LOOT, ITEMS, LOOT_TABLES, RECIPES, NPC_SHOP, ACHIEVEMENTS, RARITY_COLOR, VENDOR_PRICE, RANK_BADGES, getRankBadge, RPG_ZONES, RPG_PICKAXES, TILE, TILE_PROPS, TILE_SIZE, MAP_W, MAP_H };
