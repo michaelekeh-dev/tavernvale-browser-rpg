@@ -2341,12 +2341,12 @@ class Game {
   // Prestige System
   // ═══════════════════════════════════════════
   PRESTIGE_LEVELS = [
-    { rank: 1, name: 'Certified Grinder',  minLevel: 30, goldReward: 500,    dmgBonus: 0.05, icon: '⚒️' },
-    { rank: 2, name: 'Touch Grass? Never',  minLevel: 35, goldReward: 1000,   dmgBonus: 0.12, icon: '🌿' },
-    { rank: 3, name: 'Built Different',     minLevel: 40, goldReward: 2000,   dmgBonus: 0.20, icon: '💪' },
-    { rank: 4, name: 'No Life Speedrun',    minLevel: 45, goldReward: 4000,   dmgBonus: 0.30, icon: '💀' },
-    { rank: 5, name: 'Actual Legend',        minLevel: 50, goldReward: 8000,   dmgBonus: 0.45, icon: '☀️' },
-    { rank: 6, name: 'Mikey X',              minLevel: 60, goldReward: 15000,  dmgBonus: 0.60, icon: '🔥' },
+    { rank: 1, name: 'Certified Grinder',  minLevel: 30, goldReward: 2500,    dmgBonus: 0.05, icon: '⚒️' },
+    { rank: 2, name: 'Touch Grass? Never',  minLevel: 35, goldReward: 5000,   dmgBonus: 0.12, icon: '🌿' },
+    { rank: 3, name: 'Built Different',     minLevel: 40, goldReward: 10000,   dmgBonus: 0.20, icon: '💪' },
+    { rank: 4, name: 'No Life Speedrun',    minLevel: 45, goldReward: 20000,   dmgBonus: 0.30, icon: '💀' },
+    { rank: 5, name: 'Actual Legend',        minLevel: 50, goldReward: 40000,   dmgBonus: 0.45, icon: '☀️' },
+    { rank: 6, name: 'Mikey X',              minLevel: 60, goldReward: 75000,  dmgBonus: 0.60, icon: '🔥' },
   ];
 
   canPrestige(username) {
