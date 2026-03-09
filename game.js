@@ -2158,7 +2158,7 @@ class Game {
     { rank: 3, name: 'Built Different',     minLevel: 40, goldReward: 2000,   dmgBonus: 0.20, icon: '💪' },
     { rank: 4, name: 'No Life Speedrun',    minLevel: 45, goldReward: 4000,   dmgBonus: 0.30, icon: '💀' },
     { rank: 5, name: 'Actual Legend',        minLevel: 50, goldReward: 8000,   dmgBonus: 0.45, icon: '☀️' },
-    { rank: 6, name: 'Mikey X',              minLevel: 50, goldReward: 15000,  dmgBonus: 0.60, icon: '🔥' },
+    { rank: 6, name: 'Mikey X',              minLevel: 60, goldReward: 15000,  dmgBonus: 0.60, icon: '🔥' },
   ];
 
   canPrestige(username) {
