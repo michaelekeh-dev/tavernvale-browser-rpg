@@ -638,10 +638,14 @@ const ctx=canvas.getContext('2d');
 const miniCanvas=document.getElementById('minimap');
 const mctx=miniCanvas.getContext('2d');
 let W=960,H=600;
+const INITIAL_DPR=window.devicePixelRatio||1;
 
 function resizeCanvas(){
   const wrap=canvas.parentElement;
-  W=wrap.clientWidth;H=wrap.clientHeight;
+  const rawW=wrap.clientWidth,rawH=wrap.clientHeight;
+  // Counter browser zoom-out: if DPR dropped, scale canvas back to normal viewport size
+  const zoomRatio=(window.devicePixelRatio||1)/INITIAL_DPR;
+  if(zoomRatio<1){W=Math.round(rawW*zoomRatio);H=Math.round(rawH*zoomRatio)}else{W=rawW;H=rawH}
   canvas.width=W;canvas.height=H;
 }
 window.addEventListener('resize',resizeCanvas);
@@ -7863,6 +7867,12 @@ document.addEventListener('wheel',e=>{
 document.addEventListener('touchstart',e=>{
   if(e.touches.length>1)e.preventDefault();
 },{passive:false});
+// Counter browser-menu zoom: re-cap canvas when DPR changes
+(function watchZoom(){
+  let mq=matchMedia(`(resolution:${window.devicePixelRatio}dppx)`);
+  function onZoomChange(){resizeCanvas();mq=matchMedia(`(resolution:${window.devicePixelRatio}dppx)`);mq.addEventListener('change',onZoomChange,{once:true})}
+  mq.addEventListener('change',onZoomChange,{once:true});
+})();
 
 canvas.addEventListener('mousemove',e=>{
   const rect=canvas.getBoundingClientRect();
