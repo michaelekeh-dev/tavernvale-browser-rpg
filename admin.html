@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>⚔️ KickStream MMO — Admin Dashboard</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -80,6 +81,26 @@ body{font-family:'Segoe UI',sans-serif;background:#0a0a0f;color:#e0e0e0;min-heig
 .shop-item .shop-name{color:#fff;font-weight:600;flex:1}
 .shop-item .shop-cost{color:#fbbf24;font-weight:700;margin:0 12px}
 .shop-item .shop-desc{color:#888;font-size:11px;flex:2}
+@media(max-width:900px){
+  .grid{grid-template-columns:1fr;padding:10px}
+  .two-col{grid-column:span 1}
+  .full-width{grid-column:span 1}
+  .header{flex-direction:column;gap:8px;text-align:center;padding:10px 15px}
+  .header h1{font-size:16px}
+  .btn-grid{grid-template-columns:1fr 1fr}
+  .config-grid{grid-template-columns:1fr 1fr}
+  .player-table{font-size:11px}
+  .player-table th,.player-table td{padding:5px 4px}
+  .input-row{flex-direction:column}
+  .shop-item{flex-direction:column;gap:4px;text-align:center}
+}
+@media(max-width:480px){
+  .header h1{font-size:13px}
+  .panel{padding:10px}
+  .btn{padding:8px;font-size:12px}
+  .config-grid{grid-template-columns:1fr}
+  .btn-grid{grid-template-columns:1fr}
+}
 </style>
 </head>
 <body>

@@ -117,7 +117,41 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;di
   .zone-grid{grid-template-columns:repeat(2,160px);gap:10px}
   .zone-card{padding:14px 10px}
   .zone-card .zicon{font-size:28px}
+  .topbar{padding:4px 8px;height:36px}
+  .topbar-left{gap:8px;font-size:10px;flex-wrap:nowrap;overflow:hidden}
+  .topbar-left .title{font-size:8px}
+  .topbar-right{gap:4px}
+  .topbar-right .btn{padding:4px 8px;font-size:9px}
+  .topbar-right .stat{font-size:10px}
+  .bottombar{padding:4px 8px;min-height:28px;font-size:10px}
+  .controls-hud{display:none}
+  .minimap-wrap{bottom:auto;top:48px;right:8px;transform:scale(0.7);transform-origin:top right}
+  .duel-arena{width:100%;max-width:360px;height:160px}
+  .duel-hp-row{width:100%;max-width:360px}
+  .duel-btn{min-width:60px;padding:8px 10px;font-size:10px}
+  .zone-overlay{padding:12px}
+  .zone-overlay h2{font-size:12px}
+  .zone-grid{grid-template-columns:repeat(2,140px);gap:8px}
+  .hud{top:48px;right:auto;left:8px}
+  .hud-bar{padding:3px 8px;font-size:9px}
+  .bar{width:80px;height:6px}
 }
+
+/* Mobile touch controls */
+.mobile-controls{position:absolute;bottom:0;left:0;right:0;top:0;pointer-events:none;z-index:40}
+.mobile-joystick-zone{position:absolute;bottom:20px;left:20px;width:140px;height:140px;pointer-events:auto;touch-action:none}
+.joystick-base{width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,.08);border:2px solid rgba(255,255,255,.15);position:relative;display:flex;align-items:center;justify-content:center}
+.joystick-thumb{width:50px;height:50px;border-radius:50%;background:rgba(255,255,255,.25);border:2px solid rgba(255,255,255,.4);position:absolute;transition:none}
+.mobile-buttons{position:absolute;bottom:20px;right:20px;display:flex;flex-direction:column;gap:10px;pointer-events:auto;align-items:center}
+.mobile-btn{width:64px;height:64px;border-radius:50%;border:2px solid rgba(255,255,255,.3);background:rgba(0,0,0,.5);color:#fff;font-size:22px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;touch-action:none;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+.mobile-btn span{font-size:8px;margin-top:2px;font-weight:700;letter-spacing:1px}
+.mobile-btn:active,.mobile-btn.held{background:rgba(255,255,255,.2);border-color:rgba(255,255,255,.6);transform:scale(0.92)}
+.mobile-btn-attack{width:76px;height:76px;font-size:28px;background:rgba(220,38,38,.35);border-color:rgba(255,68,68,.5)}
+.mobile-btn-attack:active,.mobile-btn-attack.held{background:rgba(220,38,38,.6);border-color:#ff4444}
+.mobile-btn-interact{background:rgba(96,165,250,.2);border-color:rgba(96,165,250,.4)}
+.mobile-btn-interact:active{background:rgba(96,165,250,.5)}
+.mobile-btn-tool{width:52px;height:52px;font-size:18px}
+.mobile-btn-map{width:52px;height:52px;font-size:18px}
 </style>
 </head>
 <body>
@@ -161,10 +195,25 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;di
         <div class="tool active" id="tool-sword"><span class="key">[1]</span> Sword</div>
         <div class="tool" id="tool-pick"><span class="key">[2]</span> Pickaxe</div>
       </div>
-      <div><span class="key">LMB</span> Swing &middot; <span class="key">E</span> Interact</div>
+      <div><span class="key">Hold E</span> Attack &middot; <span class="key">E</span> Interact</div>
       <div><span class="key">WASD</span> Move &middot; <span class="key">M</span> Map &middot; <span class="key">ESC</span> Home</div>
     </div>
     <div class="minimap-wrap"><canvas id="minimap" width="150" height="90"></canvas></div>
+
+    <!-- Mobile Touch Controls -->
+    <div class="mobile-controls" id="mobile-controls" style="display:none">
+      <div class="mobile-joystick-zone" id="joystick-zone">
+        <div class="joystick-base" id="joystick-base">
+          <div class="joystick-thumb" id="joystick-thumb"></div>
+        </div>
+      </div>
+      <div class="mobile-buttons">
+        <button class="mobile-btn mobile-btn-attack" id="mobile-attack-btn">⚔️<span>ATK</span></button>
+        <button class="mobile-btn mobile-btn-interact" id="mobile-interact-btn">💬<span>E</span></button>
+        <button class="mobile-btn mobile-btn-tool" id="mobile-tool-btn" onclick="mobileSwitchTool()">🗡️<span>TOOL</span></button>
+        <button class="mobile-btn mobile-btn-map" id="mobile-map-btn" onclick="mobileToggleMap()">🗺️<span>MAP</span></button>
+      </div>
+    </div>
 
     <!-- Zone Selection Overlay -->
     <div class="zone-overlay" id="zone-overlay">
@@ -468,6 +517,11 @@ let myAppearance={},myEquipped={};
 // Movement sync
 let moveSendTimer=0;
 const MOVE_SEND_INTERVAL=80;
+
+// Mobile controls state
+let mobileAttackHeld=false;
+let mobileJoystick={active:false,startX:0,startY:0,dx:0,dy:0};
+let isMobile=false;
 
 // Canvas
 const canvas=document.getElementById('game-canvas');
@@ -1428,6 +1482,11 @@ function update(dt){
   }
   // Block movement while sitting or in dialogue
   if(isSitting||dialogueOpen){
+    // Stand up when mobile joystick is active
+    if(isSitting&&mobileJoystick.active){
+      isSitting=false;sittingBench=null;
+      send('rpg_move',{x:Math.round(px),y:Math.round(py)});
+    }
     camX+=(px-camX)*.08;camY+=(py-camY)*.08;
     idleTimer+=dt;
     return;
@@ -1437,7 +1496,14 @@ function update(dt){
   if(keys['s']||keys['arrowdown'])pvy=1;
   if(keys['a']||keys['arrowleft'])pvx=-1;
   if(keys['d']||keys['arrowright'])pvx=1;
-  if(pvx&&pvy){pvx*=.707;pvy*=.707}
+  // Mobile joystick input
+  if(mobileJoystick.active){
+    pvx=mobileJoystick.dx;pvy=mobileJoystick.dy;
+    // Deadzone
+    if(Math.abs(pvx)<0.15)pvx=0;
+    if(Math.abs(pvy)<0.15)pvy=0;
+  }
+  if(pvx&&pvy){const mag=Math.sqrt(pvx*pvx+pvy*pvy);if(mag>1){pvx/=mag;pvy/=mag}}
   const spd=SPEED*(dt/16);
   let nx=px+pvx*spd,ny=py+pvy*spd;
   // Collision with nodes
@@ -1649,6 +1715,31 @@ function update(dt){
     }
     if(closest!==nearbyLandmark){nearbyLandmark=closest;updateActionInfo()}
   }
+  // ═══ HOLD E / MOBILE ATTACK — auto-target nearest in range ═══
+  const holdingAttack = keys['e'] || mobileAttackHeld;
+  if(holdingAttack && !inDuel && !dialogueOpen && !diceGameOpen && !scriptedDescent && !isSitting){
+    if(zoneType==='combat' && activeTool==='sword'){
+      let best=null,bestD=100;
+      for(const m of mobs){const d=Math.sqrt((px-m.x)**2+(py-m.y)**2);if(d<bestD){bestD=d;best=m}}
+      if(boss){const d=Math.sqrt((px-boss.x)**2+(py-boss.y)**2);if(d<bestD){bestD=d;best=boss}}
+      if(zoneType==='hub'&&playerInDungeon&&ghostBoss&&!ghostBoss.dead&&ghostJumpscare<=0){
+        const d=Math.sqrt((px-ghostBoss.x)**2+(py-ghostBoss.y)**2);if(d<120&&d<bestD){bestD=d;best={id:'ghost_boss'}}}
+      if(best){if(attackTarget!==best.id){attackTarget=best.id;miningTarget=null;updateActionInfo()}}
+      else{attackTarget=null;updateActionInfo()}
+    } else if(zoneType==='mine' && activeTool==='pickaxe'){
+      let best=null,bestD=80;
+      for(const n of nodes){const d=Math.sqrt((px-n.x)**2+(py-n.y)**2);if(d<bestD){bestD=d;best=n}}
+      if(best){if(miningTarget!==best){miningTarget=best;attackTarget=null;updateActionInfo()}}
+      else{miningTarget=null;updateActionInfo()}
+    } else if(zoneType==='hub'&&playerInDungeon&&ghostBoss&&!ghostBoss.dead&&ghostJumpscare<=0){
+      const d=Math.sqrt((px-ghostBoss.x)**2+(py-ghostBoss.y)**2);
+      if(d<120){attackTarget='ghost_boss';miningTarget=null;updateActionInfo()}
+      else{attackTarget=null;updateActionInfo()}
+    }
+  } else if(!holdingAttack && !miningTarget){
+    // Release E clears attack target (stop attacking when not held)
+    if(attackTarget){attackTarget=null;swingAnim=0;updateActionInfo()}
+  }
   // Swing
   if(swingCD>0)swingCD-=dt;
   if(swingAnim>0){
@@ -1667,11 +1758,9 @@ function update(dt){
       const d2=Math.sqrt((px-miningTarget.x)**2+(py-miningTarget.y)**2);
       if(d2>80){miningTarget=null;updateActionInfo()}else swingAnim=.01;
     }else if(attackTarget){
-      // Check if targeting ghost boss
       if(attackTarget==='ghost_boss'){
         if(!ghostBoss||ghostBoss.dead){attackTarget=null;updateActionInfo()}
         else{const d2=Math.sqrt((px-ghostBoss.x)**2+(py-ghostBoss.y)**2);if(d2>120){attackTarget=null;updateActionInfo()}else swingAnim=.01}
-      // Check if targeting boss
       }else if(boss&&attackTarget===boss.id){
         const d2=Math.sqrt((px-boss.x)**2+(py-boss.y)**2);
         if(d2>100){attackTarget=null;updateActionInfo()}else swingAnim=.01;
@@ -7599,7 +7688,8 @@ document.addEventListener('keydown',e=>{
   }
   if(k==='e'){
     if(diceGameOpen&&diceState==='result'){closeDiceGame()}
-    else interactNearest();
+    else if(zoneType==='hub') interactNearest();
+    // In combat/mine zones, E is handled in update() as hold-to-attack
   }
   // Dialogue number keys
   if(dialogueOpen&&k>='1'&&k<='9'){const idx=parseInt(k)-1;if(idx<dialogueOptions.length)selectDialogueOption(idx)}
@@ -7633,51 +7723,10 @@ canvas.addEventListener('mousemove',e=>{
 
 canvas.addEventListener('click',e=>{
   if(inDuel)return;ensureAudio();
-  const rect=canvas.getBoundingClientRect();
-  const scx=W/rect.width,scy=H/rect.height;
-  const cx=(e.clientX-rect.left)*scx,cy=(e.clientY-rect.top)*scy;
-  if(zoneType==='mine'){
-    if(activeTool!=='pickaxe'){logMsg('Switch to Pickaxe [2] to mine!','dmg');return}
-    for(const n of nodes){
-      const s=worldToScreen(n.x,n.y);
-      if(Math.abs(cx-s.x)<24&&Math.abs(cy-s.y)<24){
-        const dist=Math.sqrt((px-n.x)**2+(py-n.y)**2);
-        if(dist>80){logMsg('Too far! Walk closer.','dmg');return}
-        miningTarget=n;swingAnim=0;swingCD=0;attackTarget=null;updateActionInfo();return;
-      }
-    }
-    miningTarget=null;swingAnim=0;updateActionInfo();
-  }
-  if(zoneType==='combat'){
-    if(activeTool!=='sword'){logMsg('Switch to Sword [1] to attack!','dmg');return}
-    // Check boss click first (larger hitbox)
-    if(boss){
-      const bs=worldToScreen(boss.x,boss.y);
-      if(Math.abs(cx-bs.x)<40&&Math.abs(cy-bs.y)<50){
-        const dist=Math.sqrt((px-boss.x)**2+(py-boss.y)**2);
-        if(dist>100){logMsg('Too far! Walk closer.','dmg');return}
-        attackTarget=boss.id;swingAnim=0;swingCD=0;miningTarget=null;updateActionInfo();return;
-      }
-    }
-    for(const m of mobs){
-      const s=worldToScreen(m.x,m.y);
-      if(Math.abs(cx-s.x)<22&&Math.abs(cy-s.y)<22){
-        const dist=Math.sqrt((px-m.x)**2+(py-m.y)**2);
-        if(dist>100){logMsg('Too far! Walk closer.','dmg');return}
-        attackTarget=m.id;swingAnim=0;swingCD=0;miningTarget=null;updateActionInfo();return;
-      }
-    }
-    attackTarget=null;updateActionInfo();
-  }
-  // Ghost boss click in dungeon
-  if(zoneType==='hub'&&playerInDungeon&&ghostBoss&&!ghostBoss.dead&&ghostJumpscare<=0){
-    const gs=worldToScreen(ghostBoss.x,ghostBoss.y+ghostBoss.floatOffset);
-    if(Math.abs(cx-gs.x)<35&&Math.abs(cy-gs.y)<45){
-      const dist=Math.sqrt((px-ghostBoss.x)**2+(py-ghostBoss.y)**2);
-      if(dist>120){logMsg('Too far!','dmg');return}
-      attackTarget='ghost_boss';swingAnim=0;swingCD=0;miningTarget=null;updateActionInfo();return;
-    }
-  }
+  // On mobile, clicks on canvas are handled by touch controls
+  if(isMobile)return;
+  // Click = interact only (hold E to attack)
+  interactNearest();
 });
 
 function interactNearest(){
@@ -7752,16 +7801,7 @@ function interactNearest(){
       }
     }
   }
-  if(zoneType==='mine'&&activeTool==='pickaxe'){
-    let best=null,bestD=80;
-    for(const n of nodes){const d=Math.sqrt((px-n.x)**2+(py-n.y)**2);if(d<bestD){bestD=d;best=n}}
-    if(best){miningTarget=best;swingAnim=0;swingCD=0;updateActionInfo()}
-  }else if(zoneType==='combat'&&activeTool==='sword'){
-    let best=null,bestD=100;
-    for(const m of mobs){const d=Math.sqrt((px-m.x)**2+(py-m.y)**2);if(d<bestD){bestD=d;best=m}}
-    if(boss){const d=Math.sqrt((px-boss.x)**2+(py-boss.y)**2);if(d<bestD){bestD=d;best=boss}}
-    if(best){attackTarget=best.id;swingAnim=0;swingCD=0;updateActionInfo()}
-  }
+  // Mine/combat targeting is handled by hold-E / mobile attack button in update()
 }
 
 // =============================================
@@ -7796,10 +7836,10 @@ function updateActionInfo(){
   }
   else if(zoneType==='mine'){
     if(miningTarget)el.innerHTML='Mining <b>'+miningTarget.type+'</b> (HP: '+(miningTarget.hp||'?')+')';
-    else el.innerHTML='<span class="key">[2]</span> Pickaxe &middot; Click a rock or press <span class="key">E</span> to mine!';
+    else el.innerHTML='<span class="key">[2]</span> Pickaxe &middot; Hold <span class="key">E</span> near a rock to mine!';
   }else if(zoneType==='combat'){
-    if(attackTarget){const m=mobs.find(m=>m.id===attackTarget);el.innerHTML=m?'Attacking <b>'+m.name+'</b> ('+m.hp+'/'+m.maxHP+')':'Click a mob to attack!'}
-    else el.innerHTML='<span class="key">[1]</span> Sword &middot; Click a mob or press <span class="key">E</span> to fight!';
+    if(attackTarget){const m=mobs.find(m=>m.id===attackTarget);el.innerHTML=m?'Attacking <b>'+m.name+'</b> ('+m.hp+'/'+m.maxHP+')':'Hold E near a mob to attack!'}
+    else el.innerHTML='<span class="key">[1]</span> Sword &middot; Hold <span class="key">E</span> near enemies to auto-attack!';
   }
 }
 function updateToolHUD(){
@@ -7856,8 +7896,110 @@ function renderPickaxeShop(){
 function buyPickaxe(tier){send('rpg_buy_pickaxe',{tier})}
 
 // =============================================
+// Mobile Controls
+// =============================================
+function initMobile(){
+  isMobile='ontouchstart' in window || navigator.maxTouchPoints>0;
+  if(!isMobile)return;
+  document.getElementById('mobile-controls').style.display='block';
+  document.getElementById('controls-hud').style.display='none';
+
+  // Prevent default touch behaviors on game area
+  canvas.addEventListener('touchstart',e=>e.preventDefault(),{passive:false});
+  canvas.addEventListener('touchmove',e=>e.preventDefault(),{passive:false});
+
+  // ── Joystick ──
+  const jZone=document.getElementById('joystick-zone');
+  const jBase=document.getElementById('joystick-base');
+  const jThumb=document.getElementById('joystick-thumb');
+  const JOYSTICK_MAX=40;
+  let joystickTouchId=null;
+
+  jZone.addEventListener('touchstart',e=>{
+    e.preventDefault();ensureAudio();
+    const t=e.changedTouches[0];
+    joystickTouchId=t.identifier;
+    const rect=jBase.getBoundingClientRect();
+    mobileJoystick.active=true;
+    mobileJoystick.startX=rect.left+rect.width/2;
+    mobileJoystick.startY=rect.top+rect.height/2;
+    updateJoystickPos(t);
+  },{passive:false});
+
+  jZone.addEventListener('touchmove',e=>{
+    e.preventDefault();
+    for(const t of e.changedTouches){
+      if(t.identifier===joystickTouchId)updateJoystickPos(t);
+    }
+  },{passive:false});
+
+  jZone.addEventListener('touchend',e=>{
+    for(const t of e.changedTouches){
+      if(t.identifier===joystickTouchId){
+        joystickTouchId=null;
+        mobileJoystick.active=false;mobileJoystick.dx=0;mobileJoystick.dy=0;
+        jThumb.style.transform='translate(0px,0px)';
+      }
+    }
+  });
+  jZone.addEventListener('touchcancel',e=>{
+    joystickTouchId=null;
+    mobileJoystick.active=false;mobileJoystick.dx=0;mobileJoystick.dy=0;
+    jThumb.style.transform='translate(0px,0px)';
+  });
+
+  function updateJoystickPos(touch){
+    let dx=touch.clientX-mobileJoystick.startX;
+    let dy=touch.clientY-mobileJoystick.startY;
+    const dist=Math.sqrt(dx*dx+dy*dy);
+    if(dist>JOYSTICK_MAX){dx=dx/dist*JOYSTICK_MAX;dy=dy/dist*JOYSTICK_MAX}
+    mobileJoystick.dx=dx/JOYSTICK_MAX;
+    mobileJoystick.dy=dy/JOYSTICK_MAX;
+    jThumb.style.transform='translate('+dx+'px,'+dy+'px)';
+  }
+
+  // ── Attack Button (hold to attack) ──
+  const atkBtn=document.getElementById('mobile-attack-btn');
+  let atkTouchId=null;
+  atkBtn.addEventListener('touchstart',e=>{
+    e.preventDefault();ensureAudio();
+    atkTouchId=e.changedTouches[0].identifier;
+    mobileAttackHeld=true;atkBtn.classList.add('held');
+  },{passive:false});
+  atkBtn.addEventListener('touchend',e=>{
+    for(const t of e.changedTouches){
+      if(t.identifier===atkTouchId){mobileAttackHeld=false;atkBtn.classList.remove('held');atkTouchId=null}
+    }
+  });
+  atkBtn.addEventListener('touchcancel',()=>{mobileAttackHeld=false;atkBtn.classList.remove('held');atkTouchId=null});
+
+  // ── Interact Button (single press = E) ──
+  const intBtn=document.getElementById('mobile-interact-btn');
+  intBtn.addEventListener('touchstart',e=>{
+    e.preventDefault();ensureAudio();
+    interactNearest();
+  },{passive:false});
+
+  // Add viewport meta to prevent zoom on double-tap
+  let vpMeta=document.querySelector('meta[name="viewport"]');
+  if(vpMeta) vpMeta.content='width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no';
+}
+function mobileSwitchTool(){
+  activeTool=activeTool==='sword'?'pickaxe':'sword';
+  updateToolHUD();
+  const btn=document.getElementById('mobile-tool-btn');
+  btn.innerHTML=activeTool==='sword'?'🗡️<span>SWORD</span>':'⛏️<span>PICK</span>';
+  logMsg('Equipped: '+(activeTool==='sword'?'Sword':'Pickaxe'),'xp');
+}
+function mobileToggleMap(){
+  if(zoneType==='hub'){document.getElementById('zone-overlay').classList.toggle('show');updateZoneGrid()}
+  else if(!inDuel)goHome();
+}
+
+// =============================================
 // Init
 // =============================================
+initMobile();
 init();
 </script>
 </body>
