@@ -101,6 +101,28 @@ body{font-family:'Segoe UI',sans-serif;background:#0a0a0f;color:#e0e0e0;min-heig
   .config-grid{grid-template-columns:1fr}
   .btn-grid{grid-template-columns:1fr}
 }
+/* ── Game Database ── */
+.db-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
+.db-card{background:#1a1a2a;border:1px solid #2a2a3a;border-radius:8px;padding:12px;transition:.15s}
+.db-card:hover{border-color:#e94560;transform:translateY(-1px)}
+.db-card .dc-header{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.db-card .dc-icon{font-size:22px}
+.db-card .dc-name{font-weight:700;font-size:13px;color:#fff}
+.db-card .dc-rarity{font-size:10px;padding:2px 8px;border-radius:10px;font-weight:600;text-transform:uppercase}
+.db-card .dc-desc{font-size:11px;color:#888;margin-bottom:6px;line-height:1.4}
+.db-card .dc-stats{display:flex;flex-wrap:wrap;gap:6px;font-size:10px}
+.db-card .dc-stat{background:#0a0a15;padding:3px 8px;border-radius:4px;color:#ccc}
+.db-card .dc-stat b{color:#fff}
+.db-table{width:100%;border-collapse:collapse;font-size:12px}
+.db-table th{text-align:left;padding:8px;background:#1a1a2a;color:#888;font-weight:600;position:sticky;top:0}
+.db-table td{padding:6px 8px;border-bottom:1px solid #1a1a2a}
+.db-table tr:hover td{background:rgba(233,69,96,.05)}
+.db-scroll{max-height:500px;overflow-y:auto}
+.rarity-common{color:#aaa;border-color:#aaa}.rarity-uncommon{color:#4ade80;border-color:#4ade80}.rarity-rare{color:#60a5fa;border-color:#60a5fa}
+.rarity-epic{color:#c084fc;border-color:#c084fc}.rarity-legendary{color:#fbbf24;border-color:#fbbf24}.rarity-mythic{color:#ff4500;border-color:#ff4500}
+.bg-common{background:rgba(170,170,170,.1);border-color:rgba(170,170,170,.3)}.bg-uncommon{background:rgba(74,222,128,.08);border-color:rgba(74,222,128,.3)}
+.bg-rare{background:rgba(96,165,250,.08);border-color:rgba(96,165,250,.3)}.bg-epic{background:rgba(192,132,252,.08);border-color:rgba(192,132,252,.3)}
+.bg-legendary{background:rgba(251,191,36,.08);border-color:rgba(251,191,36,.3)}.bg-mythic{background:rgba(255,69,0,.08);border-color:rgba(255,69,0,.3)}
 </style>
 </head>
 <body>
@@ -365,6 +387,22 @@ body{font-family:'Segoe UI',sans-serif;background:#0a0a0f;color:#e0e0e0;min-heig
       </div>
       <div id="discordBotStatus" style="font-size:11px;color:#888;margin-top:6px"></div>
     </div>
+  </div>
+
+  <!-- Game Database -->
+  <div class="panel full-width" id="gameDbPanel">
+    <h2>📚 Game Database <button class="btn btn-blue" style="float:right;padding:4px 12px;font-size:11px" onclick="loadGameDb()">🔄 Load Data</button></h2>
+    <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap" id="dbTabs">
+      <button class="btn btn-blue" onclick="showDbTab('items')" id="dbTabItems" style="font-size:11px;padding:6px 12px">⚔️ Items</button>
+      <button class="btn btn-gray" onclick="showDbTab('wearables')" id="dbTabWearables" style="font-size:11px;padding:6px 12px">👗 Wearables</button>
+      <button class="btn btn-gray" onclick="showDbTab('cosmetics')" id="dbTabCosmetics" style="font-size:11px;padding:6px 12px">✨ Cosmetics</button>
+      <button class="btn btn-gray" onclick="showDbTab('loot')" id="dbTabLoot" style="font-size:11px;padding:6px 12px">🎲 Drop Tables</button>
+      <button class="btn btn-gray" onclick="showDbTab('recipes')" id="dbTabRecipes" style="font-size:11px;padding:6px 12px">🔨 Recipes</button>
+      <button class="btn btn-gray" onclick="showDbTab('bossloot')" id="dbTabBossloot" style="font-size:11px;padding:6px 12px">👑 Boss Loot</button>
+      <button class="btn btn-gray" onclick="showDbTab('zones')" id="dbTabZones" style="font-size:11px;padding:6px 12px">🗺️ Zones</button>
+      <button class="btn btn-gray" onclick="showDbTab('achievements')" id="dbTabAchievements" style="font-size:11px;padding:6px 12px">🏆 Achievements</button>
+    </div>
+    <div id="dbContent" style="color:#888;text-align:center;padding:20px">Click "Load Data" to fetch game database</div>
   </div>
 </div>
 
@@ -866,6 +904,266 @@ setInterval(() => {
   }
   loadPayouts();
 }, 10000);
+
+// ═══════════════════════════════════════════
+// Game Database Viewer
+// ═══════════════════════════════════════════
+let gameDb = null;
+let currentDbTab = 'items';
+function loadGameDb() {
+  const pw = new URLSearchParams(window.location.search).get('pw');
+  fetch('/api/admin/gamedata?pw=' + encodeURIComponent(pw || ''))
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) { toast(data.error, true); return; }
+      gameDb = data;
+      toast('Game database loaded!');
+      renderDbTab();
+    })
+    .catch(() => toast('Failed to load game data', true));
+}
+function showDbTab(tab) {
+  currentDbTab = tab;
+  document.querySelectorAll('#dbTabs button').forEach(b => b.className = 'btn btn-gray');
+  const el = document.getElementById('dbTab' + tab.charAt(0).toUpperCase() + tab.slice(1));
+  if (el) el.className = 'btn btn-blue';
+  renderDbTab();
+}
+function rarityBadge(rarity) {
+  return '<span class="dc-rarity rarity-' + rarity + '" style="border:1px solid">' + rarity + '</span>';
+}
+function renderDbTab() {
+  if (!gameDb) { document.getElementById('dbContent').innerHTML = '<div style="color:#888;text-align:center;padding:20px">Click "Load Data" first</div>'; return; }
+  const el = document.getElementById('dbContent');
+  switch (currentDbTab) {
+    case 'items': el.innerHTML = renderDbItems(); break;
+    case 'wearables': el.innerHTML = renderDbWearables(); break;
+    case 'cosmetics': el.innerHTML = renderDbCosmetics(); break;
+    case 'loot': el.innerHTML = renderDbLoot(); break;
+    case 'recipes': el.innerHTML = renderDbRecipes(); break;
+    case 'bossloot': el.innerHTML = renderDbBossLoot(); break;
+    case 'zones': el.innerHTML = renderDbZones(); break;
+    case 'achievements': el.innerHTML = renderDbAchievements(); break;
+  }
+}
+function findDropSources(itemId) {
+  if (!gameDb || !gameDb.lootTables) return [];
+  const sources = [];
+  for (const [table, data] of Object.entries(gameDb.lootTables)) {
+    if (data.guaranteed === itemId) sources.push({ source: table, chance: '100%', guaranteed: true });
+    (data.drops || []).forEach(d => {
+      if (d.itemId === itemId) sources.push({ source: table, chance: (d.chance * 100).toFixed(1) + '%' });
+    });
+  }
+  return sources;
+}
+function renderDbItems() {
+  const items = gameDb.items || {};
+  const vp = gameDb.vendorPrices || {};
+  const types = ['weapon', 'armor', 'consumable', 'material'];
+  let html = '';
+  for (const type of types) {
+    const group = Object.entries(items).filter(([, i]) => i.type === type);
+    if (!group.length) continue;
+    html += '<div style="margin-bottom:16px"><h3 style="color:#e94560;font-size:14px;margin-bottom:8px;text-transform:capitalize">' +
+      (type === 'weapon' ? '⚔️' : type === 'armor' ? '🛡️' : type === 'consumable' ? '🧪' : '📦') + ' ' + type + 's (' + group.length + ')</h3><div class="db-grid">';
+    for (const [id, item] of group) {
+      const sources = findDropSources(id);
+      const sell = vp[item.rarity] || '—';
+      html += '<div class="db-card bg-' + (item.rarity || 'common') + '">' +
+        '<div class="dc-header"><span class="dc-icon">' + (item.icon || '❓') + '</span><span class="dc-name">' + esc(item.name) + '</span>' + rarityBadge(item.rarity || 'common') + '</div>' +
+        '<div class="dc-desc">' + esc(item.desc || '') + '</div>' +
+        '<div class="dc-stats">' +
+        '<div class="dc-stat"><b>ID:</b> ' + id + '</div>' +
+        (item.dmgBonus ? '<div class="dc-stat" style="color:#f87171"><b>DMG:</b> +' + item.dmgBonus + '</div>' : '') +
+        (item.defBonus ? '<div class="dc-stat" style="color:#60a5fa"><b>DEF:</b> -' + item.defBonus + '</div>' : '') +
+        (item.maxDurability ? '<div class="dc-stat"><b>Durability:</b> ' + item.maxDurability + '</div>' : '') +
+        (item.shopPrice !== undefined ? '<div class="dc-stat" style="color:#fbbf24"><b>Shop:</b> ' + (item.shopPrice || 'Free') + 'g</div>' : '') +
+        '<div class="dc-stat"><b>Vendor:</b> ' + sell + 'g</div>' +
+        (item.crafted ? '<div class="dc-stat" style="color:#c084fc"><b>Crafted</b></div>' : '') +
+        (item.stackable ? '<div class="dc-stat"><b>Stackable</b></div>' : '') +
+        (item.subtype ? '<div class="dc-stat"><b>Type:</b> ' + item.subtype + '</div>' : '') +
+        (item.value ? '<div class="dc-stat"><b>Value:</b> ' + item.value + '</div>' : '') +
+        (item.duration ? '<div class="dc-stat"><b>Duration:</b> ' + (item.duration / 1000) + 's</div>' : '') +
+        '</div>';
+      if (sources.length) {
+        html += '<div style="margin-top:6px;font-size:10px;color:#aaa"><b>Drops from:</b> ' +
+          sources.map(s => '<span style="color:' + (s.guaranteed ? '#4ade80' : '#60a5fa') + '">' + s.source + ' (' + s.chance + ')' + '</span>').join(', ') + '</div>';
+      }
+      html += '</div>';
+    }
+    html += '</div></div>';
+  }
+  return html;
+}
+function renderDbWearables() {
+  const wears = gameDb.wearables || {};
+  const slots = ['hat', 'cape', 'wrist', 'face'];
+  let html = '';
+  for (const slot of slots) {
+    const group = Object.entries(wears).filter(([, w]) => w.slot === slot);
+    if (!group.length) continue;
+    html += '<div style="margin-bottom:16px"><h3 style="color:#e94560;font-size:14px;margin-bottom:8px;text-transform:capitalize">' +
+      (slot === 'hat' ? '🎩' : slot === 'cape' ? '🧥' : slot === 'wrist' ? '⌚' : '🎭') + ' ' + slot + ' (' + group.length + ')</h3><div class="db-grid">';
+    for (const [key, w] of group) {
+      const sources = findDropSources(key);
+      html += '<div class="db-card bg-' + (w.rarity || 'common') + '">' +
+        '<div class="dc-header"><span class="dc-icon">' + (w.icon || '❓') + '</span><span class="dc-name">' + esc(w.name) + '</span>' + rarityBadge(w.rarity || 'common') + '</div>' +
+        '<div class="dc-desc">' + esc(w.desc || '') + '</div>' +
+        '<div class="dc-stats">' +
+        '<div class="dc-stat"><b>Key:</b> ' + key + '</div>' +
+        '<div class="dc-stat"><b>Slot:</b> ' + w.slot + '</div>' +
+        '<div class="dc-stat"><b>Source:</b> ' + esc(w.source || '?') + '</div>' +
+        '</div>';
+      if (sources.length) {
+        html += '<div style="margin-top:6px;font-size:10px;color:#aaa"><b>Drop tables:</b> ' +
+          sources.map(s => '<span style="color:#60a5fa">' + s.source + ' (' + s.chance + ')</span>').join(', ') + '</div>';
+      }
+      html += '</div>';
+    }
+    html += '</div></div>';
+  }
+  return html;
+}
+function renderDbCosmetics() {
+  const cosm = gameDb.cosmetics || {};
+  const types = {};
+  for (const [id, c] of Object.entries(cosm)) {
+    if (!types[c.type]) types[c.type] = [];
+    types[c.type].push([id, c]);
+  }
+  let html = '';
+  for (const [type, group] of Object.entries(types)) {
+    html += '<div style="margin-bottom:16px"><h3 style="color:#e94560;font-size:14px;margin-bottom:8px;text-transform:capitalize">✨ ' + type + 's (' + group.length + ')</h3><div class="db-grid">';
+    for (const [id, c] of group) {
+      html += '<div class="db-card">' +
+        '<div class="dc-header"><span class="dc-name">' + esc(c.name) + '</span></div>' +
+        '<div class="dc-desc">' + esc(c.desc || '') + '</div>' +
+        '<div class="dc-stats">' +
+        '<div class="dc-stat"><b>ID:</b> ' + id + '</div>' +
+        '<div class="dc-stat" style="color:#fbbf24"><b>Cost:</b> ' + c.cost + 'g</div>' +
+        '<div class="dc-stat"><b>Type:</b> ' + c.type + '</div>' +
+        (c.cssVal ? '<div class="dc-stat"><b>Style:</b> ' + esc(c.cssVal) + '</div>' : '') +
+        (c.titleText ? '<div class="dc-stat"><b>Title:</b> ' + c.titleText + '</div>' : '') +
+        (c.effectId ? '<div class="dc-stat"><b>Effect:</b> ' + c.effectId + '</div>' : '') +
+        (c.badgeEmoji ? '<div class="dc-stat"><b>Badge:</b> ' + c.badgeEmoji + '</div>' : '') +
+        '</div></div>';
+    }
+    html += '</div></div>';
+  }
+  return html;
+}
+function renderDbLoot() {
+  const tables = gameDb.lootTables || {};
+  let html = '<div class="db-scroll">';
+  for (const [name, table] of Object.entries(tables)) {
+    html += '<div style="background:#1a1a2a;border:1px solid #2a2a3a;border-radius:8px;padding:12px;margin-bottom:10px">' +
+      '<h4 style="color:#fff;font-size:13px;margin-bottom:8px">' + esc(name) +
+      (table.guaranteed ? ' <span style="color:#4ade80;font-size:11px">(guaranteed: ' + table.guaranteed + ')</span>' : '') + '</h4>' +
+      '<table class="db-table"><thead><tr><th>Item</th><th>Chance</th><th>Wearable?</th></tr></thead><tbody>';
+    (table.drops || []).forEach(d => {
+      const item = (gameDb.items || {})[d.itemId] || (gameDb.wearables || {})[d.itemId] || {};
+      html += '<tr><td>' + (item.icon || '') + ' ' + esc(item.name || d.itemId) + '</td>' +
+        '<td style="color:#fbbf24">' + (d.chance * 100).toFixed(1) + '%</td>' +
+        '<td>' + (d.wearable ? '<span style="color:#c084fc">✓ Wearable</span>' : '—') + '</td></tr>';
+    });
+    html += '</tbody></table></div>';
+  }
+  html += '</div>';
+  return html;
+}
+function renderDbRecipes() {
+  const recipes = gameDb.recipes || {};
+  const items = gameDb.items || {};
+  let html = '<div class="db-grid">';
+  for (const [id, r] of Object.entries(recipes)) {
+    const result = items[r.result] || {};
+    html += '<div class="db-card bg-' + (result.rarity || 'common') + '">' +
+      '<div class="dc-header"><span class="dc-icon">' + (result.icon || '🔨') + '</span><span class="dc-name">' + esc(result.name || r.result) + (r.resultQty > 1 ? ' x' + r.resultQty : '') + '</span>' +
+      (result.rarity ? rarityBadge(result.rarity) : '') + '</div>' +
+      '<div class="dc-desc">' + esc(r.desc || '') + '</div>' +
+      '<div style="margin-top:6px;font-size:11px"><b style="color:#e94560">Materials:</b></div>' +
+      '<div class="dc-stats" style="margin-top:4px">';
+    for (const [mat, qty] of Object.entries(r.materials || {})) {
+      const m = items[mat] || {};
+      html += '<div class="dc-stat">' + (m.icon || '❓') + ' ' + esc(m.name || mat) + ' x' + qty + '</div>';
+    }
+    html += '<div class="dc-stat" style="color:#fbbf24"><b>💰</b> ' + r.goldCost + 'g</div>' +
+      '</div></div>';
+  }
+  html += '</div>';
+  return html;
+}
+function renderDbBossLoot() {
+  const bl = gameDb.bossLoot || {};
+  const tiers = [['mvp', '🏆 MVP (Top 1)', '#fbbf24'], ['top3', '🥈 Top 2-3', '#60a5fa'], ['rest', '📦 Top 4-15', '#888']];
+  let html = '';
+  for (const [key, title, color] of tiers) {
+    const items = bl[key] || [];
+    html += '<div style="margin-bottom:16px"><h3 style="color:' + color + ';font-size:14px;margin-bottom:8px">' + title + ' (' + items.length + ' items)</h3><div class="db-grid">';
+    for (const item of items) {
+      html += '<div class="db-card bg-' + (item.rarity || 'common') + '">' +
+        '<div class="dc-header"><span class="dc-name">' + esc(item.name) + '</span>' + rarityBadge(item.rarity) + '</div>' +
+        '<div class="dc-desc">' + esc(item.desc || '') + '</div>' +
+        '<div class="dc-stats">' +
+        '<div class="dc-stat"><b>ID:</b> ' + item.id + '</div>' +
+        '<div class="dc-stat"><b>Slot:</b> ' + item.slot + '</div>' +
+        '<div class="dc-stat"><b>Stat:</b> ' + item.stat + '</div>' +
+        '<div class="dc-stat" style="color:#4ade80"><b>Value:</b> ' + (typeof item.value === 'number' && item.value < 2 ? '+' + (item.value * 100 - 100).toFixed(0) + '%' : '+' + item.value) + '</div>' +
+        '</div></div>';
+    }
+    html += '</div></div>';
+  }
+  return html;
+}
+function renderDbZones() {
+  const zones = gameDb.zones || {};
+  let html = '<div class="db-grid">';
+  for (const [id, z] of Object.entries(zones)) {
+    html += '<div class="db-card" style="border-left:3px solid ' + (z.bg || '#333') + '">' +
+      '<div class="dc-header"><span class="dc-icon">' + (z.icon || '🗺️') + '</span><span class="dc-name">' + esc(z.name) + '</span></div>' +
+      '<div class="dc-stats">' +
+      '<div class="dc-stat"><b>ID:</b> ' + id + '</div>' +
+      '<div class="dc-stat"><b>Type:</b> ' + z.type + '</div>' +
+      (z.minMiningLevel ? '<div class="dc-stat"><b>Min Mining:</b> Lv ' + z.minMiningLevel + '</div>' : '') +
+      (z.mobCount ? '<div class="dc-stat"><b>Mob Count:</b> ' + z.mobCount + '</div>' : '') +
+      (z.nodeCount ? '<div class="dc-stat"><b>Nodes:</b> ' + z.nodeCount + '</div>' : '') +
+      '</div>';
+    if (z.mobs && z.mobs.length) {
+      html += '<div style="margin-top:8px;font-size:11px"><b style="color:#e94560">Mobs:</b></div>';
+      z.mobs.forEach(m => {
+        html += '<div style="font-size:10px;color:#aaa;padding:2px 0">' + esc(m.name) +
+          ' — HP:' + m.maxHP + ' ATK:' + m.atk + ' Gold:' + m.goldMin + '-' + m.goldMax + ' XP:' + m.xpReward +
+          ' <span style="background:' + m.color + ';width:8px;height:8px;border-radius:50%;display:inline-block"></span></div>';
+      });
+    }
+    if (z.boss) {
+      html += '<div style="margin-top:8px;font-size:11px"><b style="color:#fbbf24">Boss:</b> ' + esc(z.boss.name) +
+        ' — HP:' + z.boss.hp + ' Gold:' + (z.boss.goldReward || 0) + ' XP:' + (z.boss.xpReward || 0) + '</div>';
+    }
+    if (z.nodeTypes && z.nodeTypes.length) {
+      html += '<div style="margin-top:8px;font-size:11px"><b style="color:#60a5fa">Ores:</b></div>';
+      z.nodeTypes.forEach(n => {
+        html += '<div style="font-size:10px;color:#aaa;padding:2px 0">' + (n.icon || '🪨') + ' ' + esc(n.type) +
+          ' — HP:' + n.hp + ' Gold:' + n.gold + ' XP:' + n.xp + '</div>';
+      });
+    }
+    html += '</div>';
+  }
+  html += '</div>';
+  return html;
+}
+function renderDbAchievements() {
+  const achs = gameDb.achievements || [];
+  let html = '<div class="db-grid">';
+  for (const a of achs) {
+    html += '<div class="db-card"><div class="dc-header"><span class="dc-name">' + esc(a.name) + '</span></div>' +
+      '<div class="dc-desc">' + esc(a.desc) + '</div>' +
+      '<div class="dc-stats"><div class="dc-stat"><b>ID:</b> ' + a.id + '</div></div></div>';
+  }
+  html += '</div>';
+  return html;
+}
 
 connect();
 loadPayouts();

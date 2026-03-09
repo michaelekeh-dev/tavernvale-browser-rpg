@@ -39,6 +39,11 @@ app.get('/admin', (req, res) => {
   if (pw !== ADMIN_PASSWORD) return res.status(403).send('Access denied.');
   res.sendFile(path.join(__dirname, 'admin.html'));
 });
+app.get('/api/admin/gamedata', (req, res) => {
+  const pw = req.query.pw;
+  if (pw !== ADMIN_PASSWORD) return res.status(403).json({ error: 'Access denied' });
+  res.json(game.rpgAdminGetGameData());
+});
 
 // ═══════════════════════════════════════════
 // Player Portal REST API
@@ -779,6 +784,30 @@ wss.on('connection', (ws) => {
         const r = game.handleSellWearable(ws.rpgUser, msg.key, msg.price);
         ws.send(JSON.stringify({ type: 'rpg_market_sell_result', data: r }));
         if (r && !r.error) broadcast('market_listed', r);
+      }
+      // ── RPG Admin Tools (mikeydamike only) ──
+      if (msg.type === 'rpg_admin' && ws.isRPG && ws.rpgUser === 'mikeydamike') {
+        let r;
+        switch (msg.action) {
+          case 'god_mode':       r = game.rpgAdminGodMode(ws.rpgUser); break;
+          case 'instant_kill':   r = game.rpgAdminInstantKill(ws.rpgUser, msg.targetId, msg.targetType); break;
+          case 'fly':            r = game.rpgAdminFly(ws.rpgUser); break;
+          case 'teleport':       r = game.rpgAdminTeleport(ws.rpgUser, msg.zone); break;
+          case 'give_gold':      r = game.rpgAdminGiveGold(ws.rpgUser, msg.amount); break;
+          case 'give_item':      r = game.rpgAdminGiveItem(ws.rpgUser, msg.itemId, msg.qty); break;
+          case 'give_wearable':  r = game.rpgAdminGiveWearable(ws.rpgUser, msg.key); break;
+          case 'set_level':      r = game.rpgAdminSetLevel(ws.rpgUser, msg.level); break;
+          case 'set_mining':     r = game.rpgAdminSetMiningLevel(ws.rpgUser, msg.level); break;
+          case 'heal':           r = game.rpgAdminHeal(ws.rpgUser); break;
+          case 'speed':          r = game.rpgAdminSpeed(ws.rpgUser); break;
+          case 'spawn_boss':     r = game.rpgAdminSpawnBoss(ws.rpgUser); break;
+          case 'kill_all_mobs':  r = game.rpgAdminKillAllMobs(ws.rpgUser); break;
+          case 'give_all_wearables': r = game.rpgAdminGiveAllWearables(ws.rpgUser); break;
+          case 'give_all_items': r = game.rpgAdminGiveAllItems(ws.rpgUser); break;
+          case 'get_game_data':  r = game.rpgAdminGetGameData(); break;
+          default: r = { error: 'unknown_action' };
+        }
+        ws.send(JSON.stringify({ type: 'rpg_admin_result', data: { action: msg.action, ...r } }));
       }
     } catch {}
   });

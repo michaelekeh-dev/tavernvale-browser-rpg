@@ -2789,6 +2789,7 @@ class Game {
           for (const [username, rp] of Object.entries(this.rpgPlayers)) {
             if (rp.zone !== zoneId) continue;
             if (!rp.hp || rp.hp <= 0) continue;
+            if (rp.godMode) continue;
             const dx = (rp.x || 400) - mob.x, dy = (rp.y || 200) - mob.y;
             if (Math.sqrt(dx * dx + dy * dy) < 120) {
               const p = this.player(username);
@@ -2816,6 +2817,7 @@ class Game {
           if (sap.dead) continue;
           for (const [username, rp] of Object.entries(this.rpgPlayers)) {
             if (rp.zone !== zoneId || !rp.hp || rp.hp <= 0) continue;
+            if (rp.godMode) continue;
             const dx = (rp.x || 400) - sap.x, dy = (rp.y || 200) - sap.y;
             if (Math.sqrt(dx * dx + dy * dy) < 80) {
               const p = this.player(username);
@@ -2969,7 +2971,7 @@ class Game {
         hit = perpDist < (atk.width || 40) / 2;
       }
     }
-    if (hit) {
+    if (hit && !target.rp.godMode) {
       const p = this.player(target.username);
       const def = this.armorDefBonus(p) + ((p.rpg && p.rpg.buffDef && Date.now() < p.rpg.buffDef.expires) ? p.rpg.buffDef.value : 0);
       const dmg = Math.max(1, atk.dmg + Math.floor(Math.random() * 4) - def);
@@ -3323,11 +3325,13 @@ class Game {
     if (rp.sitting) { rp.sitting = null; } // Stand up on move
     x = Math.max(0, Math.min(2400, x));
     y = Math.max(0, Math.min(2400, y));
-    // Tile collision — reject moves onto blocked tiles
-    const w = this.rpgWorld[rp.zone];
-    if (w && w.tileMap) {
-      const tx = Math.floor(x / TILE_SIZE), ty = Math.floor(y / TILE_SIZE);
-      if (tx >= 0 && tx < MAP_W && ty >= 0 && ty < MAP_H && !TILE_PROPS[w.tileMap[ty][tx]].walkable) return;
+    // Tile collision — reject moves onto blocked tiles (skip if fly mode)
+    if (!rp.fly) {
+      const w = this.rpgWorld[rp.zone];
+      if (w && w.tileMap) {
+        const tx = Math.floor(x / TILE_SIZE), ty = Math.floor(y / TILE_SIZE);
+        if (tx >= 0 && tx < MAP_W && ty >= 0 && ty < MAP_H && !TILE_PROPS[w.tileMap[ty][tx]].walkable) return;
+      }
     }
     rp.x = x;
     rp.y = y;
@@ -3341,6 +3345,267 @@ class Game {
     rp.x = benchX;
     rp.y = benchY;
     this.rpgBroadcastZone('hub', { type: 'rpg_player_sit', data: { username, x: benchX, y: benchY } }, username);
+  }
+
+  // ═══════════════════════════════════════════
+  // RPG Admin Tools (mikeydamike only)
+  // ═══════════════════════════════════════════
+  isRPGAdmin(username) {
+    return username === 'mikeydamike';
+  }
+
+  rpgAdminGodMode(username) {
+    if (!this.isRPGAdmin(username)) return { error: 'not_admin' };
+    const rp = this.rpgPlayers[username];
+    if (!rp) return { error: 'not_in_rpg' };
+    rp.godMode = !rp.godMode;
+    return { success: true, godMode: rp.godMode };
+  }
+
+  rpgAdminInstantKill(username, targetId, targetType) {
+    if (!this.isRPGAdmin(username)) return { error: 'not_admin' };
+    const rp = this.rpgPlayers[username];
+    if (!rp) return { error: 'not_in_rpg' };
+    const w = this.rpgWorld[rp.zone];
+    if (!w) return { error: 'invalid_zone' };
+
+    if (targetType === 'boss') {
+      if (!w.boss || w.boss.dead) return { error: 'no_boss' };
+      const boss = w.boss;
+      const dmg = boss.hp;
+      boss.hp = 0;
+      boss.dead = true;
+      boss.respawnAt = Date.now() + (RPG_ZONES[rp.zone].boss.respawnTime || 120000);
+      if (w.saplings) w.saplings.forEach(s => { s.dead = true; });
+      const p = this.rpgGetPlayerData(username);
+      const zone = RPG_ZONES[rp.zone];
+      const gold = zone.boss.goldReward || 150;
+      const xpR = zone.boss.xpReward || 200;
+      this.addGold(p, gold);
+      this.addXP(p, xpR);
+      p.rpg.mobKills = (p.rpg.mobKills || 0) + 1;
+      const bossKey = zone.boss.name.toLowerCase().replace(/\s+/g, '_');
+      const lootDrops = this.rollLootTable(bossKey);
+      const droppedItems = [], droppedWearables = [];
+      for (const drop of lootDrops) {
+        if (drop.wearable) {
+          const ww = WEARABLES[drop.itemId];
+          if (ww && !p.wearables.includes(drop.itemId)) { p.wearables.push(drop.itemId); droppedWearables.push({ id: drop.itemId, name: ww.name, icon: ww.icon, rarity: ww.rarity, slot: ww.slot }); }
+        } else {
+          const added = this.addItemToInventory(p, drop.itemId, drop.qty);
+          if (added) droppedItems.push({ id: drop.itemId, name: (ITEMS[drop.itemId] || {}).name, qty: drop.qty, icon: (ITEMS[drop.itemId] || {}).icon });
+        }
+      }
+      this.saveData();
+      this.rpgBroadcastZone(rp.zone, { type: 'rpg_boss_died', data: { bossId: boss.id, killer: username } });
+      return { success: true, type: 'boss', name: boss.name, dmg, gold, xp: xpR, drops: droppedItems, wearableDrops: droppedWearables };
+    }
+
+    if (targetType === 'mob') {
+      const mob = (w.mobs || []).find(m => m.id === targetId && !m.dead);
+      if (!mob) return { error: 'mob_gone' };
+      const dmg = mob.hp;
+      mob.hp = 0;
+      mob.dead = true;
+      mob.respawnAt = Date.now() + 20000;
+      const p = this.rpgGetPlayerData(username);
+      const goldBase = mob.goldMin + Math.floor(Math.random() * (mob.goldMax - mob.goldMin + 1));
+      this.addGold(p, goldBase);
+      this.addXP(p, mob.xpReward);
+      p.rpg.mobKills = (p.rpg.mobKills || 0) + 1;
+      const mobKey = mob.name.toLowerCase().replace(/\s+/g, '_');
+      const lootDrops = this.rollLootTable(mobKey);
+      const droppedItems = [], droppedWearables = [];
+      for (const drop of lootDrops) {
+        if (drop.wearable) {
+          const ww = WEARABLES[drop.itemId];
+          if (ww && !p.wearables.includes(drop.itemId)) { p.wearables.push(drop.itemId); droppedWearables.push({ id: drop.itemId, name: ww.name, icon: ww.icon, rarity: ww.rarity, slot: ww.slot }); }
+        } else {
+          const added = this.addItemToInventory(p, drop.itemId, drop.qty);
+          if (added) droppedItems.push({ id: drop.itemId, name: (ITEMS[drop.itemId] || {}).name, qty: drop.qty, icon: (ITEMS[drop.itemId] || {}).icon });
+        }
+      }
+      this.saveData();
+      this.rpgBroadcastZone(rp.zone, { type: 'rpg_mob_died', data: { mobId: targetId, killer: username } });
+      return { success: true, type: 'mob', name: mob.name, dmg, gold: goldBase, xp: mob.xpReward, drops: droppedItems, wearableDrops: droppedWearables };
+    }
+
+    return { error: 'invalid_target' };
+  }
+
+  rpgAdminFly(username) {
+    if (!this.isRPGAdmin(username)) return { error: 'not_admin' };
+    const rp = this.rpgPlayers[username];
+    if (!rp) return { error: 'not_in_rpg' };
+    rp.fly = !rp.fly;
+    return { success: true, fly: rp.fly };
+  }
+
+  rpgAdminTeleport(username, zoneId) {
+    if (!this.isRPGAdmin(username)) return { error: 'not_admin' };
+    const zone = RPG_ZONES[zoneId];
+    if (!zone) return { error: 'invalid_zone' };
+    const rp = this.rpgPlayers[username];
+    if (!rp) return { error: 'not_in_rpg' };
+    const oldZone = rp.zone;
+    if (oldZone === 'hub') this.rpgBroadcastZone(oldZone, { type: 'rpg_player_left', data: { username } }, username);
+    rp.zone = zoneId;
+    rp.x = 1200; rp.y = 700;
+    const zw = this.rpgWorld[zoneId];
+    if (zw && zw.tileMap) { const sp = this.rpgFindWalkable(zw.tileMap, 1200, 700); rp.x = sp.x; rp.y = sp.y; }
+    const p = this.rpgGetPlayerData(username);
+    const maxHP = 50 + p.level * 5 + (p.prestige || 0) * 10 + this.equipStat(p, 'maxHP');
+    rp.hp = maxHP; rp.maxHP = maxHP;
+    if (zoneId === 'hub') {
+      this.rpgBroadcastZone(zoneId, { type: 'rpg_player_joined', data: { username, x: rp.x, y: rp.y, appearance: p.appearance, equipped: p.equipped, activeWearables: p.activeWearables } });
+    }
+    return { success: true, zone: this.rpgGetZoneState(zoneId, username) };
+  }
+
+  rpgAdminGiveGold(username, amount) {
+    if (!this.isRPGAdmin(username)) return { error: 'not_admin' };
+    const p = this.rpgGetPlayerData(username);
+    amount = Math.max(0, Math.min(1000000, parseInt(amount) || 0));
+    this.addGold(p, amount);
+    this.saveData();
+    return { success: true, amount, gold: p.gold };
+  }
+
+  rpgAdminGiveItem(username, itemId, qty) {
+    if (!this.isRPGAdmin(username)) return { error: 'not_admin' };
+    const p = this.rpgGetPlayerData(username);
+    qty = Math.max(1, Math.min(99, parseInt(qty) || 1));
+    const item = ITEMS[itemId];
+    if (!item) return { error: 'invalid_item' };
+    const added = this.addItemToInventory(p, itemId, qty);
+    if (!added) return { error: 'inventory_full' };
+    this.saveData();
+    return { success: true, itemId, name: item.name, qty, icon: item.icon };
+  }
+
+  rpgAdminGiveWearable(username, key) {
+    if (!this.isRPGAdmin(username)) return { error: 'not_admin' };
+    const p = this.rpgGetPlayerData(username);
+    const w = WEARABLES[key];
+    if (!w) return { error: 'invalid_wearable' };
+    if (p.wearables.includes(key)) return { error: 'already_owned' };
+    p.wearables.push(key);
+    this.saveData();
+    return { success: true, key, name: w.name, icon: w.icon, rarity: w.rarity };
+  }
+
+  rpgAdminSetLevel(username, level) {
+    if (!this.isRPGAdmin(username)) return { error: 'not_admin' };
+    const p = this.rpgGetPlayerData(username);
+    level = Math.max(1, Math.min(100, parseInt(level) || 1));
+    p.level = level;
+    p.xp = 0;
+    const rp = this.rpgPlayers[username];
+    if (rp) {
+      const maxHP = 50 + p.level * 5 + (p.prestige || 0) * 10 + this.equipStat(p, 'maxHP');
+      rp.hp = maxHP; rp.maxHP = maxHP;
+    }
+    this.saveData();
+    return { success: true, level, gold: p.gold };
+  }
+
+  rpgAdminSetMiningLevel(username, level) {
+    if (!this.isRPGAdmin(username)) return { error: 'not_admin' };
+    const p = this.rpgGetPlayerData(username);
+    level = Math.max(1, Math.min(100, parseInt(level) || 1));
+    p.rpg.miningLevel = level;
+    p.rpg.miningXP = 0;
+    this.saveData();
+    return { success: true, miningLevel: level };
+  }
+
+  rpgAdminHeal(username) {
+    if (!this.isRPGAdmin(username)) return { error: 'not_admin' };
+    const rp = this.rpgPlayers[username];
+    if (!rp) return { error: 'not_in_rpg' };
+    const p = this.rpgGetPlayerData(username);
+    const maxHP = 50 + p.level * 5 + (p.prestige || 0) * 10 + this.equipStat(p, 'maxHP');
+    rp.hp = maxHP;
+    rp.maxHP = maxHP;
+    return { success: true, hp: maxHP };
+  }
+
+  rpgAdminSpeed(username) {
+    if (!this.isRPGAdmin(username)) return { error: 'not_admin' };
+    const rp = this.rpgPlayers[username];
+    if (!rp) return { error: 'not_in_rpg' };
+    rp.speedBoost = rp.speedBoost ? false : true;
+    return { success: true, speedBoost: rp.speedBoost };
+  }
+
+  rpgAdminSpawnBoss(username) {
+    if (!this.isRPGAdmin(username)) return { error: 'not_admin' };
+    const rp = this.rpgPlayers[username];
+    if (!rp) return { error: 'not_in_rpg' };
+    const zone = RPG_ZONES[rp.zone];
+    if (!zone || !zone.boss) return { error: 'no_boss_zone' };
+    const w = this.rpgWorld[rp.zone];
+    if (w.boss && !w.boss.dead) return { error: 'boss_alive' };
+    // Force spawn
+    this.rpgSpawnBoss(rp.zone);
+    return { success: true, zone: rp.zone, bossName: zone.boss.name };
+  }
+
+  rpgAdminKillAllMobs(username) {
+    if (!this.isRPGAdmin(username)) return { error: 'not_admin' };
+    const rp = this.rpgPlayers[username];
+    if (!rp) return { error: 'not_in_rpg' };
+    const w = this.rpgWorld[rp.zone];
+    if (!w) return { error: 'invalid_zone' };
+    let count = 0;
+    (w.mobs || []).forEach(m => { if (!m.dead) { m.dead = true; m.respawnAt = Date.now() + 20000; count++; } });
+    return { success: true, killed: count };
+  }
+
+  rpgAdminGiveAllWearables(username) {
+    if (!this.isRPGAdmin(username)) return { error: 'not_admin' };
+    const p = this.rpgGetPlayerData(username);
+    let added = 0;
+    for (const key of Object.keys(WEARABLES)) {
+      if (!p.wearables.includes(key)) { p.wearables.push(key); added++; }
+    }
+    this.saveData();
+    return { success: true, added, total: p.wearables.length };
+  }
+
+  rpgAdminGiveAllItems(username) {
+    if (!this.isRPGAdmin(username)) return { error: 'not_admin' };
+    const p = this.rpgGetPlayerData(username);
+    let added = 0;
+    for (const [id, item] of Object.entries(ITEMS)) {
+      if (item.stackable) {
+        const existing = (p.inventory || []).find(i => i.id === id);
+        if (existing) { existing.qty = (existing.qty || 0) + 10; } else { this.addItemToInventory(p, id, 10); }
+        added++;
+      } else {
+        this.addItemToInventory(p, id, 1);
+        added++;
+      }
+    }
+    this.saveData();
+    return { success: true, added };
+  }
+
+  rpgAdminGetGameData() {
+    return {
+      items: ITEMS,
+      wearables: WEARABLES,
+      cosmetics: COSMETICS,
+      lootTables: LOOT_TABLES,
+      recipes: RECIPES,
+      npcShop: NPC_SHOP,
+      bossLoot: BOSS_LOOT,
+      zones: RPG_ZONES,
+      pickaxes: RPG_PICKAXES,
+      rarityColors: RARITY_COLOR,
+      vendorPrices: VENDOR_PRICE,
+      achievements: Object.entries(ACHIEVEMENTS).map(([k, v]) => ({ id: k, name: v.name, desc: v.desc })),
+    };
   }
 
   rpgBroadcastZone(zoneId, msg, exclude) {
