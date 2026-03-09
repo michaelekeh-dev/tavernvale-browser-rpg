@@ -1914,10 +1914,23 @@ class Game {
       p.cosmetics = []; p.activeCosmetics = { border: null, title: null, hitEffect: null, badge: null, killEffect: null };
       p.achievements = [];
       p.activityLog = [{ t: Date.now(), a: 'wipe', d: 'Admin wiped all progress' }];
-      if (p.rpg) { p.rpg.miningLevel = 1; p.rpg.miningXP = 0; p.rpg.totalMined = 0; p.rpg.mobKills = 0; p.rpg.pickaxeTier = 1; }
+      if (p.rpg) { p.rpg.miningLevel = 1; p.rpg.miningXP = 0; p.rpg.totalMined = 0; p.rpg.mobKills = 0; p.rpg.pickaxeTier = 1; p.rpg.buffDef = null; p.rpg.buffAtk = null; }
+      p.ghostDefeated = false;
     }
     this.market = []; this.marketIdCounter = 1;
     this.tradeLog = [];
+    // Reset all RPG world state (respawn mobs, bosses, nodes)
+    this.rpgSpawnAll();
+    // Cancel any pending trades
+    this.pendingTrades = {};
+    // Broadcast wipe to all RPG clients so they clear quest progress
+    this.rpgBroadcastAll({ type: 'rpg_wipe', data: {} });
+    // Kick all RPG players back to hub with full HP
+    for (const [u, rp] of Object.entries(this.rpgPlayers)) {
+      const pp = this.player(u);
+      const maxHP = 50 + pp.level * 5;
+      rp.zone = 'hub'; rp.hp = maxHP; rp.maxHP = maxHP; rp.x = 1200; rp.y = 700; rp.sitting = null;
+    }
     this.saveData();
     console.log('🧹 SOFT WIPE — all player progress reset (accounts kept)');
     return { success: true, playersWiped: Object.keys(this.players).length };
@@ -3447,7 +3460,7 @@ class Game {
 
     if (mob.hp <= 0) {
       mob.dead = true;
-      mob.respawnAt = Date.now() + 20000;
+      mob.respawnAt = Date.now() + 3000;
       const goldMult = 1 + this.equipStat(p, 'goldFind');
       const goldBase = mob.goldMin + Math.floor(Math.random() * (mob.goldMax - mob.goldMin + 1));
       const gold = Math.round(goldBase * goldMult);
@@ -3593,7 +3606,7 @@ class Game {
       const dmg = mob.hp;
       mob.hp = 0;
       mob.dead = true;
-      mob.respawnAt = Date.now() + 20000;
+      mob.respawnAt = Date.now() + 3000;
       const p = this.rpgGetPlayerData(username);
       const goldBase = mob.goldMin + Math.floor(Math.random() * (mob.goldMax - mob.goldMin + 1));
       this.addGold(p, goldBase);
@@ -3819,6 +3832,158 @@ class Game {
 
   rpgGetOnlineCount() {
     return Object.keys(this.rpgPlayers).length;
+  }
+
+  // ═══════════════════════════════════════════
+  // RPG Player-to-Player Trading
+  // ═══════════════════════════════════════════
+  rpgTradeRequest(from, to) {
+    if (from === to) return { error: 'cannot_trade_self' };
+    const rpFrom = this.rpgPlayers[from];
+    const rpTo = this.rpgPlayers[to];
+    if (!rpFrom || !rpTo) return { error: 'player_offline' };
+    // Check proximity (must be in same zone and within 150px)
+    if (rpFrom.zone !== rpTo.zone) return { error: 'different_zone' };
+    const dx = rpFrom.x - rpTo.x, dy = rpFrom.y - rpTo.y;
+    if (Math.sqrt(dx * dx + dy * dy) > 150) return { error: 'too_far' };
+    // Check if either player is already in a trade
+    for (const t of Object.values(this.pendingTrades)) {
+      if (t.p1 === from || t.p2 === from || t.p1 === to || t.p2 === to) return { error: 'already_trading' };
+    }
+    const tradeId = Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+    this.pendingTrades[tradeId] = {
+      p1: from, p2: to,
+      offer1: { items: [], gold: 0 }, offer2: { items: [], gold: 0 },
+      locked1: false, locked2: false,
+      confirmed1: false, confirmed2: false,
+    };
+    this.rpgSendTo(to, { type: 'rpg_trade_request', data: { tradeId, from } });
+    return { success: true, tradeId };
+  }
+
+  rpgTradeAcceptRequest(username, tradeId) {
+    const t = this.pendingTrades[tradeId];
+    if (!t || t.p2 !== username) return { error: 'invalid_trade' };
+    // Notify both players trade is open
+    this.rpgSendTo(t.p1, { type: 'rpg_trade_open', data: { tradeId, partner: t.p2 } });
+    this.rpgSendTo(t.p2, { type: 'rpg_trade_open', data: { tradeId, partner: t.p1 } });
+    return { success: true };
+  }
+
+  rpgTradeDecline(username, tradeId) {
+    const t = this.pendingTrades[tradeId];
+    if (!t || (t.p1 !== username && t.p2 !== username)) return { error: 'invalid_trade' };
+    const other = t.p1 === username ? t.p2 : t.p1;
+    this.rpgSendTo(other, { type: 'rpg_trade_cancelled', data: { reason: 'declined' } });
+    delete this.pendingTrades[tradeId];
+    return { success: true };
+  }
+
+  rpgTradeOffer(username, tradeId, itemUids, goldAmount) {
+    const t = this.pendingTrades[tradeId];
+    if (!t || (t.p1 !== username && t.p2 !== username)) return { error: 'invalid_trade' };
+    const isP1 = t.p1 === username;
+    if ((isP1 && t.locked1) || (!isP1 && t.locked2)) return { error: 'already_locked' };
+    // Reset confirmations when offer changes
+    t.confirmed1 = false; t.confirmed2 = false;
+    t.locked1 = false; t.locked2 = false;
+    const p = this.player(username);
+    goldAmount = Math.max(0, Math.min(Math.floor(goldAmount || 0), p.gold));
+    // Validate items exist in inventory
+    const validItems = [];
+    for (const uid of (itemUids || [])) {
+      const item = p.inventory.find(i => i.uid === uid);
+      if (item) validItems.push({ uid: item.uid, id: item.id, name: item.name, icon: item.icon, qty: item.qty || 1, rarity: item.rarity });
+    }
+    const offer = { items: validItems, gold: goldAmount };
+    if (isP1) t.offer1 = offer; else t.offer2 = offer;
+    // Send updated offers to both
+    const tradeState = { tradeId, offer1: t.offer1, offer2: t.offer2, locked1: t.locked1, locked2: t.locked2 };
+    this.rpgSendTo(t.p1, { type: 'rpg_trade_update', data: tradeState });
+    this.rpgSendTo(t.p2, { type: 'rpg_trade_update', data: tradeState });
+    return { success: true };
+  }
+
+  rpgTradeLock(username, tradeId) {
+    const t = this.pendingTrades[tradeId];
+    if (!t || (t.p1 !== username && t.p2 !== username)) return { error: 'invalid_trade' };
+    if (t.p1 === username) t.locked1 = true; else t.locked2 = true;
+    const tradeState = { tradeId, offer1: t.offer1, offer2: t.offer2, locked1: t.locked1, locked2: t.locked2 };
+    this.rpgSendTo(t.p1, { type: 'rpg_trade_update', data: tradeState });
+    this.rpgSendTo(t.p2, { type: 'rpg_trade_update', data: tradeState });
+    return { success: true };
+  }
+
+  rpgTradeConfirm(username, tradeId) {
+    const t = this.pendingTrades[tradeId];
+    if (!t || (t.p1 !== username && t.p2 !== username)) return { error: 'invalid_trade' };
+    // Both must be locked before confirming
+    if (!t.locked1 || !t.locked2) return { error: 'not_locked' };
+    if (t.p1 === username) t.confirmed1 = true; else t.confirmed2 = true;
+    if (t.confirmed1 && t.confirmed2) {
+      // Execute the trade
+      const result = this._executeTrade(t);
+      if (result.error) {
+        this.rpgSendTo(t.p1, { type: 'rpg_trade_cancelled', data: { reason: result.error } });
+        this.rpgSendTo(t.p2, { type: 'rpg_trade_cancelled', data: { reason: result.error } });
+        delete this.pendingTrades[tradeId];
+        return result;
+      }
+      this.rpgSendTo(t.p1, { type: 'rpg_trade_complete', data: { partner: t.p2 } });
+      this.rpgSendTo(t.p2, { type: 'rpg_trade_complete', data: { partner: t.p1 } });
+      delete this.pendingTrades[tradeId];
+      return { success: true, completed: true };
+    }
+    // Notify partner of confirmation
+    const other = t.p1 === username ? t.p2 : t.p1;
+    this.rpgSendTo(other, { type: 'rpg_trade_partner_confirmed', data: { tradeId } });
+    return { success: true, waiting: true };
+  }
+
+  _executeTrade(t) {
+    const p1 = this.player(t.p1);
+    const p2 = this.player(t.p2);
+    if (!p1 || !p2) return { error: 'player_not_found' };
+    // Verify gold
+    if (p1.gold < t.offer1.gold || p2.gold < t.offer2.gold) return { error: 'insufficient_gold' };
+    // Verify items still exist
+    for (const item of t.offer1.items) {
+      if (!p1.inventory.find(i => i.uid === item.uid)) return { error: 'item_missing' };
+    }
+    for (const item of t.offer2.items) {
+      if (!p2.inventory.find(i => i.uid === item.uid)) return { error: 'item_missing' };
+    }
+    // Transfer gold
+    p1.gold -= t.offer1.gold; p2.gold += t.offer1.gold;
+    p2.gold -= t.offer2.gold; p1.gold += t.offer2.gold;
+    // Transfer items from p1 to p2
+    for (const item of t.offer1.items) {
+      const idx = p1.inventory.findIndex(i => i.uid === item.uid);
+      if (idx !== -1) { const [moved] = p1.inventory.splice(idx, 1); p2.inventory.push(moved); }
+    }
+    // Transfer items from p2 to p1
+    for (const item of t.offer2.items) {
+      const idx = p2.inventory.findIndex(i => i.uid === item.uid);
+      if (idx !== -1) { const [moved] = p2.inventory.splice(idx, 1); p1.inventory.push(moved); }
+    }
+    p1.tradeCount = (p1.tradeCount || 0) + 1;
+    p2.tradeCount = (p2.tradeCount || 0) + 1;
+    this.logAction(t.p1, 'trade', 'Traded with ' + t.p2 + ' (gave ' + t.offer1.items.length + ' items + ' + t.offer1.gold + 'g)');
+    this.logAction(t.p2, 'trade', 'Traded with ' + t.p1 + ' (gave ' + t.offer2.items.length + ' items + ' + t.offer2.gold + 'g)');
+    this.saveData();
+    return { success: true };
+  }
+
+  rpgTradeCancel(username) {
+    for (const [id, t] of Object.entries(this.pendingTrades)) {
+      if (t.p1 === username || t.p2 === username) {
+        const other = t.p1 === username ? t.p2 : t.p1;
+        this.rpgSendTo(other, { type: 'rpg_trade_cancelled', data: { reason: 'cancelled' } });
+        delete this.pendingTrades[id];
+        return { success: true };
+      }
+    }
+    return { error: 'no_trade' };
   }
 
   // ═══════════════════════════════════════════

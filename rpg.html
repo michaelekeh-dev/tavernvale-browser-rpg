@@ -227,6 +227,42 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;di
 .admin-status{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px}
 .admin-status .status-item{background:#111;border-radius:6px;padding:6px 12px;font-size:11px;color:#aaa}
 .admin-status .status-item b{color:#fff}
+/* Trade UI */
+.trade-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:1200;display:none;align-items:center;justify-content:center;font-family:'Press Start 2P',monospace}
+.trade-overlay.show{display:flex}
+.trade-box{background:#111;border:2px solid var(--accent);border-radius:12px;padding:16px;width:90%;max-width:600px;color:#eee}
+.trade-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.trade-header h3{font-size:12px;margin:0;color:var(--accent)}
+.trade-cols{display:flex;gap:12px}
+.trade-col{flex:1;background:#0a0a15;border-radius:8px;padding:10px;min-height:180px}
+.trade-col h4{font-size:9px;color:#888;margin:0 0 8px;text-align:center}
+.trade-items{display:flex;flex-wrap:wrap;gap:4px;min-height:60px}
+.trade-item{background:#1a1a2e;border:1px solid #333;border-radius:6px;padding:4px 6px;font-size:8px;cursor:pointer;display:flex;align-items:center;gap:4px}
+.trade-item:hover{border-color:var(--accent)}
+.trade-item.selected{border-color:#ffd700;background:#2a2a1e}
+.trade-gold-row{margin-top:8px;display:flex;align-items:center;gap:6px;font-size:9px;color:var(--gold)}
+.trade-gold-row input{width:70px;background:#1a1a2e;border:1px solid #333;color:var(--gold);font-size:10px;padding:3px 6px;border-radius:4px;font-family:inherit}
+.trade-btns{display:flex;gap:8px;margin-top:12px;justify-content:center}
+.trade-btns button{font-family:inherit;font-size:9px;padding:6px 16px;border:none;border-radius:6px;cursor:pointer}
+.trade-btn-lock{background:#3b82f6;color:#fff}.trade-btn-lock:hover{background:#2563eb}
+.trade-btn-lock.locked{background:#22c55e}
+.trade-btn-confirm{background:#eab308;color:#000}.trade-btn-confirm:hover{background:#ca8a04}
+.trade-btn-cancel{background:#e94560;color:#fff}.trade-btn-cancel:hover{background:#c82d4a}
+.trade-incoming{position:fixed;top:80px;left:50%;transform:translateX(-50%);background:#1a1a2e;border:2px solid var(--accent);border-radius:10px;padding:12px 20px;z-index:1100;display:none;text-align:center;font-family:'Press Start 2P',monospace}
+.trade-incoming.show{display:block}
+.trade-incoming .ti-name{font-size:11px;color:var(--accent);margin-bottom:8px}
+.trade-incoming .ti-btns{display:flex;gap:8px;justify-content:center}
+.trade-incoming .ti-btns button{font-family:inherit;font-size:9px;padding:5px 14px;border:none;border-radius:6px;cursor:pointer}
+/* Chat overlay */
+.rpg-chat{position:fixed;bottom:60px;left:10px;width:320px;z-index:900;pointer-events:none}
+.rpg-chat-messages{max-height:200px;overflow:hidden;display:flex;flex-direction:column-reverse;pointer-events:none}
+.rpg-chat-msg{font-family:'Press Start 2P',monospace;font-size:8px;color:#eee;padding:2px 6px;margin:1px 0;background:rgba(0,0,0,.5);border-radius:4px;line-height:1.4;opacity:1;transition:opacity .5s}
+.rpg-chat-msg.faded{opacity:.3}
+.rpg-chat-msg .chat-name{color:var(--accent);margin-right:4px}
+.rpg-chat-input-wrap{display:none;pointer-events:all;margin-top:4px}
+.rpg-chat-input-wrap.show{display:flex}
+.rpg-chat-input{flex:1;background:rgba(0,0,0,.7);border:1px solid var(--accent);color:#fff;font-family:'Press Start 2P',monospace;font-size:9px;padding:6px 10px;border-radius:6px;outline:none}
+.rpg-chat-send{background:var(--accent);color:#000;border:none;padding:6px 12px;border-radius:6px;font-family:inherit;font-size:9px;cursor:pointer;margin-left:4px}
 </style>
 </head>
 <body>
@@ -275,7 +311,7 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;di
         <div class="tool" id="tool-pick"><span class="key">[2]</span> Pickaxe</div>
       </div>
       <div><span class="key">Hold E</span> Attack &middot; <span class="key">E</span> Interact</div>
-      <div><span class="key">WASD</span> Move &middot; <span class="key">M</span> Map &middot; <span class="key">I</span> Inventory &middot; <span class="key">ESC</span> Home</div>
+      <div><span class="key">WASD</span> Move &middot; <span class="key">M</span> Map &middot; <span class="key">I</span> Inventory &middot; <span class="key">T</span> Chat &middot; <span class="key"></span>ESC</span> Home</div>
     </div>
     <div class="minimap-wrap"><canvas id="minimap" width="150" height="90"></canvas></div>
 
@@ -291,6 +327,7 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;di
         <button class="mobile-btn mobile-btn-interact" id="mobile-interact-btn">💬<span>E</span></button>
         <button class="mobile-btn mobile-btn-tool" id="mobile-tool-btn" onclick="mobileSwitchTool()">🗡️<span>TOOL</span></button>
         <button class="mobile-btn mobile-btn-map" id="mobile-map-btn" onclick="mobileToggleMap()">🗺️<span>MAP</span></button>
+        <button class="mobile-btn" style="background:rgba(59,130,246,.3);border-color:rgba(59,130,246,.5)" onclick="toggleRpgChat()">💬<span>CHAT</span></button>
       </div>
     </div>
 
@@ -504,6 +541,55 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;di
       <h2>📋 Admin Log</h2>
       <div class="admin-log" id="admin-log"></div>
     </div>
+  </div>
+</div>
+
+<!-- Trade Incoming Request -->
+<div class="trade-incoming" id="trade-incoming">
+  <div class="ti-name" id="trade-incoming-name"></div>
+  <div style="font-size:9px;color:#aaa;margin-bottom:8px">wants to trade with you</div>
+  <div class="ti-btns">
+    <button style="background:#22c55e;color:#fff" onclick="acceptTradeIncoming()">Accept</button>
+    <button style="background:#e94560;color:#fff" onclick="declineTradeIncoming()">Decline</button>
+  </div>
+</div>
+
+<!-- Trade Overlay -->
+<div class="trade-overlay" id="trade-overlay">
+  <div class="trade-box">
+    <div class="trade-header">
+      <h3>⚔️ Trade with <span id="trade-partner-name"></span></h3>
+      <button onclick="cancelTrade()" style="background:none;border:none;color:#e94560;font-size:14px;cursor:pointer">&times;</button>
+    </div>
+    <div class="trade-cols">
+      <div class="trade-col">
+        <h4>YOUR OFFER</h4>
+        <div class="trade-items" id="trade-my-items"></div>
+        <div class="trade-gold-row">💰 <input type="number" id="trade-my-gold" min="0" value="0" onchange="updateTradeOffer()"> gold</div>
+        <div style="margin-top:6px;font-size:8px;color:#666">Click inventory items to add/remove</div>
+      </div>
+      <div class="trade-col">
+        <h4>THEIR OFFER</h4>
+        <div class="trade-items" id="trade-their-items"></div>
+        <div class="trade-gold-row" id="trade-their-gold">💰 0 gold</div>
+      </div>
+    </div>
+    <div style="margin-top:8px;font-size:8px;color:#666;text-align:center">Your inventory:</div>
+    <div class="trade-items" id="trade-inv-items" style="max-height:100px;overflow-y:auto;margin-top:4px;background:#0a0a15;border-radius:6px;padding:6px"></div>
+    <div class="trade-btns">
+      <button class="trade-btn-lock" id="trade-lock-btn" onclick="lockTrade()">🔒 Lock</button>
+      <button class="trade-btn-confirm" id="trade-confirm-btn" onclick="confirmTrade()" disabled>✅ Confirm</button>
+      <button class="trade-btn-cancel" onclick="cancelTrade()">❌ Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- RPG Chat -->
+<div class="rpg-chat" id="rpg-chat">
+  <div class="rpg-chat-messages" id="rpg-chat-messages"></div>
+  <div class="rpg-chat-input-wrap" id="rpg-chat-input-wrap">
+    <input class="rpg-chat-input" id="rpg-chat-input" type="text" placeholder="Type a message..." maxlength="200" autocomplete="off" onkeydown="if(event.key==='Enter'){sendRpgChat();event.stopPropagation()}if(event.key==='Escape'){toggleRpgChat();event.stopPropagation()}event.stopPropagation()">
+    <button class="rpg-chat-send" onclick="sendRpgChat()">Send</button>
   </div>
 </div>
 
@@ -743,6 +829,16 @@ let duelYouX=120,duelYouBaseX=120,duelThemX=440,duelThemBaseX=440;
 let duelYouY=160,duelThemY=160;
 let duelYouAnim='idle',duelThemAnim='idle';
 let duelAnimTimer=0,duelYouFlash=0,duelThemFlash=0;
+
+// Trade state
+let tradeOpen=false,tradeId=null,tradePartner=null,tradeAmP1=false;
+let tradeMyOffer={items:[],gold:0},tradeTheirOffer={items:[],gold:0};
+let tradeLocked1=false,tradeLocked2=false;
+let tradeMyLocked=false,tradeMyConfirmed=false;
+let tradeIncoming=null; // {tradeId, from}
+
+// Chat state
+let chatOpen=false,chatMessages=[],chatFadeTimer=0;
 let duelFloats=[],duelParticles=[],duelProjectiles=[];
 let duelRafId=null,duelIdleBob=0;
 
@@ -1008,6 +1104,24 @@ function handleMessage(msg){
     case'rpg_player_wearable_update':{const op=otherPlayers.find(p=>p.username===d.username);if(op)op.activeWearables=d.activeWearables;break}
     case'rpg_quest_turnin_result':if(d&&!d.error){gold=d.totalGold;playerLevel=d.level;if(d.currentXP!==undefined){playerXP=d.currentXP;playerXPNeeded=d.xpNeeded}if(d.leveled){logMsg('LEVEL UP! Lv '+d.level,'xp');playSound('levelup');addFloat(px,py-50,'LEVEL '+d.level+'!','#fbbf24',true)}updateHUD()}break;
     case'rpg_admin_result':handleAdminResult(d);break;
+    case'rpg_wipe':
+      activeQuests=[];completedQuestIds=[];questKillCounts={};questMineCounts=0;
+      localStorage.removeItem('rpg_activeQuests');localStorage.removeItem('rpg_completedQuestIds');
+      localStorage.removeItem('rpg_questKillCounts');localStorage.removeItem('rpg_questMineCounts');
+      logMsg('Admin wiped all progress!','dmg');
+      // Re-join to get fresh state
+      send('rpg_join',{username,token:authToken});
+      break;
+    // Trading
+    case'rpg_trade_request':tradeIncoming={tradeId:d.tradeId,from:d.from};tradeAmP1=false;showTradeIncoming(d.from,d.tradeId);break;
+    case'rpg_trade_request_result':if(d.error)logMsg(d.error==='too_far'?'Too far to trade':d.error==='already_trading'?'Already in a trade':d.error,'dmg');else{logMsg('Trade request sent!','xp');tradeAmP1=true}break;
+    case'rpg_trade_open':tradeId=d.tradeId;tradePartner=d.partner;tradeOpen=true;tradeMyOffer={items:[],gold:0};tradeTheirOffer={items:[],gold:0};tradeLocked1=false;tradeLocked2=false;tradeMyLocked=false;tradeMyConfirmed=false;openTradeUI();break;
+    case'rpg_trade_update':tradeMyOffer=tradeAmP1?d.offer1:d.offer2;tradeTheirOffer=tradeAmP1?d.offer2:d.offer1;tradeLocked1=d.locked1;tradeLocked2=d.locked2;renderTradeUI();break;
+    case'rpg_trade_partner_confirmed':logMsg('Partner confirmed! Confirm to complete.','xp');renderTradeUI();break;
+    case'rpg_trade_complete':logMsg('Trade complete with '+d.partner+'!','loot');closeTrade();refreshInventory();break;
+    case'rpg_trade_cancelled':logMsg('Trade cancelled: '+(d.reason||'unknown'),'dmg');closeTrade();break;
+    // Chat
+    case'rpg_chat_message':addRpgChat(d);break;
   }
 }
 
@@ -8710,6 +8824,12 @@ function drawQuestTracker(){
 document.addEventListener('keydown',e=>{
   const k=e.key.toLowerCase();keys[k]=true;
   ensureAudio();
+  // If chat input is focused, only handle Enter/Escape
+  if(chatOpen){
+    if(k==='enter'){sendRpgChat();return}
+    if(k==='escape'){toggleRpgChat();return}
+    return; // Don't process game keys while typing
+  }
   // Stand up from bench when pressing movement keys
   if(isSitting&&(k==='w'||k==='a'||k==='s'||k==='d'||k==='arrowup'||k==='arrowdown'||k==='arrowleft'||k==='arrowright')){
     const oldSeat=sittingBench;
@@ -8729,6 +8849,8 @@ document.addEventListener('keydown',e=>{
     else if(zoneType==='hub') interactNearest();
     // In combat/mine zones, E is handled in update() as hold-to-attack
   }
+  // T to toggle chat
+  if(k==='t'&&!dialogueOpen&&!diceGameOpen&&!tradeOpen){toggleRpgChat();e.preventDefault();return}
   // Dialogue number keys
   if(dialogueOpen&&k>='1'&&k<='9'){const idx=parseInt(k)-1;if(idx<dialogueOptions.length)selectDialogueOption(idx)}
   if(k==='1'&&!dialogueOpen){activeTool='sword';updateToolHUD();logMsg('Equipped: Sword','xp')}
@@ -8737,7 +8859,9 @@ document.addEventListener('keydown',e=>{
   if(k==='`'&&isAdmin()){toggleAdminPanel()}
   if(k==='i'&&!dialogueOpen&&!diceGameOpen){toggleInventory()}
   if(k==='escape'){
-    if(adminOpen){toggleAdminPanel()}
+    if(tradeOpen){cancelTrade()}
+    else if(chatOpen){toggleRpgChat()}
+    else if(adminOpen){toggleAdminPanel()}
     else if(document.getElementById('inv-panel').classList.contains('show')){toggleInventory()}
     else if(document.getElementById('wear-panel').classList.contains('show')){toggleWearPanel()}
     else if(document.getElementById('shop-panel').classList.contains('show')){toggleShopPanel()}
@@ -8796,6 +8920,13 @@ canvas.addEventListener('click',e=>{
 function interactNearest(){
   if(inDuel)return;
   if(dialogueOpen){closeDialogue();return}
+  // Hub: interact with nearby player (trade)
+  if(zoneType==='hub'&&!tradeOpen){
+    for(const op of otherPlayers){
+      const dist=Math.sqrt((px-op.x)**2+(py-op.y)**2);
+      if(dist<80){requestTradeWithPlayer(op.username);return}
+    }
+  }
   // Hub: interact with nearby landmark (zone portal / gate)
   if(zoneType==='hub'&&nearbyLandmark){
     const lm=nearbyLandmark;
@@ -9469,6 +9600,140 @@ function handleAdminResult(d){
   }
   updateAdminStatus();
 }
+
+// =============================================
+// Trade Functions
+// =============================================
+function showTradeIncoming(from,tid){
+  tradeIncoming={tradeId:tid,from};
+  document.getElementById('trade-incoming-name').textContent=from;
+  document.getElementById('trade-incoming').classList.add('show');
+  // Auto-dismiss after 15s
+  setTimeout(()=>{if(tradeIncoming&&tradeIncoming.tradeId===tid){document.getElementById('trade-incoming').classList.remove('show');tradeIncoming=null}},15000);
+}
+function acceptTradeIncoming(){
+  if(!tradeIncoming)return;
+  send('rpg_trade_accept',{tradeId:tradeIncoming.tradeId});
+  document.getElementById('trade-incoming').classList.remove('show');
+  tradeIncoming=null;
+}
+function declineTradeIncoming(){
+  if(!tradeIncoming)return;
+  send('rpg_trade_decline',{tradeId:tradeIncoming.tradeId});
+  document.getElementById('trade-incoming').classList.remove('show');
+  tradeIncoming=null;
+}
+function openTradeUI(){
+  document.getElementById('trade-partner-name').textContent=tradePartner;
+  document.getElementById('trade-overlay').classList.add('show');
+  tradeSelectedUids=[];
+  refreshInventory();
+  renderTradeUI();
+}
+let tradeSelectedUids=[];
+function renderTradeUI(){
+  // My offered items
+  const myItems=document.getElementById('trade-my-items');
+  myItems.innerHTML=(tradeMyOffer.items||[]).map(i=>'<div class="trade-item">'+i.icon+' '+i.name+'</div>').join('')||'<span style="font-size:8px;color:#555">No items</span>';
+  // Their offered items
+  const theirItems=document.getElementById('trade-their-items');
+  theirItems.innerHTML=(tradeTheirOffer.items||[]).map(i=>'<div class="trade-item">'+i.icon+' '+i.name+'</div>').join('')||'<span style="font-size:8px;color:#555">No items</span>';
+  document.getElementById('trade-their-gold').innerHTML='💰 '+(tradeTheirOffer.gold||0)+' gold';
+  // My inventory for selecting
+  const inv=document.getElementById('trade-inv-items');
+  const myInv=invCache.inventory||[];
+  inv.innerHTML=myInv.map(item=>{
+    const sel=tradeSelectedUids.includes(item.uid);
+    return '<div class="trade-item'+(sel?' selected':'')+'" onclick="toggleTradeItem(\''+item.uid+'\')">'+(item.icon||'?')+' '+(item.name||item.id)+(item.qty>1?' x'+item.qty:'')+'</div>';
+  }).join('')||'<span style="font-size:8px;color:#555">Empty inventory</span>';
+  // Lock/confirm state
+  const lockBtn=document.getElementById('trade-lock-btn');
+  const confirmBtn=document.getElementById('trade-confirm-btn');
+  tradeMyLocked=tradeAmP1?tradeLocked1:tradeLocked2;
+  const theirLocked=tradeAmP1?tradeLocked2:tradeLocked1;
+  lockBtn.textContent=tradeMyLocked?'🔒 Locked':'🔓 Lock';
+  lockBtn.classList.toggle('locked',tradeMyLocked);
+  lockBtn.disabled=tradeMyLocked;
+  confirmBtn.disabled=!(tradeLocked1&&tradeLocked2);
+}
+function toggleTradeItem(uid){
+  if(tradeMyLocked)return;
+  const idx=tradeSelectedUids.indexOf(uid);
+  if(idx>=0)tradeSelectedUids.splice(idx,1);else tradeSelectedUids.push(uid);
+  updateTradeOffer();
+}
+function updateTradeOffer(){
+  if(tradeMyLocked||!tradeId)return;
+  const goldVal=parseInt(document.getElementById('trade-my-gold').value)||0;
+  send('rpg_trade_offer',{tradeId,itemUids:tradeSelectedUids,gold:goldVal});
+}
+function lockTrade(){
+  if(!tradeId||tradeMyLocked)return;
+  send('rpg_trade_lock',{tradeId});
+}
+function confirmTrade(){
+  if(!tradeId)return;
+  send('rpg_trade_confirm',{tradeId});
+}
+function cancelTrade(){
+  send('rpg_trade_cancel',{});
+  closeTrade();
+}
+function closeTrade(){
+  tradeOpen=false;tradeId=null;tradePartner=null;tradeAmP1=false;tradeSelectedUids=[];
+  tradeMyOffer={items:[],gold:0};tradeTheirOffer={items:[],gold:0};
+  tradeLocked1=false;tradeLocked2=false;tradeMyLocked=false;tradeMyConfirmed=false;
+  document.getElementById('trade-overlay').classList.remove('show');
+}
+function requestTradeWithPlayer(targetUsername){
+  if(tradeOpen||inDuel)return;
+  send('rpg_trade_request',{target:targetUsername});
+}
+
+// =============================================
+// RPG Chat Functions
+// =============================================
+function addRpgChat(d){
+  chatMessages.push(d);
+  if(chatMessages.length>50)chatMessages.shift();
+  chatFadeTimer=Date.now()+8000;
+  renderRpgChat();
+}
+function renderRpgChat(){
+  const el=document.getElementById('rpg-chat-messages');
+  const now=Date.now();
+  el.innerHTML=chatMessages.slice(-20).map(m=>{
+    const age=now-m.time;
+    const faded=age>6000&&!chatOpen?'faded':'';
+    return '<div class="rpg-chat-msg '+faded+'"><span class="chat-name">'+m.username+':</span>'+escChat(m.message)+'</div>';
+  }).join('');
+  el.scrollTop=el.scrollHeight;
+}
+function escChat(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function toggleRpgChat(){
+  chatOpen=!chatOpen;
+  const wrap=document.getElementById('rpg-chat-input-wrap');
+  wrap.classList.toggle('show',chatOpen);
+  if(chatOpen){
+    const inp=document.getElementById('rpg-chat-input');
+    inp.focus();
+    // Keep chat visible while typing
+    chatFadeTimer=Date.now()+60000;
+    renderRpgChat();
+  }
+}
+function sendRpgChat(){
+  const inp=document.getElementById('rpg-chat-input');
+  const text=inp.value.trim();
+  if(!text)return;
+  send('rpg_chat_send',{message:text});
+  inp.value='';
+  inp.focus();
+}
+// Fade chat messages periodically
+setInterval(()=>{
+  if(!chatOpen&&chatMessages.length>0)renderRpgChat();
+},2000);
 
 // =============================================
 // Init

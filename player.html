@@ -2451,7 +2451,7 @@ function randomizeAppearance() {
 
 function saveAppearance() {
   if (!authToken || !appearanceDirty) return;
-  fetch('/api/appearance', { method: 'POST', headers: authHeaders(), body: JSON.stringify(currentAppearance) })
+  fetch('/api/appearance', { method: 'POST', headers: authHeaders(), body: authBody(currentAppearance) })
     .then(r => r.json()).then(r => {
       if (r.success) {
         toast('Character saved! 🎨', 'success');

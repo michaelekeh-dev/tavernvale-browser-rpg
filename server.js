@@ -830,6 +830,43 @@ wss.on('connection', (ws) => {
         ws.send(JSON.stringify({ type: 'rpg_market_sell_result', data: r }));
         if (r && !r.error) broadcast('market_listed', r);
       }
+      // ── RPG Trading ──
+      if (msg.type === 'rpg_trade_request' && ws.isRPG && ws.rpgUser) {
+        const r = game.rpgTradeRequest(ws.rpgUser, msg.target);
+        ws.send(JSON.stringify({ type: 'rpg_trade_request_result', data: r }));
+      }
+      if (msg.type === 'rpg_trade_accept' && ws.isRPG && ws.rpgUser) {
+        const r = game.rpgTradeAcceptRequest(ws.rpgUser, msg.tradeId);
+        ws.send(JSON.stringify({ type: 'rpg_trade_accept_result', data: r }));
+      }
+      if (msg.type === 'rpg_trade_decline' && ws.isRPG && ws.rpgUser) {
+        const r = game.rpgTradeDecline(ws.rpgUser, msg.tradeId);
+        ws.send(JSON.stringify({ type: 'rpg_trade_decline_result', data: r }));
+      }
+      if (msg.type === 'rpg_trade_offer' && ws.isRPG && ws.rpgUser) {
+        const r = game.rpgTradeOffer(ws.rpgUser, msg.tradeId, msg.itemUids, msg.gold);
+        ws.send(JSON.stringify({ type: 'rpg_trade_offer_result', data: r }));
+      }
+      if (msg.type === 'rpg_trade_lock' && ws.isRPG && ws.rpgUser) {
+        const r = game.rpgTradeLock(ws.rpgUser, msg.tradeId);
+        ws.send(JSON.stringify({ type: 'rpg_trade_lock_result', data: r }));
+      }
+      if (msg.type === 'rpg_trade_confirm' && ws.isRPG && ws.rpgUser) {
+        const r = game.rpgTradeConfirm(ws.rpgUser, msg.tradeId);
+        ws.send(JSON.stringify({ type: 'rpg_trade_confirm_result', data: r }));
+      }
+      if (msg.type === 'rpg_trade_cancel' && ws.isRPG && ws.rpgUser) {
+        const r = game.rpgTradeCancel(ws.rpgUser);
+        ws.send(JSON.stringify({ type: 'rpg_trade_cancel_result', data: r }));
+      }
+      // ── RPG Chat ──
+      if (msg.type === 'rpg_chat_send' && ws.isRPG && ws.rpgUser && msg.message) {
+        const text = msg.message.trim().slice(0, 200);
+        if (text) {
+          const chatMsg = { username: ws.rpgUser, message: text, time: Date.now() };
+          game.rpgBroadcastAll({ type: 'rpg_chat_message', data: chatMsg });
+        }
+      }
       // ── RPG Admin Tools (mikeydamike only) ──
       if (msg.type === 'rpg_admin' && ws.isRPG && ws.rpgUser === 'mikeydamike') {
         let r;
@@ -860,6 +897,7 @@ wss.on('connection', (ws) => {
   ws.on('close', () => {
     portalClients.delete(ws);
     if (ws.isRPG && ws.rpgUser) {
+      game.rpgTradeCancel(ws.rpgUser);
       game.rpgLeave(ws.rpgUser);
       game.rpgBroadcastAll({ type: 'rpg_online_count', data: { count: game.rpgGetOnlineCount() } });
     }
