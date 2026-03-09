@@ -196,6 +196,7 @@ body{font-family:'Segoe UI',sans-serif;background:#0a0a0f;color:#e0e0e0;min-heig
       <button class="btn btn-blue" onclick="adminCmd('!skip')">⏭️ Skip Break</button>
       <button class="btn btn-gray" onclick="adminCmd('!reset')">🔄 Reset Game</button>
       <button class="btn btn-red" onclick="fullReset()" style="background:linear-gradient(90deg,#ff0000,#880000)">🔥 WIPE ALL DATA</button>
+      <button class="btn btn-yellow" onclick="softWipe()" style="background:linear-gradient(90deg,#d97706,#92400e)">🧹 CLEAR ALL (keep accounts)</button>
       <button class="btn btn-red" onclick="adminCmd('!bossattack')" style="grid-column:1/-1;background:linear-gradient(90deg,#dc2626,#9a1c1c)">🐉 BOSS ATTACK (viewers must !dodge)</button>
       <button class="btn" id="rpgToggleBtn" onclick="toggleRPG()" style="grid-column:1/-1;font-size:13px">🗡️ Loading RPG status...</button>
       <button class="btn" id="gamblingToggleBtn" onclick="toggleGambling()" style="grid-column:1/-1;font-size:13px">🎰 Loading gambling status...</button>
@@ -563,6 +564,17 @@ body{font-family:'Segoe UI',sans-serif;background:#0a0a0f;color:#e0e0e0;min-heig
         <h2>🏆 Achievements <span id="inspectAchCount" style="color:#888;font-weight:400;font-size:11px"></span></h2>
         <div class="inv-scroll" id="inspectAchievements"></div>
       </div>
+      <!-- Activity Log -->
+      <div class="panel full-width">
+        <h2>📝 Activity Log <button class="btn btn-blue" style="float:right;padding:4px 12px;font-size:11px" onclick="loadPlayerLog()">🔄 Refresh</button></h2>
+        <div style="max-height:400px;overflow-y:auto">
+          <table class="market-table" id="activityLogTable">
+            <thead><tr><th>Time</th><th>Action</th><th>Details</th></tr></thead>
+            <tbody id="activityLogBody"></tbody>
+          </table>
+        </div>
+        <div id="activityLogEmpty" style="color:#888;text-align:center;padding:20px">Inspect a player to see their activity log</div>
+      </div>
     </div>
   </div>
 </div>
@@ -736,9 +748,13 @@ function handleMessage(msg) {
       break;
     case 'admin_edit_result':
       if (data.error) { toast('Error: ' + data.error, true); break; }
+      if (data.playersWiped) { toast('🧹 Wiped ' + data.playersWiped + ' players!'); refreshPlayers(); break; }
       toast(data.removed ? 'Removed: ' + data.removed : data.added ? 'Added: ' + data.added : data.cancelled ? 'Cancelled: ' + data.cancelled : 'Done!');
       if (inspectedPlayer) setTimeout(() => inspectPlayer(inspectedPlayer), 300);
       if (data.cancelled) loadMarketData();
+      break;
+    case 'admin_player_log':
+      renderPlayerLog(data.log || []);
       break;
   }
 }
@@ -1561,6 +1577,8 @@ function renderInspect(data) {
   document.getElementById('inspectAchievements').innerHTML = achs.length ? achs.map(id =>
     '<div class="inv-item"><span class="inv-icon">🏆</span><span class="inv-name">' + esc(id) + '</span></div>'
   ).join('') : '<div style="color:#888;text-align:center;padding:10px">No achievements</div>';
+  // Auto-load activity log
+  loadPlayerLog();
 }
 
 function stat(label, val) {
@@ -1599,6 +1617,46 @@ function adminAddCosmetic() {
 function adminRemoveCosmetic(username, cosmeticId) {
   if (!confirm('Remove cosmetic from ' + username + '?')) return;
   ws.send(JSON.stringify({ type: 'admin_remove_cosmetic', username, cosmeticId }));
+}
+
+function softWipe() {
+  if (!confirm('⚠️ CLEAR ALL PROGRESS?\n\nThis will reset ALL players\' gold, items, XP, levels, wearables, cosmetics, achievements, and stats to zero.\n\nAccounts will be kept but empty.\n\nThis CANNOT be undone!')) return;
+  if (!confirm('Are you ABSOLUTELY sure? All gold, items, everything — gone.')) return;
+  ws.send(JSON.stringify({ type: 'admin_soft_wipe' }));
+}
+
+function loadPlayerLog() {
+  if (!inspectedPlayer) return;
+  ws.send(JSON.stringify({ type: 'admin_get_player_log', username: inspectedPlayer }));
+}
+
+const ACTION_ICONS = {
+  shop_buy: '🛒', craft: '🔨', cosmetic_buy: '✨', market_list: '📦', market_buy: '🛍️', market_sold: '💰',
+  daily: '📅', gamble_win: '🎰✅', gamble_lose: '🎰❌', gift_sent: '🎁→', gift_recv: '🎁←',
+  boss_kill: '💀', boss_mvp: '🏆', mob_kill: '⚔️', rpg_boss_kill: '🐉', mine: '⛏️',
+  quest: '📜', duel_win: '🏅', duel_lose: '💔', redeem: '💸', prestige: '🌟', wipe: '🧹',
+};
+
+function renderPlayerLog(log) {
+  const body = document.getElementById('activityLogBody');
+  const empty = document.getElementById('activityLogEmpty');
+  if (!log.length) {
+    body.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  body.innerHTML = log.map(e => {
+    const icon = ACTION_ICONS[e.a] || '•';
+    const cls = e.a.includes('win') || e.a === 'boss_mvp' || e.a === 'gift_recv' ? 'style="color:#4ade80"' :
+                e.a.includes('lose') || e.a === 'gamble_lose' ? 'style="color:#f87171"' :
+                e.a === 'redeem' ? 'style="color:#fbbf24"' : '';
+    return '<tr>' +
+      '<td style="color:#888;font-size:11px;white-space:nowrap">' + new Date(e.t).toLocaleString() + '</td>' +
+      '<td ' + cls + '>' + icon + ' ' + esc(e.a) + '</td>' +
+      '<td style="color:#ccc;font-size:11px">' + esc(e.d || '') + '</td>' +
+      '</tr>';
+  }).join('');
 }
 
 connect();

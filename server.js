@@ -648,6 +648,14 @@ wss.on('connection', (ws) => {
         const r = game.adminCancelListing(msg.listingId);
         ws.send(JSON.stringify({ type: 'admin_edit_result', data: r }));
       }
+      if (msg.type === 'admin_get_player_log' && msg.username) {
+        ws.send(JSON.stringify({ type: 'admin_player_log', data: { username: msg.username, log: game.adminGetPlayerLog(msg.username) } }));
+      }
+      if (msg.type === 'admin_soft_wipe') {
+        const r = game.softWipe();
+        ws.send(JSON.stringify({ type: 'admin_edit_result', data: r }));
+        broadcast('admin_player_updated', { username: '_all' });
+      }
 
       // Portal chat
       if (msg.type === 'portal_register') {

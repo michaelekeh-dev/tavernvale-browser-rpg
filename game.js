@@ -489,7 +489,16 @@ class Game {
     if (!p.appearance) p.appearance = this.randomAppearance();
     if (p.prestige === undefined) { p.prestige = 0; p.prestigeBonus = 0; }
     if (p.duelsWon === undefined) { p.duelsWon = 0; p.duelsLost = 0; p.duelWinStreak = 0; p.bestDuelStreak = 0; p.arenaRating = 1000; }
+    if (!p.activityLog) p.activityLog = [];
     return p;
+  }
+
+  logAction(username, action, detail) {
+    const p = this.players[username];
+    if (!p) return;
+    if (!p.activityLog) p.activityLog = [];
+    p.activityLog.push({ t: Date.now(), a: action, d: detail });
+    if (p.activityLog.length > 150) p.activityLog = p.activityLog.slice(-150);
   }
 
   randomAppearance() {
@@ -661,6 +670,7 @@ class Game {
     if (template.shopPrice > 0 && p.gold < template.shopPrice) return { error: 'broke', gold: p.gold, cost: template.shopPrice };
     if (template.shopPrice > 0) p.gold -= template.shopPrice;
     const item = this.addItemToInventory(p, itemId);
+    this.logAction(username, 'shop_buy', (item.icon||'') + ' ' + item.name + ' for ' + (template.shopPrice||0) + 'g');
     this.saveData();
     return { success: true, item, gold: p.gold };
   }
@@ -689,6 +699,7 @@ class Game {
       const item = this.addItemToInventory(p, recipe.result);
       if (item) items.push(item);
     }
+    this.logAction(username, 'craft', items.map(i=>(i.icon||'')+' '+i.name).join(', ') + ' (-' + recipe.goldCost + 'g)');
     this.saveData();
     return { success: true, items, gold: p.gold };
   }
@@ -933,6 +944,7 @@ class Game {
       if (this.addXP(p, CONFIG.baseXP)) this.emit('level_up', { username: u, level: p.level });
       this.addGold(p, CONFIG.baseGold);
       p.bossKills = (p.bossKills || 0) + 1;
+      this.logAction(u, 'boss_kill', this.boss.name + ' +' + CONFIG.baseGold + 'g +' + CONFIG.baseXP + 'xp');
     }
 
     // MVP: prize gold + XP + legendary loot
@@ -945,6 +957,7 @@ class Game {
       const item = { ...loot, uid: Date.now() + '_mvp' };
       p.inventory.push(item);
       lootResults.push({ username: mvp, item, rank: 1 });
+      this.logAction(mvp, 'boss_mvp', this.boss.name + ' MVP! +' + prizeGold + 'g +' + item.name);
     }
 
     // Top 2-3: prize gold + XP + loot
@@ -1108,6 +1121,7 @@ class Game {
     if (p.gold < cosmetic.cost) return { error: 'broke', gold: p.gold, cost: cosmetic.cost };
     p.gold -= cosmetic.cost;
     p.cosmetics.push(key);
+    this.logAction(username, 'cosmetic_buy', cosmetic.name + ' for ' + cosmetic.cost + 'g');
     this.saveData();
     this.emitAchievements(username);
     return { username, item: cosmetic.name, cost: cosmetic.cost, gold: p.gold, key };
@@ -1141,6 +1155,7 @@ class Game {
     const item = p.inventory.splice(idx, 1)[0];
     const listing = { id: this.marketIdCounter++, seller: username, type: 'equipment', itemData: item, price: priceNum, listFee, listedAt: Date.now() };
     this.market.push(listing);
+    this.logAction(username, 'market_list', (item.icon||'') + ' ' + item.name + ' for ' + priceNum + 'g (fee:' + listFee + 'g)');
     this.saveData();
     return { username, listing, fee: listFee, gold: p.gold };
   }
@@ -1166,6 +1181,7 @@ class Game {
       price: priceNum, listFee, listedAt: Date.now(),
     };
     this.market.push(listing);
+    this.logAction(username, 'market_list', (template.icon||'') + ' ' + template.name + ' x' + qtyNum + ' for ' + priceNum + 'g (fee:' + listFee + 'g)');
     this.saveData();
     return { username, listing, fee: listFee, gold: p.gold };
   }
@@ -1185,6 +1201,7 @@ class Game {
     p.cosmetics = p.cosmetics.filter(c => c !== key);
     const listing = { id: this.marketIdCounter++, seller: username, type: 'cosmetic', itemData: { key, ...COSMETICS[key] }, price: priceNum, listFee, listedAt: Date.now() };
     this.market.push(listing);
+    this.logAction(username, 'market_list', COSMETICS[key].name + ' (cosmetic) for ' + priceNum + 'g');
     this.saveData();
     return { username, listing, fee: listFee, gold: p.gold };
   }
@@ -1228,6 +1245,7 @@ class Game {
     const wData = WEARABLES[key];
     const listing = { id: this.marketIdCounter++, seller: username, type: 'wearable', itemData: { key, name: wData.name, icon: wData.icon, rarity: wData.rarity, slot: wData.slot }, price: priceNum, listFee, listedAt: Date.now() };
     this.market.push(listing);
+    this.logAction(username, 'market_list', wData.name + ' (wearable) for ' + priceNum + 'g');
     this.saveData();
     return { username, listing, fee: listFee, gold: p.gold };
   }
@@ -1280,6 +1298,8 @@ class Game {
     this.market.splice(idx, 1);
     buyer.tradeCount = (buyer.tradeCount || 0) + 1;
     seller.tradeCount = (seller.tradeCount || 0) + 1;
+    this.logAction(username, 'market_buy', (listing.itemData.icon||'') + ' ' + listing.itemData.name + ' from ' + listing.seller + ' for ' + listing.price + 'g');
+    this.logAction(listing.seller, 'market_sold', (listing.itemData.icon||'') + ' ' + listing.itemData.name + ' to ' + username + ' for ' + (listing.price - tax) + 'g (tax:' + tax + 'g)');
     this.tradeLog.push({ type: 'sale', buyer: username, seller: listing.seller, item: listing.itemData.name, icon: listing.itemData.icon || '', rarity: listing.itemData.rarity || 'common', price: listing.price, tax, time: Date.now() });
     if (this.tradeLog.length > 500) this.tradeLog = this.tradeLog.slice(-500);
     this.saveData();
@@ -1332,6 +1352,7 @@ class Game {
     p.lastDaily = Date.now();
     const leveled = this.addXP(p, CONFIG.dailyXP);
     this.addGold(p, CONFIG.dailyGold);
+    this.logAction(username, 'daily', '+' + CONFIG.dailyGold + 'g +' + CONFIG.dailyXP + 'xp');
     this.saveData();
     this.emitAchievements(username);
     return { username, xp: CONFIG.dailyXP, gold: CONFIG.dailyGold, leveled, level: p.level };
@@ -1394,11 +1415,13 @@ class Game {
       p.totalGambleProfit = (p.totalGambleProfit || 0) + (payout - bet);
       this.saveData();
       this.emitAchievements(username);
+      this.logAction(username, 'gamble_win', 'Coinflip +' + (payout-bet) + 'g (bet:' + bet + 'g)');
       return { username, won: true, bet, payout, gold: p.gold, game: 'coinflip' };
     } else {
       p.gold -= bet;
       p.gamblesLost = (p.gamblesLost || 0) + 1;
       p.totalGambleProfit = (p.totalGambleProfit || 0) - bet;
+      this.logAction(username, 'gamble_lose', 'Coinflip -' + bet + 'g');
       this.saveData();
       return { username, won: false, bet, gold: p.gold, game: 'coinflip' };
     }
@@ -1431,6 +1454,7 @@ class Game {
     }
     this.saveData();
     if (won) this.emitAchievements(username);
+    this.logAction(username, won ? 'gamble_win' : 'gamble_lose', 'Dice ' + (won ? '+' + (payout-bet) : '-' + bet) + 'g (roll:' + roll + ')');
     return { username, roll, target: tgt, mult, winChance: parseFloat((winChance * 100).toFixed(2)), bet, payout, won, gold: p.gold, game: 'dice' };
   }
 
@@ -1466,6 +1490,7 @@ class Game {
     }
     this.saveData();
     if (mult > 0) this.emitAchievements(username);
+    this.logAction(username, mult > 0 ? 'gamble_win' : 'gamble_lose', 'Slots ' + (mult > 0 ? '+' + (payout-bet) : '-' + bet) + 'g ' + reels.join(''));
     return { username, reels, mult, bet, payout, won: mult > 0, gold: p.gold, game: 'slots' };
   }
 
@@ -1505,6 +1530,7 @@ class Game {
     }
     this.saveData();
     if (won) this.emitAchievements(username);
+    this.logAction(username, won ? 'gamble_win' : 'gamble_lose', 'Blackjack ' + (won ? '+' + (payout-bet) : '-' + bet) + 'g (' + result + ')');
     return { username, playerCards: pc.map(c => c.card), dealerCards: dc.map(c => c.card), playerTotal: pTotal, dealerTotal: dTotal, result, won, bet, payout, gold: p.gold, game: 'blackjack' };
   }
 
@@ -1534,6 +1560,7 @@ class Game {
     }
     this.saveData();
     if (won) this.emitAchievements(username);
+    this.logAction(username, won ? 'gamble_win' : 'gamble_lose', 'Crash ' + (won ? '+' + (payout-bet) : '-' + bet) + 'g (' + target + 'x, crashed:' + crashAt + 'x)');
     return { username, crashAt, target, won, bet, payout, gold: p.gold, game: 'crash' };
   }
 
@@ -1574,6 +1601,7 @@ class Game {
     }
     this.saveData();
     if (won) this.emitAchievements(username);
+    this.logAction(username, won ? 'gamble_win' : 'gamble_lose', 'Roulette ' + (won ? '+' + (payout-bet) : '-' + bet) + 'g (' + pick + ', landed:' + num + ')');
     return { username, spin: num, color: isGreen ? 'green' : isRed ? 'red' : 'black', choice: pick, won, mult, bet, payout, gold: p.gold, game: 'roulette' };
   }
 
@@ -1585,6 +1613,8 @@ class Game {
     const pTo = this.player(to);
     pFrom.gold -= bet;
     pTo.gold += bet;
+    this.logAction(from, 'gift_sent', bet + 'g to ' + to);
+    this.logAction(to, 'gift_recv', bet + 'g from ' + from);
     this.saveData();
     return { from, to, amount: bet, fromGold: pFrom.gold, toGold: pTo.gold };
   }
@@ -1867,6 +1897,31 @@ class Game {
     this.saveData();
     return { success: true, cancelled: listing.itemData.name, seller: listing.seller };
   }
+  adminGetPlayerLog(username) {
+    const p = this.players[username];
+    if (!p) return [];
+    return (p.activityLog || []).slice(-150).reverse();
+  }
+  softWipe() {
+    for (const [name, p] of Object.entries(this.players)) {
+      p.xp = 0; p.gold = 0; p.level = 1; p.totalDamage = 0;
+      p.streak = 0; p.bestStreak = 0; p.mvpCount = 0; p.gamblesWon = 0;
+      p.bossKills = 0; p.dodgeCount = 0; p.tradeCount = 0;
+      p.prestigeBonus = 0; p.prestige = 0;
+      p.duelsWon = 0; p.duelsLost = 0; p.duelWinStreak = 0; p.bestDuelStreak = 0; p.arenaRating = 1000;
+      p.inventory = []; p.equipped = {};
+      p.wearables = []; p.activeWearables = { hat: null, cape: null, wrist: null, face: null };
+      p.cosmetics = []; p.activeCosmetics = { border: null, title: null, hitEffect: null, badge: null, killEffect: null };
+      p.achievements = [];
+      p.activityLog = [{ t: Date.now(), a: 'wipe', d: 'Admin wiped all progress' }];
+      if (p.rpg) { p.rpg.miningLevel = 1; p.rpg.miningXP = 0; p.rpg.totalMined = 0; p.rpg.mobKills = 0; p.rpg.pickaxeTier = 1; }
+    }
+    this.market = []; this.marketIdCounter = 1;
+    this.tradeLog = [];
+    this.saveData();
+    console.log('🧹 SOFT WIPE — all player progress reset (accounts kept)');
+    return { success: true, playersWiped: Object.keys(this.players).length };
+  }
 
   // ── Player Portal Auth ────────────────────
   generateLinkCode(username) {
@@ -2036,6 +2091,7 @@ class Game {
       goldAmount: amt, dollarValue, status: 'pending', date: Date.now(),
     };
     this.payoutQueue.push(request);
+    this.logAction(username, 'redeem', amt + 'g ($' + dollarValue + ') via ' + method);
     this.saveData();
     return { success: true, request };
   }
@@ -2162,6 +2218,8 @@ class Game {
       this.player(winner).gold += duel.bet;
       this.player(loser).gold -= duel.bet;
     }
+    this.logAction(winner, 'duel_win', 'Beat ' + loser + (duel.bet > 0 ? ' +' + duel.bet + 'g' : ''));
+    this.logAction(loser, 'duel_lose', 'Lost to ' + winner + (duel.bet > 0 ? ' -' + duel.bet + 'g' : ''));
 
     // Update stats
     const w = this.player(winner);
@@ -2308,6 +2366,7 @@ class Game {
     p.prestigeBonus = next.dmgBonus;
     // Gold reward
     p.gold += next.goldReward;
+    this.logAction(username, 'prestige', next.icon + ' ' + next.name + ' (Lv' + oldLevel + '→1) +' + next.goldReward + 'g');
 
     this.saveData();
     this.emitAchievements(username);
@@ -3175,6 +3234,7 @@ class Game {
       this.saveData();
       this.emitAchievements(username);
       this.rpgBroadcastZone(rp.zone, { type: 'rpg_boss_died', data: { bossId: boss.id, killer: username } });
+      this.logAction(username, 'rpg_boss_kill', boss.name + ' +' + gold + 'g +' + xpR + 'xp' + (droppedItems.length ? ' drops:' + droppedItems.map(d=>d.name).join(',') : ''));
       return { killed: true, dmg, crit, gold, xp: xpR, leveled, level: p.level, currentXP: p.xp, xpNeeded: this.xpNeeded(p), totalGold: p.gold, mobName: boss.name, drops: droppedItems, wearableDrops: droppedWearables, weaponBroke: wepResult && wepResult.broken ? wepResult.name : null };
     }
     return { hit: true, dmg, crit, bossHP: boss.hp, bossMaxHP: boss.maxHP, weaponBroke: wepResult && wepResult.broken ? wepResult.name : null };
@@ -3348,6 +3408,7 @@ class Game {
       }
     }
     if (droppedItems.length > 0 || droppedWearables.length > 0) this.saveData();
+    this.logAction(username, 'mine', node.type + ' +' + goldInt + 'g +' + node.xp + 'mxp' + (droppedItems.length ? ' drops:' + droppedItems.map(d=>d.name).join(',') : ''));
 
     return {
       success: true,
@@ -3413,6 +3474,7 @@ class Game {
       this.saveData();
       this.emitAchievements(username);
       this.rpgBroadcastZone(rp.zone, { type: 'rpg_mob_died', data: { mobId, killer: username } });
+      this.logAction(username, 'mob_kill', mob.name + ' +' + gold + 'g +' + mob.xpReward + 'xp' + (droppedItems.length ? ' drops:' + droppedItems.map(d=>d.name).join(',') : ''));
       return { killed: true, dmg, crit, gold, xp: mob.xpReward, leveled, level: p.level, currentXP: p.xp, xpNeeded: this.xpNeeded(p), totalGold: p.gold, mobName: mob.name, drops: droppedItems, wearableDrops: droppedWearables, weaponBroke: wepResult && wepResult.broken ? wepResult.name : null };
     }
 
@@ -3425,6 +3487,7 @@ class Game {
     const p = this.rpgGetPlayerData(username);
     this.addGold(p, quest.goldReward);
     const leveled = this.addXP(p, quest.xpReward);
+    this.logAction(username, 'quest', quest.id + ' +' + quest.goldReward + 'g +' + quest.xpReward + 'xp');
     this.saveData();
     return { success: true, questId, goldReward: quest.goldReward, xpReward: quest.xpReward, leveled, level: p.level, currentXP: p.xp, xpNeeded: this.xpNeeded(p), totalGold: p.gold };
   }
