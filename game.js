@@ -927,22 +927,23 @@ class Game {
     }
   }
 
-  handleDiceRoll(username, amount) {
+  handleDiceRoll(username, amount, target) {
     if (!this.gamblingEnabled) return { error: 'gambling_disabled' };
     const p = this.player(username);
     const bet = parseInt(amount);
     if (isNaN(bet) || bet < 1) return { error: 'invalid' };
     if (bet > p.gold) return { error: 'broke', gold: p.gold };
-    const roll = Math.floor(Math.random() * 100) + 1;
-    // 1-65: lose, 66-82: 1.5x, 83-93: 2.5x, 94-98: 4x, 99-100: 8x
-    // EV = 0.35*1.5 + 0.11*2.5 + 0.05*4 + 0.02*8 = 0.525+0.275+0.20+0.16 = ~0.76
-    let mult = 0, tier = 'lose';
-    if (roll >= 99) { mult = 8; tier = 'jackpot'; }
-    else if (roll >= 94) { mult = 4; tier = 'big'; }
-    else if (roll >= 83) { mult = 2.5; tier = 'nice'; }
-    else if (roll >= 66) { mult = 1.5; tier = 'win'; }
-    const payout = Math.floor(bet * mult);
-    if (mult > 0) {
+    const tgt = parseFloat(target);
+    if (isNaN(tgt) || tgt < 5 || tgt > 95) return { error: 'invalid_target' };
+    // Stake-style dice: roll 0.00-99.99, win if roll > target
+    // Win chance = (100 - target) / 100
+    // Multiplier = (100 / winChance) * 0.88  (12% house edge)
+    const winChance = (100 - tgt) / 100;
+    const mult = parseFloat(((1 / winChance) * 0.88).toFixed(4));
+    const roll = parseFloat((Math.random() * 100).toFixed(2));
+    const won = roll > tgt;
+    const payout = won ? Math.floor(bet * mult) : 0;
+    if (won) {
       p.gold += payout - bet;
       p.gamblesWon = (p.gamblesWon || 0) + 1;
       p.totalGambleProfit = (p.totalGambleProfit || 0) + (payout - bet);
@@ -952,8 +953,8 @@ class Game {
       p.totalGambleProfit = (p.totalGambleProfit || 0) - bet;
     }
     this.saveData();
-    if (mult > 0) this.emitAchievements(username);
-    return { username, roll, mult, tier, bet, payout, won: mult > 0, gold: p.gold, game: 'dice' };
+    if (won) this.emitAchievements(username);
+    return { username, roll, target: tgt, mult, winChance: parseFloat((winChance * 100).toFixed(2)), bet, payout, won, gold: p.gold, game: 'dice' };
   }
 
   handleSlots(username, amount) {

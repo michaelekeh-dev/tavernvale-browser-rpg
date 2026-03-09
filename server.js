@@ -132,7 +132,7 @@ app.post('/api/gamble', requireAuth, (req, res) => {
 
 // Dice Roll
 app.post('/api/dice', requireAuth, (req, res) => {
-  const r = game.handleDiceRoll(req.playerName, req.body.amount);
+  const r = game.handleDiceRoll(req.playerName, req.body.amount, req.body.target);
   if (r && !r.error) { broadcast('gamble_result', r); return res.json(r); }
   res.status(400).json(r || { error: 'Failed' });
 });

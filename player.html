@@ -487,11 +487,24 @@
 
         <!-- DICE ROLL -->
         <div class="gamble-card gamble-game" id="game-dice" style="display:none;">
-          <div style="font-size:24px;margin-bottom:8px;">🎲 Dice Roll</div>
-          <div style="color:var(--dim);font-size:13px;margin-bottom:16px;">
-            1-65: Lose &nbsp;|&nbsp; 66-82: 1.5x &nbsp;|&nbsp; 83-93: 2.5x &nbsp;|&nbsp; 94-98: 4x &nbsp;|&nbsp; 99-100: 8x 🔥
+          <div style="font-size:24px;margin-bottom:8px;">🎲 Dice</div>
+          <div style="color:var(--dim);font-size:13px;margin-bottom:12px;">Roll over your target to win. Higher target = higher multiplier = harder to hit.</div>
+          <div class="gamble-result" id="dice-result" style="font-size:36px;">🎲</div>
+          <div style="margin:12px auto;max-width:360px;">
+            <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--dim);margin-bottom:4px;"><span>Easy (low payout)</span><span>Hard (high payout)</span></div>
+            <input type="range" id="dice-slider" min="5" max="95" value="50" step="1" style="width:100%;accent-color:var(--gold);cursor:pointer;" oninput="updateDiceSlider()" />
+            <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:13px;">
+              <div>Target: <span id="dice-target-display" style="color:var(--gold);font-weight:700;">Roll over 50.00</span></div>
+              <div>Win: <span id="dice-chance-display" style="color:var(--green);font-weight:700;">50%</span></div>
+              <div>Payout: <span id="dice-mult-display" style="color:var(--accent);font-weight:700;">1.76x</span></div>
+            </div>
           </div>
-          <div class="gamble-result" id="dice-result">🎲</div>
+          <div style="display:flex;gap:6px;justify-content:center;margin-bottom:8px;flex-wrap:wrap;">
+            <button class="btn btn-sm btn-outline" onclick="setDiceTarget(25)">25 (Easy)</button>
+            <button class="btn btn-sm btn-outline" onclick="setDiceTarget(50)">50</button>
+            <button class="btn btn-sm btn-outline" onclick="setDiceTarget(75)">75</button>
+            <button class="btn btn-sm btn-outline" onclick="setDiceTarget(90)">90 (Hard)</button>
+          </div>
           <div style="display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap;">
             <input type="number" id="dice-input" placeholder="Bet amount" min="1" class="gamble-bet-input" />
             <button class="btn btn-gold" onclick="doGamble('dice')">Roll!</button>
@@ -1414,24 +1427,24 @@ function doGamble(game) {
       });
 
   } else if (game === 'dice') {
+    const diceTarget = document.getElementById('dice-slider').value;
     resultEl.textContent = '🎲';
     resultEl.style.animation = 'spin 0.5s ease';
-    fetch('/api/dice', { method: 'POST', headers: authHeaders(), body: authBody({ amount: amt }) })
+    fetch('/api/dice', { method: 'POST', headers: authHeaders(), body: authBody({ amount: amt, target: diceTarget }) })
       .then(r => r.json()).then(r => {
         setTimeout(() => {
           resultEl.style.animation = '';
-          if (r.error) { toast(errMsg(r.error), 'error'); resultEl.textContent = '❌'; return; }
+          if (r.error) { toast(errMsg(r.error === 'invalid_target' ? 'Set a target between 5-95' : r.error), 'error'); resultEl.textContent = '❌'; return; }
           resultEl.textContent = r.roll;
           if (r.won) {
             resultEl.style.color = 'var(--green)';
-            const labels = { jackpot: '🔥 JACKPOT', big: '💰 BIG WIN', nice: '✨ Nice', win: '👍 Win' };
-            toast(`Rolled ${r.roll}! ${labels[r.tier]} ${r.mult}x = +${r.payout - r.bet}g`, 'success');
+            toast(`🎲 Rolled ${r.roll} > ${r.target}! ${r.mult}x = +${r.payout - r.bet}g 🎉`, 'success');
           } else {
             resultEl.style.color = 'var(--red)';
-            toast(`Rolled ${r.roll}... Lost ${r.bet}g 😢`, 'error');
+            toast(`🎲 Rolled ${r.roll} ≤ ${r.target}... Lost ${r.bet}g`, 'error');
           }
           setTimeout(() => { resultEl.style.color = ''; }, 2000);
-          gambleHistory.unshift({ game: '🎲', won: r.won, bet: r.bet, payout: r.won ? r.payout : 0, time: Date.now(), detail: `Roll: ${r.roll}` });
+          gambleHistory.unshift({ game: '🎲', won: r.won, bet: r.bet, payout: r.won ? r.payout : 0, time: Date.now(), detail: `${r.roll} vs ${r.target}` });
           if (gambleHistory.length > 30) gambleHistory.length = 30;
           renderGambleHistory(); refreshProfile();
         }, 500);
@@ -1549,6 +1562,16 @@ function doGamble(game) {
 }
 
 function setCrashTarget(val) { document.getElementById('crash-cashout').value = val; }
+
+function updateDiceSlider() {
+  const val = parseFloat(document.getElementById('dice-slider').value);
+  const chance = (100 - val);
+  const mult = ((1 / (chance / 100)) * 0.88).toFixed(2);
+  document.getElementById('dice-target-display').textContent = 'Roll over ' + val.toFixed(2);
+  document.getElementById('dice-chance-display').textContent = chance + '%';
+  document.getElementById('dice-mult-display').textContent = mult + 'x';
+}
+function setDiceTarget(val) { document.getElementById('dice-slider').value = val; updateDiceSlider(); }
 
 let selectedRouletteChoice = '';
 function setRouletteChoice(choice) {
