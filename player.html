@@ -778,8 +778,8 @@
       <div class="card">
         <div class="card-header">💰 Redeem Gold for Cash</div>
         <div style="background:var(--bg3);border-radius:8px;padding:14px;margin-bottom:16px;">
-          <div style="font-size:14px;font-weight:700;color:var(--gold);margin-bottom:4px;">Exchange Rate: <span id="redeem-rate">150</span>g = $1</div>
-          <div style="font-size:12px;color:var(--dim);">Minimum redeem: <span id="redeem-min">1000</span>g</div>
+          <div style="font-size:14px;font-weight:700;color:var(--gold);margin-bottom:4px;">Exchange Rate: <span id="redeem-rate">1000</span>g = $1</div>
+          <div style="font-size:12px;color:var(--dim);">Minimum redeem: <span id="redeem-min">5000</span>g · Max: 50,000g/day ($50)</div>
           <div style="font-size:12px;color:var(--green);margin-top:2px;">Payouts processed quickly by ur boy mikeydamike 🏄‍♂️💨</div>
           <div style="font-size:11px;color:var(--dim);margin-top:2px;font-style:italic;">"we ain't a bank out here, we move FAST" — mikeydamike</div>
           <div style="font-size:12px;color:var(--dim);margin-top:2px;">Your gold: <span id="redeem-gold" style="color:var(--gold);font-weight:700;">0</span></div>
@@ -2797,7 +2797,7 @@ document.getElementById('chat-input').addEventListener('keydown', e => { if (e.k
 // ═══════════════════════════════════════════
 function updateRedeemPreview() {
   const amt = parseInt(document.getElementById('redeem-amount').value) || 0;
-  const rate = parseInt(document.getElementById('redeem-rate').textContent) || 150;
+  const rate = parseInt(document.getElementById('redeem-rate').textContent) || 1000;
   const dollars = (amt / rate).toFixed(2);
   document.getElementById('redeem-preview').textContent = amt > 0 ? `= $${dollars} USD` : '';
 }
@@ -2815,6 +2815,8 @@ function submitRedeem() {
         else if (r.error === 'broke') toast(r.message || "You're down bad rn... go farm some bosses 💀", 'error');
         else if (r.error === 'already_pending') toast(r.message || "Chill, you already got one cooking 🍳", 'error');
         else if (r.error === 'invalid_method') toast(r.message || 'Invalid method', 'error');
+        else if (r.error === 'max_redeem') toast(r.message || 'Max withdrawal exceeded', 'error');
+        else if (r.error === 'daily_limit') toast(r.message || 'Daily withdrawal limit reached ⏰', 'error');
         else toast(r.message || r.error, 'error');
       } else {
         toast('Request locked in! mikeydamike moves fast 🏄‍♂️💨', 'success');
@@ -2856,8 +2858,8 @@ enterDashboard = function() {
   connectChat();
   loadRedeemHistory();
   // Update redeem panel info
-  document.getElementById('redeem-rate').textContent = 150;
-  document.getElementById('redeem-min').textContent = 1000;
+  document.getElementById('redeem-rate').textContent = 1000;
+  document.getElementById('redeem-min').textContent = '5000g · Max: 50,000g/day ($50)';
 };
 
 // Override updateAuthBadge to update chat UI too

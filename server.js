@@ -2,7 +2,7 @@ const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
 const path = require('path');
-const { Game, CONFIG, COSMETICS, WEARABLES, BOSS_LOOT, ITEMS, LOOT_TABLES, RECIPES, NPC_SHOP, ACHIEVEMENTS, RARITY_COLOR, VENDOR_PRICE, RANK_BADGES, getRankBadge, RPG_ZONES, RPG_PICKAXES } = require('./game');
+const { Game, CONFIG, COSMETICS, WEARABLES, BOSS_LOOT, ITEMS, LOOT_TABLES, RECIPES, NPC_SHOP, ACHIEVEMENTS, RARITY_COLOR, VENDOR_PRICE, RANK_BADGES, getRankBadge, RPG_ZONES, RPG_PICKAXES, TAVERN_QUESTS } = require('./game');
 
 // ═══════════════════════════════════════════
 // CONFIGURATION — Edit these values
@@ -696,6 +696,10 @@ wss.on('connection', (ws) => {
           game.saveData();
           ws.send(JSON.stringify({ type: 'rpg_ghost_defeated_ack', data: { success: true } }));
         }
+      }
+      if (msg.type === 'rpg_quest_turnin' && ws.isRPG && ws.rpgUser) {
+        const r = game.rpgQuestTurnIn(ws.rpgUser, msg.questId);
+        ws.send(JSON.stringify({ type: 'rpg_quest_turnin_result', data: r }));
       }
       if (msg.type === 'rpg_duel_queue' && ws.isRPG && ws.rpgUser) {
         let r;

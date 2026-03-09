@@ -1908,10 +1908,22 @@ class Game {
     if (!validMethods.includes(method)) return { error: 'invalid_method', message: 'Nah fam, only Solana or Discord. We ain\'t PayPal over here 😤' };
     const p = this.player(username);
     const amt = parseInt(goldAmount);
-    const minRedeem = 5000;  // $25 minimum
+    const minRedeem = 5000;  // $5 minimum (5000g at 1000g/$1)
+    const maxRedeemPerDay = 50000; // $50/day max (50000g at 1000g/$1)
+    const redeemCooldownMs = 24 * 60 * 60 * 1000; // 24 hours
     if (isNaN(amt) || amt < minRedeem) return { error: 'min_redeem', minimum: minRedeem };
+    if (amt > maxRedeemPerDay) return { error: 'max_redeem', message: `Max withdrawal is ${maxRedeemPerDay.toLocaleString()}g ($${(maxRedeemPerDay/CONFIG.goldPerDollar).toFixed(0)}) per day 🚫`, maximum: maxRedeemPerDay };
     if (p.gold < amt) return { error: 'broke', gold: p.gold, message: 'You\'re down bad rn... go farm some bosses 💀' };
     if (this.payoutQueue.find(r => r.username === username && r.status === 'pending')) return { error: 'already_pending', message: 'Chill, you already got one cooking 🍳' };
+    // Check 24h rolling window: total approved + pending in last 24h
+    const dayAgo = Date.now() - redeemCooldownMs;
+    const recentTotal = this.payoutQueue
+      .filter(r => r.username === username && r.date > dayAgo && (r.status === 'approved' || r.status === 'pending'))
+      .reduce((sum, r) => sum + r.goldAmount, 0);
+    if (recentTotal + amt > maxRedeemPerDay) {
+      const remaining = Math.max(0, maxRedeemPerDay - recentTotal);
+      return { error: 'daily_limit', message: `You've hit the daily limit! ${remaining > 0 ? remaining.toLocaleString() + 'g remaining' : 'Try again in 24hrs'} ⏰`, remaining };
+    }
     const dollarValue = parseFloat((amt / CONFIG.goldPerDollar).toFixed(2));
     p.gold -= amt;
     const request = {
@@ -3058,7 +3070,7 @@ class Game {
       this.saveData();
       this.emitAchievements(username);
       this.rpgBroadcastZone(rp.zone, { type: 'rpg_boss_died', data: { bossId: boss.id, killer: username } });
-      return { killed: true, dmg, crit, gold, xp: xpR, leveled, level: p.level, totalGold: p.gold, mobName: boss.name, drops: droppedItems, wearableDrops: droppedWearables, weaponBroke: wepResult && wepResult.broken ? wepResult.name : null };
+      return { killed: true, dmg, crit, gold, xp: xpR, leveled, level: p.level, currentXP: p.xp, xpNeeded: this.xpNeeded(p), totalGold: p.gold, mobName: boss.name, drops: droppedItems, wearableDrops: droppedWearables, weaponBroke: wepResult && wepResult.broken ? wepResult.name : null };
     }
     return { hit: true, dmg, crit, bossHP: boss.hp, bossMaxHP: boss.maxHP, weaponBroke: wepResult && wepResult.broken ? wepResult.name : null };
   }
@@ -3079,6 +3091,8 @@ class Game {
     return {
       rpg: p.rpg,
       level: p.level,
+      xp: p.xp,
+      xpNeeded: this.xpNeeded(p),
       gold: p.gold,
       maxHP,
       baseDmg: Math.floor((this.minDmg(p) + this.maxDmg(p)) / 2) || 5,
@@ -3294,10 +3308,20 @@ class Game {
       this.saveData();
       this.emitAchievements(username);
       this.rpgBroadcastZone(rp.zone, { type: 'rpg_mob_died', data: { mobId, killer: username } });
-      return { killed: true, dmg, crit, gold, xp: mob.xpReward, leveled, level: p.level, totalGold: p.gold, mobName: mob.name, drops: droppedItems, wearableDrops: droppedWearables, weaponBroke: wepResult && wepResult.broken ? wepResult.name : null };
+      return { killed: true, dmg, crit, gold, xp: mob.xpReward, leveled, level: p.level, currentXP: p.xp, xpNeeded: this.xpNeeded(p), totalGold: p.gold, mobName: mob.name, drops: droppedItems, wearableDrops: droppedWearables, weaponBroke: wepResult && wepResult.broken ? wepResult.name : null };
     }
 
     return { hit: true, dmg, crit, mobHP: mob.hp, mobMaxHP: mob.maxHP, weaponBroke: wepResult && wepResult.broken ? wepResult.name : null };
+  }
+
+  rpgQuestTurnIn(username, questId) {
+    const quest = TAVERN_QUESTS.find(q => q.id === questId);
+    if (!quest) return { error: 'invalid_quest' };
+    const p = this.rpgGetPlayerData(username);
+    this.addGold(p, quest.goldReward);
+    const leveled = this.addXP(p, quest.xpReward);
+    this.saveData();
+    return { success: true, questId, goldReward: quest.goldReward, xpReward: quest.xpReward, leveled, level: p.level, currentXP: p.xp, xpNeeded: this.xpNeeded(p), totalGold: p.gold };
   }
 
   rpgBuyPickaxe(username, tier) {
@@ -3833,6 +3857,15 @@ class Game {
 // ═══════════════════════════════════════════
 // RPG Constants
 // ═══════════════════════════════════════════
+const TAVERN_QUESTS = [
+  { id: 'q_goblins',      title: 'Goblin Trouble',  type: 'kill', target: 'goblin', goal: 5,  goldReward: 50,  xpReward: 30 },
+  { id: 'q_wolves',       title: 'Wolf Pelts',      type: 'kill', target: 'wolf',   goal: 3,  goldReward: 40,  xpReward: 25 },
+  { id: 'q_stones',       title: 'Stone Supply',    type: 'mine',                   goal: 8,  goldReward: 35,  xpReward: 20 },
+  { id: 'q_slimes',       title: 'Slime Infestation', type: 'kill', target: 'slime', goal: 6, goldReward: 30,  xpReward: 15 },
+  { id: 'q_forest_clear', title: 'Forest Patrol',   type: 'kill_any_forest',         goal: 10, goldReward: 80,  xpReward: 50 },
+  { id: 'q_wolf_alpha',   title: 'Alpha Hunt',      type: 'kill', target: 'wolf',   goal: 6,  goldReward: 60,  xpReward: 40 },
+];
+
 const RPG_PICKAXES = [
   { tier: 1, name: 'Stone Pickaxe',   cost: 0,     power: 1, speed: 1.0,  icon: '🪨' },
   { tier: 2, name: 'Iron Pickaxe',    cost: 1000,  power: 2, speed: 1.3,  icon: '⛏️' },
@@ -3969,4 +4002,4 @@ const RPG_ZONES = {
   },
 };
 
-module.exports = { Game, CONFIG, COSMETICS, WEARABLES, BOSS_LOOT, ITEMS, LOOT_TABLES, RECIPES, NPC_SHOP, ACHIEVEMENTS, RARITY_COLOR, VENDOR_PRICE, RANK_BADGES, getRankBadge, RPG_ZONES, RPG_PICKAXES, TILE, TILE_PROPS, TILE_SIZE, MAP_W, MAP_H };
+module.exports = { Game, CONFIG, COSMETICS, WEARABLES, BOSS_LOOT, ITEMS, LOOT_TABLES, RECIPES, NPC_SHOP, ACHIEVEMENTS, RARITY_COLOR, VENDOR_PRICE, RANK_BADGES, getRankBadge, RPG_ZONES, RPG_PICKAXES, TAVERN_QUESTS, TILE, TILE_PROPS, TILE_SIZE, MAP_W, MAP_H };

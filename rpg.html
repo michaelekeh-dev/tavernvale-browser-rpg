@@ -262,7 +262,8 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;di
     <canvas id="game-canvas"></canvas>
     <div class="hud" id="hud-overlay" style="display:none">
       <div class="hud-bar"><span style="color:var(--red)">HP</span> <span id="hud-hp-text">50/50</span><div class="bar"><div class="bar-fill" id="hud-hp-fill" style="width:100%;background:var(--green)"></div></div></div>
-      <div class="hud-bar"><span style="color:var(--accent)">XP</span> <span id="hud-mxp-text">0/30</span><div class="bar"><div class="bar-fill" id="hud-mxp-fill" style="width:0;background:var(--accent)"></div></div></div>
+      <div class="hud-bar"><span style="color:#4ade80">XP</span> <span id="hud-xp-text">0/100</span><div class="bar"><div class="bar-fill" id="hud-xp-fill" style="width:0;background:#4ade80"></div></div></div>
+      <div class="hud-bar"><span style="color:var(--accent)">Mine</span> <span id="hud-mxp-text">0/30</span><div class="bar"><div class="bar-fill" id="hud-mxp-fill" style="width:0;background:var(--accent)"></div></div></div>
     </div>
     <div id="rpg-announce-banner" style="display:none;position:absolute;top:0;left:0;right:0;z-index:9999;background:linear-gradient(90deg,#e94560,#c33);color:#fff;padding:10px 16px;font-size:14px;font-weight:700;text-align:center;box-shadow:0 2px 12px rgba(233,69,96,.5)">
       <span id="rpg-announce-text"></span>
@@ -516,6 +517,7 @@ let nodes=[],mobs=[],otherPlayers=[],decorations=[];
 let boss=null; // current zone boss entity
 let bossTelegraph=null; // active boss attack telegraph visual
 let playerHP=50,playerMaxHP=50,playerLevel=1;
+let playerXP=0,playerXPNeeded=100;
 let miningLevel=1,miningXP=0,miningXPNeeded=30;
 let gold=0,pickaxeTier=1,baseDmg=5;
 let allZones=[],allPickaxes=[];
@@ -711,12 +713,12 @@ function loadQuests(){
   }catch{}
 }
 const TAVERN_QUESTS=[
-  {id:'q_goblins',title:'Goblin Trouble',desc:"There's goblins causin' havoc in the forest. Clear out 5 of 'em.",type:'kill',target:'goblin',goal:5,reward:50},
-  {id:'q_wolves',title:'Wolf Pelts',desc:"Wolves been gettin' bold lately. Take down 3 and I'll make it worth yer while.",type:'kill',target:'wolf',goal:3,reward:40},
-  {id:'q_stones',title:'Stone Supply',desc:"The quarry needs supplies. Mine 8 stones for the builders.",type:'mine',goal:8,reward:35},
-  {id:'q_slimes',title:'Slime Infestation',desc:"Slimes are oozin' through the Shadow Forest. Squish 6 of 'em before they spread.",type:'kill',target:'slime',goal:6,reward:30},
-  {id:'q_forest_clear',title:'Forest Patrol',desc:"The Shadow Forest needs clearin'. Kill 10 of anything in there — slimes, goblins, wolves, don't matter.",type:'kill_any_forest',goal:10,reward:80},
-  {id:'q_wolf_alpha',title:'Alpha Hunt',desc:"There's a big pack of wolves terrorizing travelers. Take down 6 wolves and bring proof.",type:'kill',target:'wolf',goal:6,reward:60},
+  {id:'q_goblins',title:'Goblin Trouble',desc:"There's goblins causin' havoc in the forest. Clear out 5 of 'em.",type:'kill',target:'goblin',goal:5,reward:50,xpReward:30},
+  {id:'q_wolves',title:'Wolf Pelts',desc:"Wolves been gettin' bold lately. Take down 3 and I'll make it worth yer while.",type:'kill',target:'wolf',goal:3,reward:40,xpReward:25},
+  {id:'q_stones',title:'Stone Supply',desc:"The quarry needs supplies. Mine 8 stones for the builders.",type:'mine',goal:8,reward:35,xpReward:20},
+  {id:'q_slimes',title:'Slime Infestation',desc:"Slimes are oozin' through the Shadow Forest. Squish 6 of 'em before they spread.",type:'kill',target:'slime',goal:6,reward:30,xpReward:15},
+  {id:'q_forest_clear',title:'Forest Patrol',desc:"The Shadow Forest needs clearin'. Kill 10 of anything in there — slimes, goblins, wolves, don't matter.",type:'kill_any_forest',goal:10,reward:80,xpReward:50},
+  {id:'q_wolf_alpha',title:'Alpha Hunt',desc:"There's a big pack of wolves terrorizing travelers. Take down 6 wolves and bring proof.",type:'kill',target:'wolf',goal:6,reward:60,xpReward:40},
 ];
 
 // ── Quest progress tracking ──
@@ -1004,6 +1006,7 @@ function handleMessage(msg){
     case'rpg_equip_wearable_result':if(d&&!d.error){logMsg('Wore '+d.equipped+'!','loot');myActiveWearables[d.slot]=d.key;refreshWearables()}else if(d)logMsg(d.error,'dmg');break;
     case'rpg_unequip_wearable_result':if(d&&!d.error){logMsg('Removed from '+d.slot,'loot');myActiveWearables[d.slot]=null;refreshWearables()}else if(d)logMsg(d.error,'dmg');break;
     case'rpg_player_wearable_update':{const op=otherPlayers.find(p=>p.username===d.username);if(op)op.activeWearables=d.activeWearables;break}
+    case'rpg_quest_turnin_result':if(d&&!d.error){gold=d.totalGold;playerLevel=d.level;if(d.currentXP!==undefined){playerXP=d.currentXP;playerXPNeeded=d.xpNeeded}if(d.leveled){logMsg('LEVEL UP! Lv '+d.level,'xp');playSound('levelup');addFloat(px,py-50,'LEVEL '+d.level+'!','#fbbf24',true)}updateHUD()}break;
     case'rpg_admin_result':handleAdminResult(d);break;
   }
 }
@@ -1012,6 +1015,7 @@ function onJoined(d){
   document.getElementById('login-screen').style.display='none';
   document.getElementById('game-app').style.display='flex';
   playerLevel=d.level;gold=d.gold;playerMaxHP=d.maxHP;playerHP=d.maxHP;
+  playerXP=d.xp||0;playerXPNeeded=d.xpNeeded||(d.level*100);
   miningLevel=d.rpg.miningLevel;miningXP=d.rpg.miningXP;miningXPNeeded=d.rpg.miningLevel*30;
   pickaxeTier=d.rpg.pickaxeTier;baseDmg=d.baseDmg||5;
   myAppearance=d.appearance||{};myEquipped=d.equipped||{};myActiveWearables=d.activeWearables||{};
@@ -1101,7 +1105,7 @@ function onMineResult(d){
     if(d.leveledUp){logMsg('Mining Level UP! Lv '+d.miningLevel,'xp');playSound('levelup');addFloat(px,py-40,'MINING LV '+d.miningLevel+'!','#fbbf24',true)}
     if(d.gold>0)logMsg(d.oreType+': +'+d.gold+'g','loot');
     // Show material drops as toast notifications
-    if(d.drops&&d.drops.length){d.drops.forEach(dr=>{const def=itemData[dr.itemId]||{};showDropToast(def.icon||'📦',def.name||dr.itemId,def.rarity||'common',dr.qty||1)})}
+    if(d.drops&&d.drops.length){d.drops.forEach(dr=>{const def=itemData[dr.id]||{};showDropToast(dr.icon||def.icon||'📦',dr.name||def.name||dr.id,def.rarity||'common',dr.qty||1)})}
     if(d.wearableDrops&&d.wearableDrops.length){d.wearableDrops.forEach(w=>{showDropToast(w.icon||'👒',w.name,w.rarity||'rare',1)})}
     // Quest tracking: mine success
     checkQuestProgress('mine',d.oreType);
@@ -1153,10 +1157,11 @@ function onAttackResult(d){
     }
     mobs=mobs.filter(m=>m.id!==attackTarget);attackTarget=null;
     gold=d.totalGold;playerLevel=d.level;
+    if(d.currentXP!==undefined){playerXP=d.currentXP;playerXPNeeded=d.xpNeeded}
     if(d.leveled){logMsg('LEVEL UP! Lv '+d.level,'xp');playSound('levelup');addFloat(px,py-50,'LEVEL '+d.level+'!','#fbbf24',true)}
     logMsg(d.mobName+': +'+d.gold+'g +'+d.xp+'XP','loot');updateHUD();
     // Show item drops as toast notifications
-    if(d.drops&&d.drops.length){d.drops.forEach(dr=>{const def=itemData[dr.itemId]||{};showDropToast(def.icon||'📦',def.name||dr.itemId,def.rarity||'common',dr.qty||1)})}
+    if(d.drops&&d.drops.length){d.drops.forEach(dr=>{const def=itemData[dr.id]||{};showDropToast(dr.icon||def.icon||'📦',dr.name||def.name||dr.id,def.rarity||'common',dr.qty||1)})}
     if(d.wearableDrops&&d.wearableDrops.length){d.wearableDrops.forEach(w=>{showDropToast(w.icon||'👒',w.name,w.rarity||'rare',1)})}
     // Quest tracking: mob kill
     checkQuestProgress('kill',d.mobName);
@@ -1209,10 +1214,11 @@ function onBossAttackResult(d){
     }
     boss=null;bossTelegraph=null;attackTarget=null;
     gold=d.totalGold;playerLevel=d.level;
+    if(d.currentXP!==undefined){playerXP=d.currentXP;playerXPNeeded=d.xpNeeded}
     if(d.leveled){logMsg('LEVEL UP! Lv '+d.level,'xp');playSound('levelup');addFloat(px,py-50,'LEVEL '+d.level+'!','#fbbf24',true)}
     logMsg('BOSS SLAIN: '+d.mobName+'! +'+d.gold+'g +'+d.xp+'XP','loot');updateHUD();
     // Show boss item drops as toast
-    if(d.drops&&d.drops.length){d.drops.forEach(dr=>{const def=itemData[dr.itemId]||{};showDropToast(def.icon||'📦',def.name||dr.itemId,def.rarity||'common',dr.qty||1)})}
+    if(d.drops&&d.drops.length){d.drops.forEach(dr=>{const def=itemData[dr.id]||{};showDropToast(dr.icon||def.icon||'📦',dr.name||def.name||dr.id,def.rarity||'common',dr.qty||1)})}
     if(d.wearableDrops&&d.wearableDrops.length){d.wearableDrops.forEach(w=>{showDropToast(w.icon||'👒',w.name,w.rarity||'rare',1)})}
     checkQuestProgress('kill',d.mobName);
   }
@@ -7676,7 +7682,7 @@ function openDialogue(npcId){
     const available=getAvailableQuest();
     if(doneQuest){
       showDialogueUI('Grunt','Yer back. Let me see... Aye, that\'ll do. Good work.',[
-        {label:'✅ Turn in: '+doneQuest.title+' (+'+doneQuest.reward+'g)',action:'quest_turnin'},
+        {label:'✅ Turn in: '+doneQuest.title+' (+'+doneQuest.reward+'g +'+(doneQuest.xpReward||0)+'XP)',action:'quest_turnin'},
         {label:'👋 Not yet',action:'leave'},
       ]);
     } else if(hasActive){
@@ -8055,10 +8061,14 @@ function turnInQuest(questId){
   const qi=activeQuests.findIndex(q=>q.id===questId&&q.done);
   if(qi===-1)return false;
   const q=activeQuests[qi];
-  gold+=q.reward;
-  logMsg('Quest complete! +'+q.reward+'g','loot');
+  // Send to server for gold+XP reward
+  if(ws&&ws.readyState===1){
+    ws.send(JSON.stringify({type:'rpg_quest_turnin',questId:q.id}));
+  }
+  logMsg('Quest complete! +'+q.reward+'g +'+(q.xpReward||0)+'XP','loot');
   addFloat(px,py-40,'+'+q.reward+'g','#FFD700',true);
   addFloat(px,py-60,'QUEST COMPLETE!','#4ade80',true);
+  if(q.xpReward)addFloat(px,py-75,'+'+(q.xpReward)+'XP','#4ade80',true);
   playSound('loot');
   spawnGoldCollect(q.reward);
   completedQuestIds.push(q.id);
@@ -8488,6 +8498,8 @@ function updateHUD(){
   document.getElementById('hud-level').textContent=playerLevel;
   document.getElementById('hud-mining-lv').textContent=miningLevel;
   document.getElementById('hud-gold').textContent=gold.toLocaleString();
+  document.getElementById('hud-xp-text').textContent=playerXP+'/'+playerXPNeeded;
+  document.getElementById('hud-xp-fill').style.width=(playerXP/playerXPNeeded*100)+'%';
   document.getElementById('hud-mxp-text').textContent=miningXP+'/'+miningXPNeeded;
   document.getElementById('hud-mxp-fill').style.width=(miningXP/miningXPNeeded*100)+'%';
   document.getElementById('zo-level').textContent=playerLevel;
