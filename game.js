@@ -1863,6 +1863,8 @@ class Game {
       cosmetics: p.cosmetics || [],
       activeCosmetics: p.activeCosmetics || {},
       achievements: p.achievements || [],
+      wearables: p.wearables || [],
+      activeWearables: p.activeWearables || { hat: null, cape: null, wrist: null, face: null },
       appearance: p.appearance || this.randomAppearance(),
       rankBadge: getRankBadge(p.level),
     };
