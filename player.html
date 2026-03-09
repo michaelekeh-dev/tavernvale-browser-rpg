@@ -1161,7 +1161,7 @@ function renderEquipment() {
         ${authToken ? `<div class="item-actions">
           <button class="btn btn-sm btn-primary" onclick="doEquip('${item.uid}')">Equip</button>
           <button class="btn btn-sm btn-outline" onclick="showSellModal('${item.uid}', '${esc(item.name)}', 'item')">Market</button>
-          <button class="btn btn-sm btn-outline" style="color:var(--gold)" onclick="doVendorSell('${item.uid}', '${esc(item.name)}', '${item.rarity}')">Vendor</button>
+          <span style="color:var(--gold);font-size:11px" title="Estimated market value">~${estimatedValues[item.rarity] || '?'}g</span>
         </div>` : ''}
       </div>`;
     }).join('');
@@ -2356,22 +2356,13 @@ function esc(str) {
   return str.replace(/'/g, "\\'").replace(/"/g, '\\"');
 }
 
-let vendorPrices = {};
-fetch('/api/vendorprices').then(r => r.json()).then(d => vendorPrices = d);
+let estimatedValues = {};
+fetch('/api/vendorprices').then(r => r.json()).then(d => estimatedValues = d);
 
 // ═══════════════════════════════════════════
-// Vendor Sell
+// Item Values (display only — no NPC selling)
 // ═══════════════════════════════════════════
-function doVendorSell(uid, name, rarity) {
-  if (!requireLink()) return;
-  const price = vendorPrices[rarity] || 5;
-  if (!confirm(`Vendor sell "${name}" for ${price}g? (instant, no listing)`)) return;
-  fetch('/api/vendorsell', { method: 'POST', headers: authHeaders(), body: authBody({ itemUid: uid }) })
-    .then(r => r.json()).then(r => {
-      if (r.error) toast(r.error, 'error');
-      else { toast(`Sold ${r.item} for ${r.gold}g!`, 'success'); refreshProfile(); }
-    });
-}
+// Vendor selling is disabled — player-driven economy only
 
 // ═══════════════════════════════════════════
 // Pixel Character Renderer

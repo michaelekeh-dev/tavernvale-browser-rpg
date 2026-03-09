@@ -56,7 +56,8 @@ const CONFIG = {
 // Loot Tables
 // ═══════════════════════════════════════════
 const RARITY_COLOR = { common: '#aaa', uncommon: '#4ade80', rare: '#60a5fa', epic: '#c084fc', legendary: '#fbbf24', mythic: '#ff4500' };
-const VENDOR_PRICE = { common: 10, uncommon: 25, rare: 60, epic: 120, legendary: 250, mythic: 500 };
+// Estimated market values by rarity (for display only — no NPC selling)
+const VENDOR_PRICE = { common: 50, uncommon: 200, rare: 800, epic: 3000, legendary: 12000, mythic: 50000 };
 
 const BOSS_LOOT = {
   // Top 1 (MVP) — legendary or epic
@@ -94,22 +95,22 @@ const BOSS_LOOT = {
 const ITEMS = {
   // ── NPC Weapons (buyable from shop) ──
   wooden_sword:   { id: 'wooden_sword',   name: 'Wooden Sword',   type: 'weapon', rarity: 'common',   dmgBonus: 2,  maxDurability: 80,  desc: '+2 damage', icon: '🗡️', shopPrice: 0 },
-  iron_sword:     { id: 'iron_sword',     name: 'Iron Sword',     type: 'weapon', rarity: 'uncommon', dmgBonus: 5,  maxDurability: 120, desc: '+5 damage', icon: '⚔️', shopPrice: 1200 },
-  steel_blade:    { id: 'steel_blade',    name: 'Steel Blade',    type: 'weapon', rarity: 'rare',     dmgBonus: 10, maxDurability: 180, desc: '+10 damage', icon: '🔪', shopPrice: 4000 },
-  war_axe:        { id: 'war_axe',        name: 'War Axe',        type: 'weapon', rarity: 'rare',     dmgBonus: 12, maxDurability: 160, desc: '+12 damage', icon: '🪓', shopPrice: 6500 },
-  shadow_dagger:  { id: 'shadow_dagger',  name: 'Shadow Dagger',  type: 'weapon', rarity: 'epic',     dmgBonus: 18, maxDurability: 220, desc: '+18 damage', icon: '🗡️', shopPrice: 15000 },
+  iron_sword:     { id: 'iron_sword',     name: 'Iron Sword',     type: 'weapon', rarity: 'uncommon', dmgBonus: 5,  maxDurability: 120, desc: '+5 damage', icon: '⚔️', shopPrice: 1000 },
+  steel_blade:    { id: 'steel_blade',    name: 'Steel Blade',    type: 'weapon', rarity: 'rare',     dmgBonus: 10, maxDurability: 180, desc: '+10 damage', icon: '🔪', shopPrice: 3500 },
+  war_axe:        { id: 'war_axe',        name: 'War Axe',        type: 'weapon', rarity: 'rare',     dmgBonus: 12, maxDurability: 160, desc: '+12 damage', icon: '🪓', shopPrice: 5000 },
+  shadow_dagger:  { id: 'shadow_dagger',  name: 'Shadow Dagger',  type: 'weapon', rarity: 'epic',     dmgBonus: 18, maxDurability: 220, desc: '+18 damage', icon: '🗡️', shopPrice: 12000 },
   // ── NPC Armor (buyable from shop) ──
   cloth_armor:    { id: 'cloth_armor',    name: 'Cloth Armor',    type: 'armor',  rarity: 'common',   defBonus: 1,  maxDurability: 80,  desc: '-1 damage taken', icon: '👕', shopPrice: 0 },
-  leather_vest:   { id: 'leather_vest',   name: 'Leather Vest',   type: 'armor',  rarity: 'uncommon', defBonus: 3,  maxDurability: 120, desc: '-3 damage taken', icon: '🦺', shopPrice: 800 },
-  chain_armor:    { id: 'chain_armor',    name: 'Chain Armor',    type: 'armor',  rarity: 'rare',     defBonus: 6,  maxDurability: 180, desc: '-6 damage taken', icon: '🛡️', shopPrice: 3500 },
-  knight_plate:   { id: 'knight_plate',   name: 'Knight Plate',   type: 'armor',  rarity: 'rare',     defBonus: 8,  maxDurability: 200, desc: '-8 damage taken', icon: '🛡️', shopPrice: 6000 },
-  dark_plate:     { id: 'dark_plate',     name: 'Dark Plate',     type: 'armor',  rarity: 'epic',     defBonus: 12, maxDurability: 250, desc: '-12 damage taken', icon: '🛡️', shopPrice: 12000 },
+  leather_vest:   { id: 'leather_vest',   name: 'Leather Vest',   type: 'armor',  rarity: 'uncommon', defBonus: 3,  maxDurability: 120, desc: '-3 damage taken', icon: '🦺', shopPrice: 750 },
+  chain_armor:    { id: 'chain_armor',    name: 'Chain Armor',    type: 'armor',  rarity: 'rare',     defBonus: 6,  maxDurability: 180, desc: '-6 damage taken', icon: '🛡️', shopPrice: 3000 },
+  knight_plate:   { id: 'knight_plate',   name: 'Knight Plate',   type: 'armor',  rarity: 'rare',     defBonus: 8,  maxDurability: 200, desc: '-8 damage taken', icon: '🛡️', shopPrice: 4500 },
+  dark_plate:     { id: 'dark_plate',     name: 'Dark Plate',     type: 'armor',  rarity: 'epic',     defBonus: 12, maxDurability: 250, desc: '-12 damage taken', icon: '🛡️', shopPrice: 10000 },
   // ── Consumables (NPC shop + drops) ──
-  health_potion:  { id: 'health_potion',  name: 'Health Potion',  type: 'consumable', subtype: 'heal',       value: 30,   desc: 'Restore 30 HP', icon: '❤️', shopPrice: 25, stackable: true },
-  power_elixir:   { id: 'power_elixir',   name: 'Power Elixir',   type: 'consumable', subtype: 'buff_dmg',   value: 1.25, duration: 300000, desc: '+25% dmg 5min', icon: '💪', shopPrice: 80, stackable: true },
-  shield_scroll:  { id: 'shield_scroll',  name: 'Shield Scroll',  type: 'consumable', subtype: 'buff_def',   value: 5,    duration: 300000, desc: '+5 def 5min', icon: '📜', shopPrice: 60, stackable: true },
-  speed_tonic:    { id: 'speed_tonic',    name: 'Speed Tonic',    type: 'consumable', subtype: 'buff_speed', value: 1.5,  duration: 180000, desc: '+50% speed 3min', icon: '⚡', shopPrice: 40, stackable: true },
-  repair_kit:     { id: 'repair_kit',     name: 'Repair Kit',     type: 'consumable', subtype: 'repair',     value: 50,   desc: 'Restore 50 durability', icon: '🔧', shopPrice: 150, stackable: true },
+  health_potion:  { id: 'health_potion',  name: 'Health Potion',  type: 'consumable', subtype: 'heal',       value: 30,   desc: 'Restore 30 HP', icon: '❤️', shopPrice: 30, stackable: true },
+  power_elixir:   { id: 'power_elixir',   name: 'Power Elixir',   type: 'consumable', subtype: 'buff_dmg',   value: 1.25, duration: 300000, desc: '+25% dmg 5min', icon: '💪', shopPrice: 100, stackable: true },
+  shield_scroll:  { id: 'shield_scroll',  name: 'Shield Scroll',  type: 'consumable', subtype: 'buff_def',   value: 5,    duration: 300000, desc: '+5 def 5min', icon: '📜', shopPrice: 75, stackable: true },
+  speed_tonic:    { id: 'speed_tonic',    name: 'Speed Tonic',    type: 'consumable', subtype: 'buff_speed', value: 1.5,  duration: 180000, desc: '+50% speed 3min', icon: '⚡', shopPrice: 50, stackable: true },
+  repair_kit:     { id: 'repair_kit',     name: 'Repair Kit',     type: 'consumable', subtype: 'repair',     value: 50,   desc: 'Restore 50 durability', icon: '🔧', shopPrice: 200, stackable: true },
   // ── Materials (drops only — used for crafting) ──
   slime_gel:      { id: 'slime_gel',      name: 'Slime Gel',      type: 'material', rarity: 'common',   desc: 'Sticky gel from slimes', icon: '🟢', stackable: true },
   goblin_ear:     { id: 'goblin_ear',     name: 'Goblin Ear',     type: 'material', rarity: 'common',   desc: 'Pointy goblin ear', icon: '👂', stackable: true },
@@ -162,19 +163,19 @@ const LOOT_TABLES = {
 // Crafting Recipes
 // ═══════════════════════════════════════════
 const RECIPES = {
-  venom_blade:  { result: 'venom_blade',  materials: { wolf_fang: 5, slime_gel: 8, iron_ore: 3 },               goldCost: 500,   desc: 'Poison-tipped blade' },
-  bone_cleaver: { result: 'bone_cleaver', materials: { bone_fragment: 10, wraith_essence: 3, crystal_shard: 2 }, goldCost: 2000,  desc: 'Heavy undead cleaver' },
-  void_edge:    { result: 'void_edge',    materials: { void_fragment: 5, crystal_shard: 8, demon_core: 3 },      goldCost: 8000,  desc: 'Edge of nothingness' },
-  demon_scythe: { result: 'demon_scythe', materials: { demon_core: 8, void_fragment: 3, wraith_essence: 5 },     goldCost: 12000, desc: 'Demonic reaper blade' },
-  mythic_blade: { result: 'mythic_blade', materials: { void_fragment: 10, demon_core: 8, crystal_shard: 15, treant_bark: 5 }, goldCost: 50000, desc: 'The ultimate weapon' },
-  wolf_hide:    { result: 'wolf_hide',    materials: { wolf_fang: 8, goblin_ear: 5, slime_gel: 5 },              goldCost: 800,   desc: 'Primal wolf armor' },
-  wraith_cloak: { result: 'wraith_cloak', materials: { wraith_essence: 6, bone_fragment: 8, zombie_flesh: 5 },   goldCost: 3000,  desc: 'Ghostly protection' },
-  void_armor:   { result: 'void_armor',   materials: { void_fragment: 5, crystal_shard: 6, wraith_essence: 4 },  goldCost: 10000, desc: 'Armor from the void' },
-  demon_plate:  { result: 'demon_plate',  materials: { demon_core: 6, void_fragment: 4, bone_fragment: 10 },     goldCost: 15000, desc: 'Infernal plate armor' },
-  mythic_armor: { result: 'mythic_armor', materials: { void_fragment: 12, demon_core: 10, crystal_shard: 15, treant_bark: 8 }, goldCost: 60000, desc: 'The ultimate armor' },
+  venom_blade:  { result: 'venom_blade',  materials: { wolf_fang: 5, slime_gel: 8, iron_ore: 3 },               goldCost: 400,   desc: 'Poison-tipped blade' },
+  bone_cleaver: { result: 'bone_cleaver', materials: { bone_fragment: 10, wraith_essence: 3, crystal_shard: 2 }, goldCost: 1500,  desc: 'Heavy undead cleaver' },
+  void_edge:    { result: 'void_edge',    materials: { void_fragment: 5, crystal_shard: 8, demon_core: 3 },      goldCost: 6000,  desc: 'Edge of nothingness' },
+  demon_scythe: { result: 'demon_scythe', materials: { demon_core: 8, void_fragment: 3, wraith_essence: 5 },     goldCost: 10000, desc: 'Demonic reaper blade' },
+  mythic_blade: { result: 'mythic_blade', materials: { void_fragment: 10, demon_core: 8, crystal_shard: 15, treant_bark: 5 }, goldCost: 35000, desc: 'The ultimate weapon' },
+  wolf_hide:    { result: 'wolf_hide',    materials: { wolf_fang: 8, goblin_ear: 5, slime_gel: 5 },              goldCost: 600,   desc: 'Primal wolf armor' },
+  wraith_cloak: { result: 'wraith_cloak', materials: { wraith_essence: 6, bone_fragment: 8, zombie_flesh: 5 },   goldCost: 2000,  desc: 'Ghostly protection' },
+  void_armor:   { result: 'void_armor',   materials: { void_fragment: 5, crystal_shard: 6, wraith_essence: 4 },  goldCost: 8000,  desc: 'Armor from the void' },
+  demon_plate:  { result: 'demon_plate',  materials: { demon_core: 6, void_fragment: 4, bone_fragment: 10 },     goldCost: 12000, desc: 'Infernal plate armor' },
+  mythic_armor: { result: 'mythic_armor', materials: { void_fragment: 12, demon_core: 10, crystal_shard: 15, treant_bark: 8 }, goldCost: 40000, desc: 'The ultimate armor' },
   // Consumable crafting (cheaper than NPC)
-  health_potion_x5: { result: 'health_potion', resultQty: 5, materials: { slime_gel: 3 },          goldCost: 50,  desc: 'Brew 5 potions' },
-  repair_kit_x3:    { result: 'repair_kit',    resultQty: 3, materials: { iron_ore: 5, gold_nugget: 2 }, goldCost: 200, desc: 'Forge 3 repair kits' },
+  health_potion_x5: { result: 'health_potion', resultQty: 5, materials: { slime_gel: 3 },          goldCost: 60,  desc: 'Brew 5 potions' },
+  repair_kit_x3:    { result: 'repair_kit',    resultQty: 3, materials: { iron_ore: 5, gold_nugget: 2 }, goldCost: 250, desc: 'Forge 3 repair kits' },
 };
 
 // ═══════════════════════════════════════════
@@ -246,40 +247,40 @@ const WEARABLES = {
 
 const COSMETICS = {
   // ── Borders (leaderboard/name frame) ──
-  border_gold:    { name: '🟡 Gold Border', cost: 600, desc: 'Gold border on leaderboard', type: 'border', cssVal: '#ffd700' },
-  border_red:     { name: '🔴 Red Border', cost: 500, desc: 'Red border on leaderboard', type: 'border', cssVal: '#ff4444' },
-  border_blue:    { name: '🔵 Blue Border', cost: 500, desc: 'Blue border on leaderboard', type: 'border', cssVal: '#4488ff' },
-  border_purple:  { name: '🟣 Purple Border', cost: 700, desc: 'Purple border on leaderboard', type: 'border', cssVal: '#c084fc' },
-  border_rainbow: { name: '🌈 Rainbow Border', cost: 1800, desc: 'Animated rainbow border', type: 'border', cssVal: 'rainbow' },
-  border_green:   { name: '💚 Emerald Border', cost: 600, desc: 'Green border on leaderboard', type: 'border', cssVal: '#4ade80' },
-  border_fire:    { name: '🔥 Inferno Border', cost: 3000, desc: 'Animated fire border', type: 'border', cssVal: 'fire' },
-  border_ice:     { name: '❄️ Frost Border', cost: 2500, desc: 'Animated ice border', type: 'border', cssVal: 'ice' },
+  border_gold:    { name: '🟡 Gold Border', cost: 500, desc: 'Gold border on leaderboard', type: 'border', cssVal: '#ffd700' },
+  border_red:     { name: '🔴 Red Border', cost: 400, desc: 'Red border on leaderboard', type: 'border', cssVal: '#ff4444' },
+  border_blue:    { name: '🔵 Blue Border', cost: 400, desc: 'Blue border on leaderboard', type: 'border', cssVal: '#4488ff' },
+  border_purple:  { name: '🟣 Purple Border', cost: 600, desc: 'Purple border on leaderboard', type: 'border', cssVal: '#c084fc' },
+  border_rainbow: { name: '🌈 Rainbow Border', cost: 1500, desc: 'Animated rainbow border', type: 'border', cssVal: 'rainbow' },
+  border_green:   { name: '💚 Emerald Border', cost: 500, desc: 'Green border on leaderboard', type: 'border', cssVal: '#4ade80' },
+  border_fire:    { name: '🔥 Inferno Border', cost: 2500, desc: 'Animated fire border', type: 'border', cssVal: 'fire' },
+  border_ice:     { name: '❄️ Frost Border', cost: 2000, desc: 'Animated ice border', type: 'border', cssVal: 'ice' },
   // ── Titles (shown before name) ──
-  title_champion: { name: '⭐ Champion', cost: 3000, desc: 'Permanent ⭐ title', type: 'title', titleText: '⭐' },
-  title_legend:   { name: '🔥 Legend', cost: 5000, desc: 'Permanent 🔥 title', type: 'title', titleText: '🔥' },
-  title_king:     { name: '👑 King', cost: 7500, desc: 'Permanent 👑 title', type: 'title', titleText: '👑' },
-  title_skull:    { name: '💀 Reaper', cost: 3500, desc: 'Permanent 💀 title', type: 'title', titleText: '💀' },
-  title_diamond:  { name: '💎 Diamond', cost: 9000, desc: 'Permanent 💎 title', type: 'title', titleText: '💎' },
-  title_clown:    { name: '🤡 Class Clown', cost: 1200, desc: 'Permanent 🤡 title', type: 'title', titleText: '🤡' },
-  title_rat:      { name: '🐀 Chat Rat', cost: 900, desc: 'Embrace the grind 🐀', type: 'title', titleText: '🐀' },
-  title_goat:     { name: '🐐 GOAT', cost: 12000, desc: 'The greatest of all time', type: 'title', titleText: '🐐' },
+  title_champion: { name: '⭐ Champion', cost: 2500, desc: 'Permanent ⭐ title', type: 'title', titleText: '⭐' },
+  title_legend:   { name: '🔥 Legend', cost: 4000, desc: 'Permanent 🔥 title', type: 'title', titleText: '🔥' },
+  title_king:     { name: '👑 King', cost: 6000, desc: 'Permanent 👑 title', type: 'title', titleText: '👑' },
+  title_skull:    { name: '💀 Reaper', cost: 3000, desc: 'Permanent 💀 title', type: 'title', titleText: '💀' },
+  title_diamond:  { name: '💎 Diamond', cost: 8000, desc: 'Permanent 💎 title', type: 'title', titleText: '💎' },
+  title_clown:    { name: '🤡 Class Clown', cost: 1000, desc: 'Permanent 🤡 title', type: 'title', titleText: '🤡' },
+  title_rat:      { name: '🐀 Chat Rat', cost: 750, desc: 'Embrace the grind 🐀', type: 'title', titleText: '🐀' },
+  title_goat:     { name: '🐐 GOAT', cost: 10000, desc: 'The greatest of all time', type: 'title', titleText: '🐐' },
   // ── Hit Effects (visual on boss/pvp hits) ──
-  effect_fire:    { name: '🔥 Flame Hits', cost: 1200, desc: 'Hits show as fire', type: 'hitEffect', effectId: 'fire' },
-  effect_ice:     { name: '❄️ Ice Hits', cost: 1200, desc: 'Hits show as ice', type: 'hitEffect', effectId: 'ice' },
-  effect_lightning:{ name: '⚡ Lightning Hits', cost: 1500, desc: 'Hits show as lightning', type: 'hitEffect', effectId: 'lightning' },
-  effect_shadow:  { name: '🌑 Shadow Hits', cost: 1500, desc: 'Hits show as shadow', type: 'hitEffect', effectId: 'shadow' },
-  effect_blood:   { name: '🩸 Blood Hits', cost: 1800, desc: 'Hits show blood splatter', type: 'hitEffect', effectId: 'blood' },
-  effect_holy:    { name: '✨ Holy Hits', cost: 2000, desc: 'Hits show divine light', type: 'hitEffect', effectId: 'holy' },
+  effect_fire:    { name: '🔥 Flame Hits', cost: 1000, desc: 'Hits show as fire', type: 'hitEffect', effectId: 'fire' },
+  effect_ice:     { name: '❄️ Ice Hits', cost: 1000, desc: 'Hits show as ice', type: 'hitEffect', effectId: 'ice' },
+  effect_lightning:{ name: '⚡ Lightning Hits', cost: 1200, desc: 'Hits show as lightning', type: 'hitEffect', effectId: 'lightning' },
+  effect_shadow:  { name: '🌑 Shadow Hits', cost: 1200, desc: 'Hits show as shadow', type: 'hitEffect', effectId: 'shadow' },
+  effect_blood:   { name: '🩸 Blood Hits', cost: 1500, desc: 'Hits show blood splatter', type: 'hitEffect', effectId: 'blood' },
+  effect_holy:    { name: '✨ Holy Hits', cost: 1800, desc: 'Hits show divine light', type: 'hitEffect', effectId: 'holy' },
   // ── Badges (emoji beside name) ──
-  badge_vip:      { name: '💠 VIP Badge', cost: 2500, desc: 'VIP badge next to name', type: 'badge', badgeEmoji: '💠' },
-  badge_sword:    { name: '⚔️ Warrior Badge', cost: 1800, desc: 'Sword badge next to name', type: 'badge', badgeEmoji: '⚔️' },
-  badge_shield:   { name: '🛡️ Guardian Badge', cost: 1800, desc: 'Shield badge next to name', type: 'badge', badgeEmoji: '🛡️' },
-  badge_skull:    { name: '💀 Death Badge', cost: 3500, desc: 'Skull badge — fear me', type: 'badge', badgeEmoji: '💀' },
-  badge_dragon:   { name: '🐲 Dragon Badge', cost: 5000, desc: 'Dragon badge — I own bosses', type: 'badge', badgeEmoji: '🐲' },
+  badge_vip:      { name: '💠 VIP Badge', cost: 2000, desc: 'VIP badge next to name', type: 'badge', badgeEmoji: '💠' },
+  badge_sword:    { name: '⚔️ Warrior Badge', cost: 1500, desc: 'Sword badge next to name', type: 'badge', badgeEmoji: '⚔️' },
+  badge_shield:   { name: '🛡️ Guardian Badge', cost: 1500, desc: 'Shield badge next to name', type: 'badge', badgeEmoji: '🛡️' },
+  badge_skull:    { name: '💀 Death Badge', cost: 3000, desc: 'Skull badge — fear me', type: 'badge', badgeEmoji: '💀' },
+  badge_dragon:   { name: '🐲 Dragon Badge', cost: 4500, desc: 'Dragon badge — I own bosses', type: 'badge', badgeEmoji: '🐲' },
   // ── Kill Effects (animation on final blow) ──
-  killeffect_explode: { name: '💥 Explosion', cost: 3000, desc: 'Target explodes on defeat', type: 'killEffect', effectId: 'explode' },
-  killeffect_disintegrate: { name: '✨ Disintegrate', cost: 3500, desc: 'Target fades to dust', type: 'killEffect', effectId: 'disintegrate' },
-  killeffect_lightning: { name: '⚡ Smited', cost: 4500, desc: 'Lightning strikes the loser', type: 'killEffect', effectId: 'smite' },
+  killeffect_explode: { name: '💥 Explosion', cost: 2500, desc: 'Target explodes on defeat', type: 'killEffect', effectId: 'explode' },
+  killeffect_disintegrate: { name: '✨ Disintegrate', cost: 3000, desc: 'Target fades to dust', type: 'killEffect', effectId: 'disintegrate' },
+  killeffect_lightning: { name: '⚡ Smited', cost: 4000, desc: 'Lightning strikes the loser', type: 'killEffect', effectId: 'smite' },
 };
 
 // ═══════════════════════════════════════════
@@ -375,10 +376,10 @@ class Game {
 
     // Shop temp buffs
     this.shopItems = {
-      whetstone: { name: '🗡️ Whetstone', cost: 300, desc: '+3 bonus dmg this boss', type: 'dmg_boost', value: 3 },
-      charm:     { name: '🍀 Lucky Charm', cost: 450, desc: '+15% crit this boss', type: 'crit_boost', value: 0.15 },
-      boots:     { name: '👟 Swift Boots', cost: 600, desc: 'Half cooldown this boss', type: 'speed_boost' },
-      potion:    { name: '💪 Mega Potion', cost: 1000, desc: '2x damage this boss', type: 'mega_dmg' },
+      whetstone: { name: '🗡️ Whetstone', cost: 200, desc: '+3 bonus dmg this boss', type: 'dmg_boost', value: 3 },
+      charm:     { name: '🍀 Lucky Charm', cost: 350, desc: '+15% crit this boss', type: 'crit_boost', value: 0.15 },
+      boots:     { name: '👟 Swift Boots', cost: 500, desc: 'Half cooldown this boss', type: 'speed_boost' },
+      potion:    { name: '💪 Mega Potion', cost: 800, desc: '2x damage this boss', type: 'mega_dmg' },
     };
     this.playerBuffs = {};
 
@@ -1885,18 +1886,11 @@ class Game {
 
   getMarketListings() { return this.market; }
 
-  // ── Vendor Sell (NPC sell for fixed gold) ──
-  handleVendorSell(username, itemUid) {
-    const p = this.player(username);
-    const idx = p.inventory.findIndex(i => i.uid === itemUid);
-    if (idx === -1) return { error: 'not_found' };
-    const item = p.inventory[idx];
-    const price = VENDOR_PRICE[item.rarity] || 5;
-    p.inventory.splice(idx, 1);
-    p.gold += price;
-    this.saveData();
-    this.emitAchievements(username);
-    return { username, item: item.name, rarity: item.rarity, gold: price, newGold: p.gold };
+  // ── Item Value Lookup (display only — no NPC selling) ──
+  getItemValue(itemId) {
+    const item = ITEMS[itemId];
+    if (!item) return 0;
+    return VENDOR_PRICE[item.rarity] || 50;
   }
 
   // ── Portal Chat ───────────────────────────
@@ -3841,10 +3835,10 @@ class Game {
 // ═══════════════════════════════════════════
 const RPG_PICKAXES = [
   { tier: 1, name: 'Stone Pickaxe',   cost: 0,    power: 1, speed: 1.0,  icon: '🪨' },
-  { tier: 2, name: 'Iron Pickaxe',    cost: 300,  power: 2, speed: 1.3,  icon: '⛏️' },
-  { tier: 3, name: 'Gold Pickaxe',    cost: 800,  power: 3, speed: 1.6,  icon: '🥇' },
-  { tier: 4, name: 'Diamond Pickaxe', cost: 2000, power: 4, speed: 2.0,  icon: '💎' },
-  { tier: 5, name: 'Crystal Pickaxe', cost: 5000, power: 5, speed: 2.5,  icon: '🔮' },
+  { tier: 2, name: 'Iron Pickaxe',    cost: 400,  power: 2, speed: 1.3,  icon: '⛏️' },
+  { tier: 3, name: 'Gold Pickaxe',    cost: 1200, power: 3, speed: 1.6,  icon: '🥇' },
+  { tier: 4, name: 'Diamond Pickaxe', cost: 3000, power: 4, speed: 2.0,  icon: '💎' },
+  { tier: 5, name: 'Crystal Pickaxe', cost: 7500, power: 5, speed: 2.5,  icon: '🔮' },
 ];
 
 // ═══════════════════════════════════════════
@@ -3899,11 +3893,11 @@ const RPG_ZONES = {
     nodes: 16,
     respawnTime: 60000,
     drops: [
-      { type: 'stone',  weight: 85, gold: 1,  xp: 1,  hp: 8,  color: '#888888' },
-      { type: 'copper', weight: 8,  gold: 2,  xp: 2,  hp: 10, color: '#CD7F32' },
-      { type: 'iron',   weight: 4,  gold: 3,  xp: 4,  hp: 12, color: '#B0B0B0' },
-      { type: 'gold',   weight: 2.5,gold: 5,  xp: 6,  hp: 15, color: '#FFD700' },
-      { type: 'gem',    weight: 0.5,gold: 10, xp: 10, hp: 18, color: '#00BFFF' },
+      { type: 'stone',  weight: 85, gold: 2,  xp: 1,  hp: 8,  color: '#888888' },
+      { type: 'copper', weight: 8,  gold: 4,  xp: 2,  hp: 10, color: '#CD7F32' },
+      { type: 'iron',   weight: 4,  gold: 6,  xp: 4,  hp: 12, color: '#B0B0B0' },
+      { type: 'gold',   weight: 2.5,gold: 10, xp: 6,  hp: 15, color: '#FFD700' },
+      { type: 'gem',    weight: 0.5,gold: 20, xp: 10, hp: 18, color: '#00BFFF' },
     ],
   },
   deep_mine: {
@@ -3913,11 +3907,11 @@ const RPG_ZONES = {
     nodes: 14,
     respawnTime: 120000,
     drops: [
-      { type: 'iron',    weight: 60, gold: 3,  xp: 4,  hp: 15, color: '#B0B0B0' },
-      { type: 'gold',    weight: 20, gold: 6,  xp: 6,  hp: 18, color: '#FFD700' },
-      { type: 'crystal', weight: 11, gold: 10, xp: 10, hp: 22, color: '#c084fc' },
-      { type: 'diamond', weight: 6,  gold: 15, xp: 16, hp: 28, color: '#00BFFF' },
-      { type: 'ruby',    weight: 3,  gold: 25, xp: 24, hp: 35, color: '#FF0044' },
+      { type: 'iron',    weight: 60, gold: 5,  xp: 4,  hp: 15, color: '#B0B0B0' },
+      { type: 'gold',    weight: 20, gold: 10, xp: 6,  hp: 18, color: '#FFD700' },
+      { type: 'crystal', weight: 11, gold: 18, xp: 10, hp: 22, color: '#c084fc' },
+      { type: 'diamond', weight: 6,  gold: 30, xp: 16, hp: 28, color: '#00BFFF' },
+      { type: 'ruby',    weight: 3,  gold: 50, xp: 24, hp: 35, color: '#FF0044' },
     ],
   },
   gold_vein: {
@@ -3927,11 +3921,11 @@ const RPG_ZONES = {
     nodes: 10,
     respawnTime: 240000,
     drops: [
-      { type: 'gold',    weight: 50, gold: 8,  xp: 6,  hp: 20, color: '#FFD700' },
-      { type: 'crystal', weight: 24, gold: 15, xp: 12, hp: 26, color: '#c084fc' },
-      { type: 'diamond', weight: 15, gold: 25, xp: 20, hp: 34, color: '#00BFFF' },
-      { type: 'ruby',    weight: 8,  gold: 40, xp: 30, hp: 44, color: '#FF0044' },
-      { type: 'void',    weight: 3,  gold: 80, xp: 45, hp: 55, color: '#9900ff' },
+      { type: 'gold',    weight: 50, gold: 15, xp: 6,  hp: 20, color: '#FFD700' },
+      { type: 'crystal', weight: 24, gold: 25, xp: 12, hp: 26, color: '#c084fc' },
+      { type: 'diamond', weight: 15, gold: 45, xp: 20, hp: 34, color: '#00BFFF' },
+      { type: 'ruby',    weight: 8,  gold: 75, xp: 30, hp: 44, color: '#FF0044' },
+      { type: 'void',    weight: 3,  gold: 150,xp: 45, hp: 55, color: '#9900ff' },
     ],
   },
   forest: {
@@ -3940,15 +3934,15 @@ const RPG_ZONES = {
     minMiningLevel: 0,
     mobCount: 18,
     mobs: [
-      { name: 'Slime',    maxHP: 60,  atk: 3,  goldMin: 2,  goldMax: 4,  xpReward: 3,  color: '#44ff44' },
-      { name: 'Goblin',   maxHP: 90,  atk: 5,  goldMin: 3,  goldMax: 7,  xpReward: 5,  color: '#ff8800' },
-      { name: 'Wolf',     maxHP: 140, atk: 8,  goldMin: 5,  goldMax: 10, xpReward: 9,  color: '#aaaaaa' },
+      { name: 'Slime',    maxHP: 60,  atk: 3,  goldMin: 3,  goldMax: 6,  xpReward: 4,  color: '#44ff44' },
+      { name: 'Goblin',   maxHP: 90,  atk: 5,  goldMin: 5,  goldMax: 10, xpReward: 6,  color: '#ff8800' },
+      { name: 'Wolf',     maxHP: 140, atk: 8,  goldMin: 8,  goldMax: 15, xpReward: 10, color: '#aaaaaa' },
     ],
     boss: {
       name: 'Ancient Treant',
       maxHP: 600,
-      goldReward: 300,
-      xpReward: 200,
+      goldReward: 500,
+      xpReward: 250,
       color: '#2d5a1e',
       arenaX: 360, arenaY: 360,
       arenaRadius: 280,
@@ -3967,10 +3961,10 @@ const RPG_ZONES = {
     minMiningLevel: 0,
     mobCount: 8,
     mobs: [
-      { name: 'Skeleton', maxHP: 200, atk: 10, goldMin: 5,  goldMax: 10, xpReward: 10, color: '#ffffff' },
-      { name: 'Zombie',   maxHP: 300, atk: 14, goldMin: 7,  goldMax: 12, xpReward: 16, color: '#6b8e23' },
-      { name: 'Wraith',   maxHP: 430, atk: 18, goldMin: 8,  goldMax: 15, xpReward: 24, color: '#8844cc' },
-      { name: 'Demon',    maxHP: 600, atk: 24, goldMin: 10, goldMax: 20, xpReward: 40, color: '#ff2222' },
+      { name: 'Skeleton', maxHP: 200, atk: 10, goldMin: 8,  goldMax: 15, xpReward: 12, color: '#ffffff' },
+      { name: 'Zombie',   maxHP: 300, atk: 14, goldMin: 12, goldMax: 20, xpReward: 18, color: '#6b8e23' },
+      { name: 'Wraith',   maxHP: 430, atk: 18, goldMin: 15, goldMax: 25, xpReward: 28, color: '#8844cc' },
+      { name: 'Demon',    maxHP: 600, atk: 24, goldMin: 20, goldMax: 35, xpReward: 45, color: '#ff2222' },
     ],
   },
 };

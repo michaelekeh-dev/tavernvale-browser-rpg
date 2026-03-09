@@ -238,11 +238,9 @@ app.get('/api/link/code/:username', (req, res) => {
   res.json({ code: pending.code });
 });
 
-// Vendor sell (NPC sell for fixed gold)
+// Vendor sell disabled — player-driven economy only
 app.post('/api/vendorsell', requireAuth, (req, res) => {
-  const r = game.handleVendorSell(req.playerName, req.body.itemUid);
-  if (r && !r.error) { broadcast('vendor_sell', r); return res.json(r); }
-  res.status(400).json(r || { error: 'Failed' });
+  res.status(400).json({ error: 'disabled', message: 'NPC selling is disabled. Trade with other players on the Market instead!' });
 });
 app.get('/api/vendorprices', (req, res) => res.json(VENDOR_PRICE));
 
@@ -1071,10 +1069,7 @@ function handleChatMessage(data) {
       break;
     }
     case '!vendorsell': {
-      const uid = content.split(' ').slice(1).join(' ');
-      const r = game.handleVendorSell(username, uid);
-      if (r && !r.error) broadcast('vendor_sell', r);
-      else if (r) broadcast('vendor_error', { username, ...r });
+      broadcast('vendor_error', { username, error: 'disabled', message: 'NPC selling is disabled. Use the Market to trade with other players!' });
       break;
     }
     // ── Admin commands (streamer only) ──
