@@ -144,6 +144,27 @@ app.post('/api/slots', requireAuth, (req, res) => {
   res.status(400).json(r || { error: 'Failed' });
 });
 
+// Blackjack
+app.post('/api/blackjack', requireAuth, (req, res) => {
+  const r = game.handleBlackjack(req.playerName, req.body.amount);
+  if (r && !r.error) { broadcast('gamble_result', r); return res.json(r); }
+  res.status(400).json(r || { error: 'Failed' });
+});
+
+// Crash
+app.post('/api/crash', requireAuth, (req, res) => {
+  const r = game.handleCrash(req.playerName, req.body.amount, req.body.cashout);
+  if (r && !r.error) { broadcast('gamble_result', r); return res.json(r); }
+  res.status(400).json(r || { error: 'Failed' });
+});
+
+// Roulette
+app.post('/api/roulette', requireAuth, (req, res) => {
+  const r = game.handleRoulette(req.playerName, req.body.amount, req.body.choice);
+  if (r && !r.error) { broadcast('gamble_result', r); return res.json(r); }
+  res.status(400).json(r || { error: 'Failed' });
+});
+
 // Gift
 app.post('/api/gift', requireAuth, (req, res) => {
   const r = game.handleGift(req.playerName, req.body.target, req.body.amount);

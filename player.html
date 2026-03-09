@@ -458,22 +458,25 @@
       </div>
       <div class="gamble-tab-content" id="gambling-content">
         <!-- Game Selector Tabs -->
-        <div style="display:flex;gap:8px;justify-content:center;margin-bottom:16px;">
-          <button class="btn btn-gold gamble-game-tab active" data-game="coinflip" onclick="switchGambleGame('coinflip')">🪙 Coin Flip</button>
-          <button class="btn btn-outline gamble-game-tab" data-game="dice" onclick="switchGambleGame('dice')">🎲 Dice Roll</button>
+        <div style="display:flex;gap:6px;justify-content:center;margin-bottom:16px;flex-wrap:wrap;">
+          <button class="btn btn-gold gamble-game-tab active" data-game="coinflip" onclick="switchGambleGame('coinflip')">🪙 Flip</button>
+          <button class="btn btn-outline gamble-game-tab" data-game="dice" onclick="switchGambleGame('dice')">🎲 Dice</button>
           <button class="btn btn-outline gamble-game-tab" data-game="slots" onclick="switchGambleGame('slots')">🎰 Slots</button>
+          <button class="btn btn-outline gamble-game-tab" data-game="blackjack" onclick="switchGambleGame('blackjack')">🃏 Blackjack</button>
+          <button class="btn btn-outline gamble-game-tab" data-game="crash" onclick="switchGambleGame('crash')">📈 Crash</button>
+          <button class="btn btn-outline gamble-game-tab" data-game="roulette" onclick="switchGambleGame('roulette')">🎡 Roulette</button>
         </div>
 
         <!-- COIN FLIP -->
         <div class="gamble-card gamble-game active" id="game-coinflip">
           <div style="font-size:24px;margin-bottom:8px;">🪙 Coin Flip</div>
-          <div style="color:var(--dim);font-size:13px;margin-bottom:16px;">45% chance to win. Heads = 2x your bet.</div>
+          <div style="color:var(--dim);font-size:13px;margin-bottom:16px;">35% chance to win. Heads = 1.8x your bet.</div>
           <div class="gamble-result" id="coinflip-result">🪙</div>
           <div style="display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap;">
             <input type="number" id="coinflip-input" placeholder="Bet amount" min="1" class="gamble-bet-input" />
             <button class="btn btn-gold" onclick="doGamble('coinflip')">Flip!</button>
           </div>
-          <div style="display:flex;gap:6px;justify-content:center;margin-top:12px;">
+          <div style="display:flex;gap:6px;justify-content:center;margin-top:12px;flex-wrap:wrap;">
             <button class="btn btn-sm btn-outline" onclick="setGambleBet('coinflip',10)">10g</button>
             <button class="btn btn-sm btn-outline" onclick="setGambleBet('coinflip',50)">50g</button>
             <button class="btn btn-sm btn-outline" onclick="setGambleBet('coinflip',100)">100g</button>
@@ -486,14 +489,14 @@
         <div class="gamble-card gamble-game" id="game-dice" style="display:none;">
           <div style="font-size:24px;margin-bottom:8px;">🎲 Dice Roll</div>
           <div style="color:var(--dim);font-size:13px;margin-bottom:16px;">
-            Roll 1-50: Lose &nbsp;|&nbsp; 51-75: 2x &nbsp;|&nbsp; 76-90: 3x &nbsp;|&nbsp; 91-98: 5x &nbsp;|&nbsp; 99-100: 10x 🔥
+            1-65: Lose &nbsp;|&nbsp; 66-82: 1.5x &nbsp;|&nbsp; 83-93: 2.5x &nbsp;|&nbsp; 94-98: 4x &nbsp;|&nbsp; 99-100: 8x 🔥
           </div>
           <div class="gamble-result" id="dice-result">🎲</div>
           <div style="display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap;">
             <input type="number" id="dice-input" placeholder="Bet amount" min="1" class="gamble-bet-input" />
             <button class="btn btn-gold" onclick="doGamble('dice')">Roll!</button>
           </div>
-          <div style="display:flex;gap:6px;justify-content:center;margin-top:12px;">
+          <div style="display:flex;gap:6px;justify-content:center;margin-top:12px;flex-wrap:wrap;">
             <button class="btn btn-sm btn-outline" onclick="setGambleBet('dice',10)">10g</button>
             <button class="btn btn-sm btn-outline" onclick="setGambleBet('dice',50)">50g</button>
             <button class="btn btn-sm btn-outline" onclick="setGambleBet('dice',100)">100g</button>
@@ -506,19 +509,100 @@
         <div class="gamble-card gamble-game" id="game-slots" style="display:none;">
           <div style="font-size:24px;margin-bottom:8px;">🎰 Slots</div>
           <div style="color:var(--dim);font-size:13px;margin-bottom:16px;">
-            Pair = 2x &nbsp;|&nbsp; Triple = 5-8x &nbsp;|&nbsp; 💎 Triple = 10x &nbsp;|&nbsp; 7️⃣ Triple = 15x 🎉
+            Pair = 1.5x &nbsp;|&nbsp; Triple = 5-10x &nbsp;|&nbsp; 7️⃣ Triple = 20x 🎉
           </div>
           <div class="gamble-result" id="slots-result" style="letter-spacing:16px;">🎰🎰🎰</div>
           <div style="display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap;">
             <input type="number" id="slots-input" placeholder="Bet amount" min="1" class="gamble-bet-input" />
             <button class="btn btn-gold" onclick="doGamble('slots')">Spin!</button>
           </div>
-          <div style="display:flex;gap:6px;justify-content:center;margin-top:12px;">
+          <div style="display:flex;gap:6px;justify-content:center;margin-top:12px;flex-wrap:wrap;">
             <button class="btn btn-sm btn-outline" onclick="setGambleBet('slots',10)">10g</button>
             <button class="btn btn-sm btn-outline" onclick="setGambleBet('slots',50)">50g</button>
             <button class="btn btn-sm btn-outline" onclick="setGambleBet('slots',100)">100g</button>
             <button class="btn btn-sm btn-outline" onclick="setGambleBet('slots',500)">500g</button>
             <button class="btn btn-sm btn-outline" onclick="setGambleBet('slots','all')">ALL IN</button>
+          </div>
+        </div>
+
+        <!-- BLACKJACK -->
+        <div class="gamble-card gamble-game" id="game-blackjack" style="display:none;">
+          <div style="font-size:24px;margin-bottom:8px;">🃏 Blackjack</div>
+          <div style="color:var(--dim);font-size:13px;margin-bottom:16px;">Beat the dealer's hand. Blackjack pays 2.5x. Ties = dealer wins.</div>
+          <div class="gamble-result" id="blackjack-result" style="font-size:32px;">🃏</div>
+          <div id="blackjack-cards" style="display:none;margin-bottom:12px;">
+            <div style="display:flex;gap:20px;justify-content:center;font-size:13px;">
+              <div>You: <span id="bj-player-cards" style="font-weight:700;color:var(--accent);"></span> (<span id="bj-player-total"></span>)</div>
+              <div>Dealer: <span id="bj-dealer-cards" style="font-weight:700;color:var(--red);"></span> (<span id="bj-dealer-total"></span>)</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap;">
+            <input type="number" id="blackjack-input" placeholder="Bet amount" min="1" class="gamble-bet-input" />
+            <button class="btn btn-gold" onclick="doGamble('blackjack')">Deal!</button>
+          </div>
+          <div style="display:flex;gap:6px;justify-content:center;margin-top:12px;flex-wrap:wrap;">
+            <button class="btn btn-sm btn-outline" onclick="setGambleBet('blackjack',10)">10g</button>
+            <button class="btn btn-sm btn-outline" onclick="setGambleBet('blackjack',50)">50g</button>
+            <button class="btn btn-sm btn-outline" onclick="setGambleBet('blackjack',100)">100g</button>
+            <button class="btn btn-sm btn-outline" onclick="setGambleBet('blackjack',500)">500g</button>
+            <button class="btn btn-sm btn-outline" onclick="setGambleBet('blackjack','all')">ALL IN</button>
+          </div>
+        </div>
+
+        <!-- CRASH -->
+        <div class="gamble-card gamble-game" id="game-crash" style="display:none;">
+          <div style="font-size:24px;margin-bottom:8px;">📈 Crash</div>
+          <div style="color:var(--dim);font-size:13px;margin-bottom:16px;">Set a cashout multiplier (1.2x-20x). If the rocket doesn't crash before your target, you win!</div>
+          <div class="gamble-result" id="crash-result" style="font-size:36px;">🚀</div>
+          <div style="display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap;">
+            <input type="number" id="crash-input" placeholder="Bet amount" min="1" class="gamble-bet-input" />
+            <input type="number" id="crash-cashout" placeholder="Cashout (e.g. 2.0)" min="1.2" max="20" step="0.1" class="gamble-bet-input" style="width:120px;" />
+            <button class="btn btn-gold" onclick="doGamble('crash')">Launch!</button>
+          </div>
+          <div style="display:flex;gap:6px;justify-content:center;margin-top:12px;flex-wrap:wrap;">
+            <button class="btn btn-sm btn-outline" onclick="setCrashTarget(1.5)">1.5x</button>
+            <button class="btn btn-sm btn-outline" onclick="setCrashTarget(2.0)">2x</button>
+            <button class="btn btn-sm btn-outline" onclick="setCrashTarget(3.0)">3x</button>
+            <button class="btn btn-sm btn-outline" onclick="setCrashTarget(5.0)">5x</button>
+            <button class="btn btn-sm btn-outline" onclick="setCrashTarget(10.0)">10x</button>
+          </div>
+          <div style="display:flex;gap:6px;justify-content:center;margin-top:8px;flex-wrap:wrap;">
+            <button class="btn btn-sm btn-outline" onclick="setGambleBet('crash',10)">10g</button>
+            <button class="btn btn-sm btn-outline" onclick="setGambleBet('crash',50)">50g</button>
+            <button class="btn btn-sm btn-outline" onclick="setGambleBet('crash',100)">100g</button>
+            <button class="btn btn-sm btn-outline" onclick="setGambleBet('crash',500)">500g</button>
+            <button class="btn btn-sm btn-outline" onclick="setGambleBet('crash','all')">ALL IN</button>
+          </div>
+        </div>
+
+        <!-- ROULETTE -->
+        <div class="gamble-card gamble-game" id="game-roulette" style="display:none;">
+          <div style="font-size:24px;margin-bottom:8px;">🎡 Roulette</div>
+          <div style="color:var(--dim);font-size:13px;margin-bottom:16px;">Pick a bet type. 🟢 Green = 17x &nbsp;|&nbsp; 🔴/⚫ = 2x &nbsp;|&nbsp; High/Low/Odd/Even = 2x</div>
+          <div class="gamble-result" id="roulette-result" style="font-size:36px;">🎡</div>
+          <div id="roulette-spin-display" style="display:none;margin-bottom:12px;font-size:14px;font-weight:700;text-align:center;"></div>
+          <div style="display:flex;gap:6px;justify-content:center;margin-bottom:12px;flex-wrap:wrap;">
+            <button class="btn btn-sm roulette-choice" onclick="setRouletteChoice('red')" style="background:#dc2626;color:#fff;border:2px solid transparent;">🔴 Red</button>
+            <button class="btn btn-sm roulette-choice" onclick="setRouletteChoice('black')" style="background:#1a1a2a;color:#fff;border:2px solid #555;">⚫ Black</button>
+            <button class="btn btn-sm roulette-choice" onclick="setRouletteChoice('green')" style="background:#16a34a;color:#fff;border:2px solid transparent;">🟢 Green</button>
+          </div>
+          <div style="display:flex;gap:6px;justify-content:center;margin-bottom:12px;flex-wrap:wrap;">
+            <button class="btn btn-sm roulette-choice" onclick="setRouletteChoice('low')" style="background:var(--bg3);border:2px solid transparent;">⬇️ Low (1-18)</button>
+            <button class="btn btn-sm roulette-choice" onclick="setRouletteChoice('high')" style="background:var(--bg3);border:2px solid transparent;">⬆️ High (19-36)</button>
+            <button class="btn btn-sm roulette-choice" onclick="setRouletteChoice('odd')" style="background:var(--bg3);border:2px solid transparent;">🔹 Odd</button>
+            <button class="btn btn-sm roulette-choice" onclick="setRouletteChoice('even')" style="background:var(--bg3);border:2px solid transparent;">🔸 Even</button>
+          </div>
+          <div style="display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap;">
+            <input type="number" id="roulette-input" placeholder="Bet amount" min="1" class="gamble-bet-input" />
+            <input type="hidden" id="roulette-choice-val" value="" />
+            <button class="btn btn-gold" onclick="doGamble('roulette')">Spin!</button>
+          </div>
+          <div style="display:flex;gap:6px;justify-content:center;margin-top:12px;flex-wrap:wrap;">
+            <button class="btn btn-sm btn-outline" onclick="setGambleBet('roulette',10)">10g</button>
+            <button class="btn btn-sm btn-outline" onclick="setGambleBet('roulette',50)">50g</button>
+            <button class="btn btn-sm btn-outline" onclick="setGambleBet('roulette',100)">100g</button>
+            <button class="btn btn-sm btn-outline" onclick="setGambleBet('roulette',500)">500g</button>
+            <button class="btn btn-sm btn-outline" onclick="setGambleBet('roulette','all')">ALL IN</button>
           </div>
         </div>
 
@@ -1305,6 +1389,7 @@ function doGamble(game) {
   const amt = input.value;
   if (!amt) return;
   const resultEl = document.getElementById(game + '-result');
+  const errMsg = e => e === 'broke' ? "You don't have enough gold!" : e === 'invalid_cashout' ? 'Cashout must be 1.2x - 20x' : e === 'invalid_choice' ? 'Pick a bet type first!' : e;
 
   if (game === 'coinflip') {
     resultEl.textContent = '🪙';
@@ -1313,7 +1398,7 @@ function doGamble(game) {
       .then(r => r.json()).then(r => {
         setTimeout(() => {
           resultEl.style.animation = '';
-          if (r.error) { toast(r.error === 'broke' ? "You don't have enough gold!" : r.error, 'error'); resultEl.textContent = '❌'; return; }
+          if (r.error) { toast(errMsg(r.error), 'error'); resultEl.textContent = '❌'; return; }
           if (r.won) {
             resultEl.textContent = '🤑'; resultEl.style.color = 'var(--green)';
             toast(`Won ${r.payout}g! 🎉`, 'success');
@@ -1335,7 +1420,7 @@ function doGamble(game) {
       .then(r => r.json()).then(r => {
         setTimeout(() => {
           resultEl.style.animation = '';
-          if (r.error) { toast(r.error === 'broke' ? "You don't have enough gold!" : r.error, 'error'); resultEl.textContent = '❌'; return; }
+          if (r.error) { toast(errMsg(r.error), 'error'); resultEl.textContent = '❌'; return; }
           resultEl.textContent = r.roll;
           if (r.won) {
             resultEl.style.color = 'var(--green)';
@@ -1359,7 +1444,7 @@ function doGamble(game) {
       .then(r => r.json()).then(r => {
         setTimeout(() => {
           resultEl.style.animation = '';
-          if (r.error) { toast(r.error === 'broke' ? "You don't have enough gold!" : r.error, 'error'); resultEl.textContent = '❌'; return; }
+          if (r.error) { toast(errMsg(r.error), 'error'); resultEl.textContent = '❌'; return; }
           resultEl.textContent = r.reels.join(' ');
           if (r.won) {
             resultEl.style.color = 'var(--green)';
@@ -1374,7 +1459,105 @@ function doGamble(game) {
           renderGambleHistory(); refreshProfile();
         }, 600);
       });
+
+  } else if (game === 'blackjack') {
+    resultEl.textContent = '🃏';
+    resultEl.style.animation = 'spin 0.5s ease';
+    document.getElementById('blackjack-cards').style.display = 'none';
+    fetch('/api/blackjack', { method: 'POST', headers: authHeaders(), body: authBody({ amount: amt }) })
+      .then(r => r.json()).then(r => {
+        setTimeout(() => {
+          resultEl.style.animation = '';
+          if (r.error) { toast(errMsg(r.error), 'error'); resultEl.textContent = '❌'; return; }
+          document.getElementById('blackjack-cards').style.display = 'block';
+          document.getElementById('bj-player-cards').textContent = r.playerCards.join(' ');
+          document.getElementById('bj-dealer-cards').textContent = r.dealerCards.join(' ');
+          document.getElementById('bj-player-total').textContent = r.playerTotal;
+          document.getElementById('bj-dealer-total').textContent = r.dealerTotal;
+          if (r.won) {
+            resultEl.textContent = r.result === 'blackjack' ? '🏆' : '✅';
+            resultEl.style.color = 'var(--green)';
+            toast(`${r.result === 'blackjack' ? 'BLACKJACK! ' : 'You win! '}${r.playerTotal} vs ${r.dealerTotal} → +${r.payout - r.bet}g 🎉`, 'success');
+          } else {
+            resultEl.textContent = '💀';
+            resultEl.style.color = 'var(--red)';
+            const reason = r.result === 'dealer_bj' ? 'Dealer Blackjack!' : r.result === 'push_lose' ? 'Tie — dealer wins!' : 'Dealer wins!';
+            toast(`${reason} ${r.playerTotal} vs ${r.dealerTotal} — Lost ${r.bet}g`, 'error');
+          }
+          setTimeout(() => { resultEl.style.color = ''; }, 2000);
+          gambleHistory.unshift({ game: '🃏', won: r.won, bet: r.bet, payout: r.won ? r.payout : 0, time: Date.now(), detail: `${r.playerTotal} vs ${r.dealerTotal}` });
+          if (gambleHistory.length > 30) gambleHistory.length = 30;
+          renderGambleHistory(); refreshProfile();
+        }, 500);
+      });
+
+  } else if (game === 'crash') {
+    const cashout = document.getElementById('crash-cashout').value;
+    if (!cashout) { toast('Set a cashout target first!', 'error'); return; }
+    resultEl.textContent = '🚀';
+    resultEl.style.animation = 'spin 0.6s ease';
+    fetch('/api/crash', { method: 'POST', headers: authHeaders(), body: authBody({ amount: amt, cashout }) })
+      .then(r => r.json()).then(r => {
+        setTimeout(() => {
+          resultEl.style.animation = '';
+          if (r.error) { toast(errMsg(r.error), 'error'); resultEl.textContent = '❌'; return; }
+          if (r.won) {
+            resultEl.textContent = `${r.target}x ✅`;
+            resultEl.style.color = 'var(--green)';
+            toast(`🚀 Crashed at ${r.crashAt}x — You cashed out at ${r.target}x! +${r.payout - r.bet}g`, 'success');
+          } else {
+            resultEl.textContent = `💥 ${r.crashAt}x`;
+            resultEl.style.color = 'var(--red)';
+            toast(`💥 Crashed at ${r.crashAt}x! Needed ${r.target}x — Lost ${r.bet}g`, 'error');
+          }
+          setTimeout(() => { resultEl.style.color = ''; }, 2000);
+          gambleHistory.unshift({ game: '📈', won: r.won, bet: r.bet, payout: r.won ? r.payout : 0, time: Date.now(), detail: `${r.crashAt}x` });
+          if (gambleHistory.length > 30) gambleHistory.length = 30;
+          renderGambleHistory(); refreshProfile();
+        }, 600);
+      });
+
+  } else if (game === 'roulette') {
+    const choice = document.getElementById('roulette-choice-val').value;
+    if (!choice) { toast('Pick a bet type first! (Red/Black/Green/etc)', 'error'); return; }
+    resultEl.textContent = '🎡';
+    resultEl.style.animation = 'spin 0.8s ease';
+    document.getElementById('roulette-spin-display').style.display = 'none';
+    fetch('/api/roulette', { method: 'POST', headers: authHeaders(), body: authBody({ amount: amt, choice }) })
+      .then(r => r.json()).then(r => {
+        setTimeout(() => {
+          resultEl.style.animation = '';
+          if (r.error) { toast(errMsg(r.error), 'error'); resultEl.textContent = '❌'; return; }
+          const colorEmoji = r.color === 'red' ? '🔴' : r.color === 'green' ? '🟢' : '⚫';
+          resultEl.textContent = `${colorEmoji} ${r.spin}`;
+          document.getElementById('roulette-spin-display').style.display = 'block';
+          document.getElementById('roulette-spin-display').textContent = `Landed: ${colorEmoji} ${r.spin} ${r.color.toUpperCase()}`;
+          if (r.won) {
+            resultEl.style.color = 'var(--green)';
+            toast(`${colorEmoji} ${r.spin} — ${r.mult}x WIN! +${r.payout - r.bet}g 🎉`, 'success');
+          } else {
+            resultEl.style.color = 'var(--red)';
+            toast(`${colorEmoji} ${r.spin} — You picked ${r.choice}. Lost ${r.bet}g`, 'error');
+          }
+          setTimeout(() => { resultEl.style.color = ''; }, 2000);
+          gambleHistory.unshift({ game: '🎡', won: r.won, bet: r.bet, payout: r.won ? r.payout : 0, time: Date.now(), detail: `${r.color} ${r.spin}` });
+          if (gambleHistory.length > 30) gambleHistory.length = 30;
+          renderGambleHistory(); refreshProfile();
+        }, 800);
+      });
   }
+}
+
+function setCrashTarget(val) { document.getElementById('crash-cashout').value = val; }
+
+let selectedRouletteChoice = '';
+function setRouletteChoice(choice) {
+  selectedRouletteChoice = choice;
+  document.getElementById('roulette-choice-val').value = choice;
+  document.querySelectorAll('.roulette-choice').forEach(el => { el.style.borderColor = 'transparent'; el.style.opacity = '0.6'; });
+  const btn = event.target;
+  btn.style.borderColor = 'var(--gold)';
+  btn.style.opacity = '1';
 }
 
 function renderGambleHistory() {

@@ -909,13 +909,15 @@ class Game {
     const bet = parseInt(amount);
     if (isNaN(bet) || bet < 1) return { error: 'invalid' };
     if (bet > p.gold) return { error: 'broke', gold: p.gold };
-    if (Math.random() < 0.45) {
-      p.gold += bet;
+    // 35% win chance, 1.8x payout (house edge ~37%)
+    if (Math.random() < 0.35) {
+      const payout = Math.floor(bet * 1.8);
+      p.gold += payout - bet;
       p.gamblesWon = (p.gamblesWon || 0) + 1;
-      p.totalGambleProfit = (p.totalGambleProfit || 0) + bet;
+      p.totalGambleProfit = (p.totalGambleProfit || 0) + (payout - bet);
       this.saveData();
       this.emitAchievements(username);
-      return { username, won: true, bet, payout: bet * 2, gold: p.gold };
+      return { username, won: true, bet, payout, gold: p.gold };
     } else {
       p.gold -= bet;
       p.gamblesLost = (p.gamblesLost || 0) + 1;
@@ -932,13 +934,14 @@ class Game {
     if (isNaN(bet) || bet < 1) return { error: 'invalid' };
     if (bet > p.gold) return { error: 'broke', gold: p.gold };
     const roll = Math.floor(Math.random() * 100) + 1;
-    // 1-50: lose, 51-75: 2x, 76-90: 3x, 91-98: 5x, 99-100: 10x
+    // 1-65: lose, 66-82: 1.5x, 83-93: 2.5x, 94-98: 4x, 99-100: 8x
+    // EV = 0.35*1.5 + 0.11*2.5 + 0.05*4 + 0.02*8 = 0.525+0.275+0.20+0.16 = ~0.76
     let mult = 0, tier = 'lose';
-    if (roll >= 99) { mult = 10; tier = 'jackpot'; }
-    else if (roll >= 91) { mult = 5; tier = 'big'; }
-    else if (roll >= 76) { mult = 3; tier = 'nice'; }
-    else if (roll >= 51) { mult = 2; tier = 'win'; }
-    const payout = bet * mult;
+    if (roll >= 99) { mult = 8; tier = 'jackpot'; }
+    else if (roll >= 94) { mult = 4; tier = 'big'; }
+    else if (roll >= 83) { mult = 2.5; tier = 'nice'; }
+    else if (roll >= 66) { mult = 1.5; tier = 'win'; }
+    const payout = Math.floor(bet * mult);
     if (mult > 0) {
       p.gold += payout - bet;
       p.gamblesWon = (p.gamblesWon || 0) + 1;
@@ -959,20 +962,21 @@ class Game {
     const bet = parseInt(amount);
     if (isNaN(bet) || bet < 1) return { error: 'invalid' };
     if (bet > p.gold) return { error: 'broke', gold: p.gold };
-    const symbols = ['🍒','🍋','🔔','💎','7️⃣','🍀'];
+    // 8 symbols = much harder to match. Pair ~27%, triple ~1.6%
+    const symbols = ['🍒','🍋','🔔','💎','7️⃣','🍀','⭐','🎯'];
     const pick = () => symbols[Math.floor(Math.random() * symbols.length)];
     const reels = [pick(), pick(), pick()];
     let mult = 0;
     if (reels[0] === reels[1] && reels[1] === reels[2]) {
-      // Triple match
-      if (reels[0] === '7️⃣') mult = 15;
-      else if (reels[0] === '💎') mult = 10;
+      if (reels[0] === '7️⃣') mult = 20;
+      else if (reels[0] === '💎') mult = 12;
+      else if (reels[0] === '⭐') mult = 10;
       else if (reels[0] === '🍀') mult = 8;
       else mult = 5;
     } else if (reels[0] === reels[1] || reels[1] === reels[2] || reels[0] === reels[2]) {
-      mult = 2; // pair
+      mult = 1.5; // pair pays less
     }
-    const payout = bet * mult;
+    const payout = Math.floor(bet * mult);
     if (mult > 0) {
       p.gold += payout - bet;
       p.gamblesWon = (p.gamblesWon || 0) + 1;
@@ -985,6 +989,114 @@ class Game {
     this.saveData();
     if (mult > 0) this.emitAchievements(username);
     return { username, reels, mult, bet, payout, won: mult > 0, gold: p.gold };
+  }
+
+  handleBlackjack(username, amount) {
+    if (!this.gamblingEnabled) return { error: 'gambling_disabled' };
+    const p = this.player(username);
+    const bet = parseInt(amount);
+    if (isNaN(bet) || bet < 1) return { error: 'invalid' };
+    if (bet > p.gold) return { error: 'broke', gold: p.gold };
+    // Simplified instant blackjack — deal 2 cards each, highest wins
+    const deck = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+    const val = c => c === 'A' ? 11 : ['J','Q','K'].includes(c) ? 10 : parseInt(c);
+    const suits = ['♠','♥','♦','♣'];
+    const draw = () => { const c = deck[Math.floor(Math.random() * deck.length)]; const s = suits[Math.floor(Math.random() * suits.length)]; return { card: c + s, value: val(c) }; };
+    const pc = [draw(), draw()];
+    const dc = [draw(), draw()];
+    let pTotal = pc[0].value + pc[1].value;
+    let dTotal = dc[0].value + dc[1].value;
+    // Bust check (>21)
+    if (pTotal > 21) pTotal -= 10;
+    if (dTotal > 21) dTotal -= 10;
+    // Dealer advantage: dealer wins ties, and if both have same total dealer wins
+    const playerBJ = pTotal === 21;
+    const dealerBJ = dTotal === 21;
+    let won = false, payout = 0, result = 'lose';
+    if (playerBJ && !dealerBJ) { won = true; payout = Math.floor(bet * 2.5); result = 'blackjack'; }
+    else if (pTotal > dTotal && !dealerBJ) { won = true; payout = bet * 2; result = 'win'; }
+    else { result = dealerBJ ? 'dealer_bj' : pTotal === dTotal ? 'push_lose' : 'lose'; }
+    if (won) {
+      p.gold += payout - bet;
+      p.gamblesWon = (p.gamblesWon || 0) + 1;
+      p.totalGambleProfit = (p.totalGambleProfit || 0) + (payout - bet);
+    } else {
+      p.gold -= bet;
+      p.gamblesLost = (p.gamblesLost || 0) + 1;
+      p.totalGambleProfit = (p.totalGambleProfit || 0) - bet;
+    }
+    this.saveData();
+    if (won) this.emitAchievements(username);
+    return { username, playerCards: pc.map(c => c.card), dealerCards: dc.map(c => c.card), playerTotal: pTotal, dealerTotal: dTotal, result, won, bet, payout, gold: p.gold };
+  }
+
+  handleCrash(username, amount, cashout) {
+    if (!this.gamblingEnabled) return { error: 'gambling_disabled' };
+    const p = this.player(username);
+    const bet = parseInt(amount);
+    if (isNaN(bet) || bet < 1) return { error: 'invalid' };
+    if (bet > p.gold) return { error: 'broke', gold: p.gold };
+    const target = parseFloat(cashout);
+    if (isNaN(target) || target < 1.2 || target > 20) return { error: 'invalid_cashout' };
+    // Crash point: house edge built in — crash follows inverse distribution
+    // Lower crash points are more likely. Median crash ~1.8x
+    const r = Math.random();
+    const crashAt = Math.max(1.0, parseFloat((1 / (1 - r * 0.94)).toFixed(2)));
+    const won = target <= crashAt;
+    let payout = 0;
+    if (won) {
+      payout = Math.floor(bet * target);
+      p.gold += payout - bet;
+      p.gamblesWon = (p.gamblesWon || 0) + 1;
+      p.totalGambleProfit = (p.totalGambleProfit || 0) + (payout - bet);
+    } else {
+      p.gold -= bet;
+      p.gamblesLost = (p.gamblesLost || 0) + 1;
+      p.totalGambleProfit = (p.totalGambleProfit || 0) - bet;
+    }
+    this.saveData();
+    if (won) this.emitAchievements(username);
+    return { username, crashAt, target, won, bet, payout, gold: p.gold };
+  }
+
+  handleRoulette(username, amount, choice) {
+    if (!this.gamblingEnabled) return { error: 'gambling_disabled' };
+    const p = this.player(username);
+    const bet = parseInt(amount);
+    if (isNaN(bet) || bet < 1) return { error: 'invalid' };
+    if (bet > p.gold) return { error: 'broke', gold: p.gold };
+    const pick = (choice || '').toLowerCase();
+    const valid = ['red','black','green','low','high','odd','even'];
+    if (!valid.includes(pick)) return { error: 'invalid_choice' };
+    // 0-36 wheel, 0=green. Red/Black each cover 18 numbers.
+    // Added 00 slot (index 37) for extra house edge
+    const spin = Math.floor(Math.random() * 38); // 0-37 (0=green, 37=00 green)
+    const reds = [1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36];
+    const isGreen = spin === 0 || spin === 37;
+    const isRed = !isGreen && reds.includes(spin);
+    const isBlack = !isGreen && !isRed;
+    const num = isGreen ? (spin === 0 ? 0 : '00') : spin;
+    let won = false, mult = 0;
+    if (pick === 'green' && isGreen) { won = true; mult = 17; }
+    else if (pick === 'red' && isRed) { won = true; mult = 2; }
+    else if (pick === 'black' && isBlack) { won = true; mult = 2; }
+    else if (pick === 'low' && !isGreen && spin >= 1 && spin <= 18) { won = true; mult = 2; }
+    else if (pick === 'high' && !isGreen && spin >= 19 && spin <= 36) { won = true; mult = 2; }
+    else if (pick === 'odd' && !isGreen && spin % 2 === 1) { won = true; mult = 2; }
+    else if (pick === 'even' && !isGreen && spin % 2 === 0) { won = true; mult = 2; }
+    const payout = won ? Math.floor(bet * mult) : 0;
+    if (won) {
+      p.gold += payout - bet;
+      p.gamblesWon = (p.gamblesWon || 0) + 1;
+      p.totalGambleProfit = (p.totalGambleProfit || 0) + (payout - bet);
+    } else {
+      p.gold -= bet;
+      p.gamblesLost = (p.gamblesLost || 0) + 1;
+      p.totalGambleProfit = (p.totalGambleProfit || 0) - bet;
+    }
+    this.saveData();
+    if (won) this.emitAchievements(username);
+    return { username, spin: num, color: isGreen ? 'green' : isRed ? 'red' : 'black', choice: pick, won, mult, bet, payout, gold: p.gold };
   }
 
   handleGift(from, to, amount) {
