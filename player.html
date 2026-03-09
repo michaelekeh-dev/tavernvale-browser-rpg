@@ -1323,6 +1323,8 @@ function renderWearables() {
     }).join('');
   }
 }
+
+function renderMarket(listings) {
   const myListings = listings.filter(l => l.seller === username);
   const otherListings = listings.filter(l => l.seller !== username);
   const rarityColors = {common:'#888',uncommon:'#4ade80',rare:'#60a5fa',epic:'#c084fc',legendary:'#fbbf24',mythic:'#ff4444'};
