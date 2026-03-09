@@ -94,16 +94,16 @@ const BOSS_LOOT = {
 const ITEMS = {
   // ── NPC Weapons (buyable from shop) ──
   wooden_sword:   { id: 'wooden_sword',   name: 'Wooden Sword',   type: 'weapon', rarity: 'common',   dmgBonus: 2,  maxDurability: 80,  desc: '+2 damage', icon: '🗡️', shopPrice: 0 },
-  iron_sword:     { id: 'iron_sword',     name: 'Iron Sword',     type: 'weapon', rarity: 'uncommon', dmgBonus: 5,  maxDurability: 120, desc: '+5 damage', icon: '⚔️', shopPrice: 500 },
-  steel_blade:    { id: 'steel_blade',    name: 'Steel Blade',    type: 'weapon', rarity: 'rare',     dmgBonus: 10, maxDurability: 180, desc: '+10 damage', icon: '🔪', shopPrice: 1500 },
-  war_axe:        { id: 'war_axe',        name: 'War Axe',        type: 'weapon', rarity: 'rare',     dmgBonus: 12, maxDurability: 160, desc: '+12 damage', icon: '🪓', shopPrice: 2500 },
-  shadow_dagger:  { id: 'shadow_dagger',  name: 'Shadow Dagger',  type: 'weapon', rarity: 'epic',     dmgBonus: 18, maxDurability: 220, desc: '+18 damage', icon: '🗡️', shopPrice: 5000 },
+  iron_sword:     { id: 'iron_sword',     name: 'Iron Sword',     type: 'weapon', rarity: 'uncommon', dmgBonus: 5,  maxDurability: 120, desc: '+5 damage', icon: '⚔️', shopPrice: 1200 },
+  steel_blade:    { id: 'steel_blade',    name: 'Steel Blade',    type: 'weapon', rarity: 'rare',     dmgBonus: 10, maxDurability: 180, desc: '+10 damage', icon: '🔪', shopPrice: 4000 },
+  war_axe:        { id: 'war_axe',        name: 'War Axe',        type: 'weapon', rarity: 'rare',     dmgBonus: 12, maxDurability: 160, desc: '+12 damage', icon: '🪓', shopPrice: 6500 },
+  shadow_dagger:  { id: 'shadow_dagger',  name: 'Shadow Dagger',  type: 'weapon', rarity: 'epic',     dmgBonus: 18, maxDurability: 220, desc: '+18 damage', icon: '🗡️', shopPrice: 15000 },
   // ── NPC Armor (buyable from shop) ──
   cloth_armor:    { id: 'cloth_armor',    name: 'Cloth Armor',    type: 'armor',  rarity: 'common',   defBonus: 1,  maxDurability: 80,  desc: '-1 damage taken', icon: '👕', shopPrice: 0 },
-  leather_vest:   { id: 'leather_vest',   name: 'Leather Vest',   type: 'armor',  rarity: 'uncommon', defBonus: 3,  maxDurability: 120, desc: '-3 damage taken', icon: '🦺', shopPrice: 400 },
-  chain_armor:    { id: 'chain_armor',    name: 'Chain Armor',    type: 'armor',  rarity: 'rare',     defBonus: 6,  maxDurability: 180, desc: '-6 damage taken', icon: '🛡️', shopPrice: 1200 },
-  knight_plate:   { id: 'knight_plate',   name: 'Knight Plate',   type: 'armor',  rarity: 'rare',     defBonus: 8,  maxDurability: 200, desc: '-8 damage taken', icon: '🛡️', shopPrice: 2500 },
-  dark_plate:     { id: 'dark_plate',     name: 'Dark Plate',     type: 'armor',  rarity: 'epic',     defBonus: 12, maxDurability: 250, desc: '-12 damage taken', icon: '🛡️', shopPrice: 4000 },
+  leather_vest:   { id: 'leather_vest',   name: 'Leather Vest',   type: 'armor',  rarity: 'uncommon', defBonus: 3,  maxDurability: 120, desc: '-3 damage taken', icon: '🦺', shopPrice: 800 },
+  chain_armor:    { id: 'chain_armor',    name: 'Chain Armor',    type: 'armor',  rarity: 'rare',     defBonus: 6,  maxDurability: 180, desc: '-6 damage taken', icon: '🛡️', shopPrice: 3500 },
+  knight_plate:   { id: 'knight_plate',   name: 'Knight Plate',   type: 'armor',  rarity: 'rare',     defBonus: 8,  maxDurability: 200, desc: '-8 damage taken', icon: '🛡️', shopPrice: 6000 },
+  dark_plate:     { id: 'dark_plate',     name: 'Dark Plate',     type: 'armor',  rarity: 'epic',     defBonus: 12, maxDurability: 250, desc: '-12 damage taken', icon: '🛡️', shopPrice: 12000 },
   // ── Consumables (NPC shop + drops) ──
   health_potion:  { id: 'health_potion',  name: 'Health Potion',  type: 'consumable', subtype: 'heal',       value: 30,   desc: 'Restore 30 HP', icon: '❤️', shopPrice: 25, stackable: true },
   power_elixir:   { id: 'power_elixir',   name: 'Power Elixir',   type: 'consumable', subtype: 'buff_dmg',   value: 1.25, duration: 300000, desc: '+25% dmg 5min', icon: '💪', shopPrice: 80, stackable: true },
