@@ -30,18 +30,18 @@ const CONFIG = {
   critPerLevel: 0.005,
   critMultiplier: 2.5,
 
-  // Gold economy — 1g per hit, clean $1 = 150g rate
-  goldPerHit: 1,           // 1 gold per attack
+  // Gold economy — 200g = $1 USD
+  goldPerHit: 2,           // 2 gold per attack
   baseXP: 25,
-  baseGold: 8,             // kill participation reward
+  baseGold: 50,            // kill participation reward
   mvpXP: 100,
-  mvpGold: 25,             // MVP bonus
-  top3Gold: 15,
-  top5Gold: 10,
+  mvpGold: 200,            // MVP bonus
+  top3Gold: 100,
+  top5Gold: 50,
   dailyXP: 20,
-  dailyGold: 8,            // daily claim
+  dailyGold: 100,          // daily claim ($0.50)
   top5XP: 50,
-  dodgePenalty: 3,         // gold lost if you don't dodge
+  dodgePenalty: 10,        // gold lost if you don't dodge
 
   xpPerLevel: 100,
   breakDuration: 180000,
@@ -49,14 +49,14 @@ const CONFIG = {
   saveInterval: 60000,
 
   // Cash prize exchange rate (admin sets this)
-  goldPerDollar: 150,       // 150 gold = $1 IRL
+  goldPerDollar: 200,       // 200 gold = $1 IRL
 };
 
 // ═══════════════════════════════════════════
 // Loot Tables
 // ═══════════════════════════════════════════
-const RARITY_COLOR = { common: '#aaa', uncommon: '#4ade80', rare: '#60a5fa', epic: '#c084fc', legendary: '#fbbf24' };
-const VENDOR_PRICE = { common: 10, uncommon: 25, rare: 60, epic: 120, legendary: 250 };
+const RARITY_COLOR = { common: '#aaa', uncommon: '#4ade80', rare: '#60a5fa', epic: '#c084fc', legendary: '#fbbf24', mythic: '#ff4500' };
+const VENDOR_PRICE = { common: 10, uncommon: 25, rare: 60, epic: 120, legendary: 250, mythic: 500 };
 
 const BOSS_LOOT = {
   // Top 1 (MVP) — legendary or epic
@@ -89,6 +89,104 @@ const BOSS_LOOT = {
 };
 
 // ═══════════════════════════════════════════
+// Item Definitions (weapons, armor, consumables, materials)
+// ═══════════════════════════════════════════
+const ITEMS = {
+  // ── NPC Weapons (buyable from shop) ──
+  wooden_sword:   { id: 'wooden_sword',   name: 'Wooden Sword',   type: 'weapon', rarity: 'common',   dmgBonus: 2,  maxDurability: 80,  desc: '+2 damage', icon: '🗡️', shopPrice: 0 },
+  iron_sword:     { id: 'iron_sword',     name: 'Iron Sword',     type: 'weapon', rarity: 'uncommon', dmgBonus: 5,  maxDurability: 120, desc: '+5 damage', icon: '⚔️', shopPrice: 500 },
+  steel_blade:    { id: 'steel_blade',    name: 'Steel Blade',    type: 'weapon', rarity: 'rare',     dmgBonus: 10, maxDurability: 180, desc: '+10 damage', icon: '🔪', shopPrice: 1500 },
+  war_axe:        { id: 'war_axe',        name: 'War Axe',        type: 'weapon', rarity: 'rare',     dmgBonus: 12, maxDurability: 160, desc: '+12 damage', icon: '🪓', shopPrice: 2500 },
+  shadow_dagger:  { id: 'shadow_dagger',  name: 'Shadow Dagger',  type: 'weapon', rarity: 'epic',     dmgBonus: 18, maxDurability: 220, desc: '+18 damage', icon: '🗡️', shopPrice: 5000 },
+  // ── NPC Armor (buyable from shop) ──
+  cloth_armor:    { id: 'cloth_armor',    name: 'Cloth Armor',    type: 'armor',  rarity: 'common',   defBonus: 1,  maxDurability: 80,  desc: '-1 damage taken', icon: '👕', shopPrice: 0 },
+  leather_vest:   { id: 'leather_vest',   name: 'Leather Vest',   type: 'armor',  rarity: 'uncommon', defBonus: 3,  maxDurability: 120, desc: '-3 damage taken', icon: '🦺', shopPrice: 400 },
+  chain_armor:    { id: 'chain_armor',    name: 'Chain Armor',    type: 'armor',  rarity: 'rare',     defBonus: 6,  maxDurability: 180, desc: '-6 damage taken', icon: '🛡️', shopPrice: 1200 },
+  knight_plate:   { id: 'knight_plate',   name: 'Knight Plate',   type: 'armor',  rarity: 'rare',     defBonus: 8,  maxDurability: 200, desc: '-8 damage taken', icon: '🛡️', shopPrice: 2500 },
+  dark_plate:     { id: 'dark_plate',     name: 'Dark Plate',     type: 'armor',  rarity: 'epic',     defBonus: 12, maxDurability: 250, desc: '-12 damage taken', icon: '🛡️', shopPrice: 4000 },
+  // ── Consumables (NPC shop + drops) ──
+  health_potion:  { id: 'health_potion',  name: 'Health Potion',  type: 'consumable', subtype: 'heal',       value: 30,   desc: 'Restore 30 HP', icon: '❤️', shopPrice: 25, stackable: true },
+  power_elixir:   { id: 'power_elixir',   name: 'Power Elixir',   type: 'consumable', subtype: 'buff_dmg',   value: 1.25, duration: 300000, desc: '+25% dmg 5min', icon: '💪', shopPrice: 80, stackable: true },
+  shield_scroll:  { id: 'shield_scroll',  name: 'Shield Scroll',  type: 'consumable', subtype: 'buff_def',   value: 5,    duration: 300000, desc: '+5 def 5min', icon: '📜', shopPrice: 60, stackable: true },
+  speed_tonic:    { id: 'speed_tonic',    name: 'Speed Tonic',    type: 'consumable', subtype: 'buff_speed', value: 1.5,  duration: 180000, desc: '+50% speed 3min', icon: '⚡', shopPrice: 40, stackable: true },
+  repair_kit:     { id: 'repair_kit',     name: 'Repair Kit',     type: 'consumable', subtype: 'repair',     value: 50,   desc: 'Restore 50 durability', icon: '🔧', shopPrice: 150, stackable: true },
+  // ── Materials (drops only — used for crafting) ──
+  slime_gel:      { id: 'slime_gel',      name: 'Slime Gel',      type: 'material', rarity: 'common',   desc: 'Sticky gel from slimes', icon: '🟢', stackable: true },
+  goblin_ear:     { id: 'goblin_ear',     name: 'Goblin Ear',     type: 'material', rarity: 'common',   desc: 'Pointy goblin ear', icon: '👂', stackable: true },
+  wolf_fang:      { id: 'wolf_fang',      name: 'Wolf Fang',      type: 'material', rarity: 'uncommon', desc: 'Sharp wolf fang', icon: '🦷', stackable: true },
+  treant_bark:    { id: 'treant_bark',    name: 'Treant Bark',    type: 'material', rarity: 'rare',     desc: 'Ancient living bark', icon: '🪵', stackable: true },
+  bone_fragment:  { id: 'bone_fragment',  name: 'Bone Fragment',  type: 'material', rarity: 'common',   desc: 'Bleached skeleton bone', icon: '🦴', stackable: true },
+  zombie_flesh:   { id: 'zombie_flesh',   name: 'Zombie Flesh',   type: 'material', rarity: 'common',   desc: 'Rotting zombie flesh', icon: '🧟', stackable: true },
+  wraith_essence: { id: 'wraith_essence', name: 'Wraith Essence', type: 'material', rarity: 'uncommon', desc: 'Ethereal wraith energy', icon: '👻', stackable: true },
+  demon_core:     { id: 'demon_core',     name: 'Demon Core',     type: 'material', rarity: 'rare',     desc: 'Burning demon heart', icon: '🔴', stackable: true },
+  iron_ore:       { id: 'iron_ore',       name: 'Iron Ore',       type: 'material', rarity: 'common',   desc: 'Raw iron ore', icon: '⬜', stackable: true },
+  gold_nugget:    { id: 'gold_nugget',    name: 'Gold Nugget',    type: 'material', rarity: 'uncommon', desc: 'Shiny gold nugget', icon: '🟡', stackable: true },
+  crystal_shard:  { id: 'crystal_shard',  name: 'Crystal Shard',  type: 'material', rarity: 'rare',     desc: 'Glowing crystal shard', icon: '🔮', stackable: true },
+  void_fragment:  { id: 'void_fragment',  name: 'Void Fragment',  type: 'material', rarity: 'epic',     desc: 'Fragment of the void', icon: '🌀', stackable: true },
+  // ── Crafted Weapons (better than NPC shop) ──
+  venom_blade:    { id: 'venom_blade',    name: 'Venom Blade',    type: 'weapon', rarity: 'rare',      dmgBonus: 14, maxDurability: 200, desc: '+14 damage (crafted)', icon: '🗡️', crafted: true },
+  bone_cleaver:   { id: 'bone_cleaver',   name: 'Bone Cleaver',   type: 'weapon', rarity: 'epic',      dmgBonus: 22, maxDurability: 260, desc: '+22 damage (crafted)', icon: '🪓', crafted: true },
+  void_edge:      { id: 'void_edge',      name: 'Void Edge',      type: 'weapon', rarity: 'legendary', dmgBonus: 30, maxDurability: 300, desc: '+30 damage (crafted)', icon: '⚔️', crafted: true },
+  demon_scythe:   { id: 'demon_scythe',   name: 'Demon Scythe',   type: 'weapon', rarity: 'legendary', dmgBonus: 35, maxDurability: 280, desc: '+35 damage (crafted)', icon: '⚔️', crafted: true },
+  mythic_blade:   { id: 'mythic_blade',   name: 'Mythic Blade',   type: 'weapon', rarity: 'mythic',    dmgBonus: 50, maxDurability: 400, desc: '+50 damage (crafted)', icon: '⚔️', crafted: true },
+  // ── Crafted Armor (better than NPC shop) ──
+  wolf_hide:      { id: 'wolf_hide',      name: 'Wolf Hide Armor', type: 'armor', rarity: 'rare',      defBonus: 8,  maxDurability: 200, desc: '-8 damage taken (crafted)', icon: '🐺', crafted: true },
+  wraith_cloak:   { id: 'wraith_cloak',   name: 'Wraith Cloak',    type: 'armor', rarity: 'epic',      defBonus: 14, maxDurability: 260, desc: '-14 damage taken (crafted)', icon: '👻', crafted: true },
+  void_armor:     { id: 'void_armor',     name: 'Void Armor',      type: 'armor', rarity: 'legendary', defBonus: 20, maxDurability: 300, desc: '-20 damage taken (crafted)', icon: '🌀', crafted: true },
+  demon_plate:    { id: 'demon_plate',    name: 'Demon Plate',     type: 'armor', rarity: 'legendary', defBonus: 24, maxDurability: 280, desc: '-24 damage taken (crafted)', icon: '😈', crafted: true },
+  mythic_armor:   { id: 'mythic_armor',   name: 'Mythic Armor',    type: 'armor', rarity: 'mythic',    defBonus: 35, maxDurability: 400, desc: '-35 damage taken (crafted)', icon: '🛡️', crafted: true },
+};
+
+// ═══════════════════════════════════════════
+// Loot Tables — what mobs/bosses/mines drop
+// ═══════════════════════════════════════════
+const LOOT_TABLES = {
+  // Forest mobs
+  slime:    { drops: [{ itemId: 'slime_gel',   chance: 0.40 }, { itemId: 'health_potion', chance: 0.05 }] },
+  goblin:   { drops: [{ itemId: 'goblin_ear',  chance: 0.35 }, { itemId: 'iron_ore',      chance: 0.10 }, { itemId: 'health_potion', chance: 0.05 }] },
+  wolf:     { drops: [{ itemId: 'wolf_fang',   chance: 0.30 }, { itemId: 'leather_vest',  chance: 0.02 }, { itemId: 'health_potion', chance: 0.08 }] },
+  // Dungeon mobs
+  skeleton: { drops: [{ itemId: 'bone_fragment', chance: 0.40 }, { itemId: 'iron_ore',      chance: 0.10 }, { itemId: 'health_potion', chance: 0.08 }] },
+  zombie:   { drops: [{ itemId: 'zombie_flesh',  chance: 0.35 }, { itemId: 'bone_fragment',  chance: 0.15 }, { itemId: 'shield_scroll', chance: 0.05 }] },
+  wraith:   { drops: [{ itemId: 'wraith_essence',chance: 0.25 }, { itemId: 'crystal_shard',  chance: 0.05 }, { itemId: 'power_elixir',  chance: 0.05 }] },
+  demon:    { drops: [{ itemId: 'demon_core',    chance: 0.20 }, { itemId: 'wraith_essence', chance: 0.10 }, { itemId: 'repair_kit',    chance: 0.05 }, { itemId: 'void_fragment', chance: 0.02 }] },
+  // RPG Bosses — guaranteed drop + bonus
+  ancient_treant: { guaranteed: 'treant_bark', drops: [{ itemId: 'crystal_shard', chance: 0.15 }, { itemId: 'iron_sword', chance: 0.08 }, { itemId: 'chain_armor', chance: 0.06 }, { itemId: 'venom_blade', chance: 0.03 }] },
+  // Mining bonus drops (chance per node break)
+  mine_quarry:    { drops: [{ itemId: 'iron_ore',      chance: 0.25 }, { itemId: 'gold_nugget',    chance: 0.05 }] },
+  mine_deep:      { drops: [{ itemId: 'iron_ore',      chance: 0.20 }, { itemId: 'gold_nugget',    chance: 0.12 }, { itemId: 'crystal_shard', chance: 0.04 }] },
+  mine_gold_vein: { drops: [{ itemId: 'gold_nugget',   chance: 0.25 }, { itemId: 'crystal_shard',  chance: 0.10 }, { itemId: 'void_fragment',  chance: 0.02 }] },
+};
+
+// ═══════════════════════════════════════════
+// Crafting Recipes
+// ═══════════════════════════════════════════
+const RECIPES = {
+  venom_blade:  { result: 'venom_blade',  materials: { wolf_fang: 5, slime_gel: 8, iron_ore: 3 },               goldCost: 500,   desc: 'Poison-tipped blade' },
+  bone_cleaver: { result: 'bone_cleaver', materials: { bone_fragment: 10, wraith_essence: 3, crystal_shard: 2 }, goldCost: 2000,  desc: 'Heavy undead cleaver' },
+  void_edge:    { result: 'void_edge',    materials: { void_fragment: 5, crystal_shard: 8, demon_core: 3 },      goldCost: 8000,  desc: 'Edge of nothingness' },
+  demon_scythe: { result: 'demon_scythe', materials: { demon_core: 8, void_fragment: 3, wraith_essence: 5 },     goldCost: 12000, desc: 'Demonic reaper blade' },
+  mythic_blade: { result: 'mythic_blade', materials: { void_fragment: 10, demon_core: 8, crystal_shard: 15, treant_bark: 5 }, goldCost: 50000, desc: 'The ultimate weapon' },
+  wolf_hide:    { result: 'wolf_hide',    materials: { wolf_fang: 8, goblin_ear: 5, slime_gel: 5 },              goldCost: 800,   desc: 'Primal wolf armor' },
+  wraith_cloak: { result: 'wraith_cloak', materials: { wraith_essence: 6, bone_fragment: 8, zombie_flesh: 5 },   goldCost: 3000,  desc: 'Ghostly protection' },
+  void_armor:   { result: 'void_armor',   materials: { void_fragment: 5, crystal_shard: 6, wraith_essence: 4 },  goldCost: 10000, desc: 'Armor from the void' },
+  demon_plate:  { result: 'demon_plate',  materials: { demon_core: 6, void_fragment: 4, bone_fragment: 10 },     goldCost: 15000, desc: 'Infernal plate armor' },
+  mythic_armor: { result: 'mythic_armor', materials: { void_fragment: 12, demon_core: 10, crystal_shard: 15, treant_bark: 8 }, goldCost: 60000, desc: 'The ultimate armor' },
+  // Consumable crafting (cheaper than NPC)
+  health_potion_x5: { result: 'health_potion', resultQty: 5, materials: { slime_gel: 3 },          goldCost: 50,  desc: 'Brew 5 potions' },
+  repair_kit_x3:    { result: 'repair_kit',    resultQty: 3, materials: { iron_ore: 5, gold_nugget: 2 }, goldCost: 200, desc: 'Forge 3 repair kits' },
+};
+
+// ═══════════════════════════════════════════
+// NPC Shop (items you can buy with gold)
+// ═══════════════════════════════════════════
+const NPC_SHOP = {
+  weapons: ['wooden_sword', 'iron_sword', 'steel_blade', 'war_axe', 'shadow_dagger'],
+  armor:   ['cloth_armor', 'leather_vest', 'chain_armor', 'knight_plate', 'dark_plate'],
+  consumables: ['health_potion', 'power_elixir', 'shield_scroll', 'speed_tonic', 'repair_kit'],
+};
+
+// ═══════════════════════════════════════════
 // Cosmetic Items (tradeable, buyable)
 // ═══════════════════════════════════════════
 // ═══════════════════════════════════════════
@@ -113,40 +211,40 @@ function getRankBadge(level) {
 
 const COSMETICS = {
   // ── Borders (leaderboard/name frame) ──
-  border_gold:    { name: '🟡 Gold Border', cost: 100, desc: 'Gold border on leaderboard', type: 'border', cssVal: '#ffd700' },
-  border_red:     { name: '🔴 Red Border', cost: 80, desc: 'Red border on leaderboard', type: 'border', cssVal: '#ff4444' },
-  border_blue:    { name: '🔵 Blue Border', cost: 80, desc: 'Blue border on leaderboard', type: 'border', cssVal: '#4488ff' },
-  border_purple:  { name: '🟣 Purple Border', cost: 120, desc: 'Purple border on leaderboard', type: 'border', cssVal: '#c084fc' },
-  border_rainbow: { name: '🌈 Rainbow Border', cost: 300, desc: 'Animated rainbow border', type: 'border', cssVal: 'rainbow' },
-  border_green:   { name: '💚 Emerald Border', cost: 100, desc: 'Green border on leaderboard', type: 'border', cssVal: '#4ade80' },
-  border_fire:    { name: '🔥 Inferno Border', cost: 500, desc: 'Animated fire border', type: 'border', cssVal: 'fire' },
-  border_ice:     { name: '❄️ Frost Border', cost: 400, desc: 'Animated ice border', type: 'border', cssVal: 'ice' },
+  border_gold:    { name: '🟡 Gold Border', cost: 600, desc: 'Gold border on leaderboard', type: 'border', cssVal: '#ffd700' },
+  border_red:     { name: '🔴 Red Border', cost: 500, desc: 'Red border on leaderboard', type: 'border', cssVal: '#ff4444' },
+  border_blue:    { name: '🔵 Blue Border', cost: 500, desc: 'Blue border on leaderboard', type: 'border', cssVal: '#4488ff' },
+  border_purple:  { name: '🟣 Purple Border', cost: 700, desc: 'Purple border on leaderboard', type: 'border', cssVal: '#c084fc' },
+  border_rainbow: { name: '🌈 Rainbow Border', cost: 1800, desc: 'Animated rainbow border', type: 'border', cssVal: 'rainbow' },
+  border_green:   { name: '💚 Emerald Border', cost: 600, desc: 'Green border on leaderboard', type: 'border', cssVal: '#4ade80' },
+  border_fire:    { name: '🔥 Inferno Border', cost: 3000, desc: 'Animated fire border', type: 'border', cssVal: 'fire' },
+  border_ice:     { name: '❄️ Frost Border', cost: 2500, desc: 'Animated ice border', type: 'border', cssVal: 'ice' },
   // ── Titles (shown before name) ──
-  title_champion: { name: '⭐ Champion', cost: 500, desc: 'Permanent ⭐ title', type: 'title', titleText: '⭐' },
-  title_legend:   { name: '🔥 Legend', cost: 800, desc: 'Permanent 🔥 title', type: 'title', titleText: '🔥' },
-  title_king:     { name: '👑 King', cost: 1200, desc: 'Permanent 👑 title', type: 'title', titleText: '👑' },
-  title_skull:    { name: '💀 Reaper', cost: 600, desc: 'Permanent 💀 title', type: 'title', titleText: '💀' },
-  title_diamond:  { name: '💎 Diamond', cost: 1500, desc: 'Permanent 💎 title', type: 'title', titleText: '💎' },
-  title_clown:    { name: '🤡 Class Clown', cost: 200, desc: 'Permanent 🤡 title', type: 'title', titleText: '🤡' },
-  title_rat:      { name: '🐀 Chat Rat', cost: 150, desc: 'Embrace the grind 🐀', type: 'title', titleText: '🐀' },
-  title_goat:     { name: '🐐 GOAT', cost: 2000, desc: 'The greatest of all time', type: 'title', titleText: '🐐' },
+  title_champion: { name: '⭐ Champion', cost: 3000, desc: 'Permanent ⭐ title', type: 'title', titleText: '⭐' },
+  title_legend:   { name: '🔥 Legend', cost: 5000, desc: 'Permanent 🔥 title', type: 'title', titleText: '🔥' },
+  title_king:     { name: '👑 King', cost: 7500, desc: 'Permanent 👑 title', type: 'title', titleText: '👑' },
+  title_skull:    { name: '💀 Reaper', cost: 3500, desc: 'Permanent 💀 title', type: 'title', titleText: '💀' },
+  title_diamond:  { name: '💎 Diamond', cost: 9000, desc: 'Permanent 💎 title', type: 'title', titleText: '💎' },
+  title_clown:    { name: '🤡 Class Clown', cost: 1200, desc: 'Permanent 🤡 title', type: 'title', titleText: '🤡' },
+  title_rat:      { name: '🐀 Chat Rat', cost: 900, desc: 'Embrace the grind 🐀', type: 'title', titleText: '🐀' },
+  title_goat:     { name: '🐐 GOAT', cost: 12000, desc: 'The greatest of all time', type: 'title', titleText: '🐐' },
   // ── Hit Effects (visual on boss/pvp hits) ──
-  effect_fire:    { name: '🔥 Flame Hits', cost: 200, desc: 'Hits show as fire', type: 'hitEffect', effectId: 'fire' },
-  effect_ice:     { name: '❄️ Ice Hits', cost: 200, desc: 'Hits show as ice', type: 'hitEffect', effectId: 'ice' },
-  effect_lightning:{ name: '⚡ Lightning Hits', cost: 250, desc: 'Hits show as lightning', type: 'hitEffect', effectId: 'lightning' },
-  effect_shadow:  { name: '🌑 Shadow Hits', cost: 250, desc: 'Hits show as shadow', type: 'hitEffect', effectId: 'shadow' },
-  effect_blood:   { name: '🩸 Blood Hits', cost: 300, desc: 'Hits show blood splatter', type: 'hitEffect', effectId: 'blood' },
-  effect_holy:    { name: '✨ Holy Hits', cost: 350, desc: 'Hits show divine light', type: 'hitEffect', effectId: 'holy' },
+  effect_fire:    { name: '🔥 Flame Hits', cost: 1200, desc: 'Hits show as fire', type: 'hitEffect', effectId: 'fire' },
+  effect_ice:     { name: '❄️ Ice Hits', cost: 1200, desc: 'Hits show as ice', type: 'hitEffect', effectId: 'ice' },
+  effect_lightning:{ name: '⚡ Lightning Hits', cost: 1500, desc: 'Hits show as lightning', type: 'hitEffect', effectId: 'lightning' },
+  effect_shadow:  { name: '🌑 Shadow Hits', cost: 1500, desc: 'Hits show as shadow', type: 'hitEffect', effectId: 'shadow' },
+  effect_blood:   { name: '🩸 Blood Hits', cost: 1800, desc: 'Hits show blood splatter', type: 'hitEffect', effectId: 'blood' },
+  effect_holy:    { name: '✨ Holy Hits', cost: 2000, desc: 'Hits show divine light', type: 'hitEffect', effectId: 'holy' },
   // ── Badges (emoji beside name) ──
-  badge_vip:      { name: '💠 VIP Badge', cost: 400, desc: 'VIP badge next to name', type: 'badge', badgeEmoji: '💠' },
-  badge_sword:    { name: '⚔️ Warrior Badge', cost: 300, desc: 'Sword badge next to name', type: 'badge', badgeEmoji: '⚔️' },
-  badge_shield:   { name: '🛡️ Guardian Badge', cost: 300, desc: 'Shield badge next to name', type: 'badge', badgeEmoji: '🛡️' },
-  badge_skull:    { name: '💀 Death Badge', cost: 600, desc: 'Skull badge — fear me', type: 'badge', badgeEmoji: '💀' },
-  badge_dragon:   { name: '🐲 Dragon Badge', cost: 800, desc: 'Dragon badge — I own bosses', type: 'badge', badgeEmoji: '🐲' },
+  badge_vip:      { name: '💠 VIP Badge', cost: 2500, desc: 'VIP badge next to name', type: 'badge', badgeEmoji: '💠' },
+  badge_sword:    { name: '⚔️ Warrior Badge', cost: 1800, desc: 'Sword badge next to name', type: 'badge', badgeEmoji: '⚔️' },
+  badge_shield:   { name: '🛡️ Guardian Badge', cost: 1800, desc: 'Shield badge next to name', type: 'badge', badgeEmoji: '🛡️' },
+  badge_skull:    { name: '💀 Death Badge', cost: 3500, desc: 'Skull badge — fear me', type: 'badge', badgeEmoji: '💀' },
+  badge_dragon:   { name: '🐲 Dragon Badge', cost: 5000, desc: 'Dragon badge — I own bosses', type: 'badge', badgeEmoji: '🐲' },
   // ── Kill Effects (animation on final blow) ──
-  killeffect_explode: { name: '💥 Explosion', cost: 500, desc: 'Target explodes on defeat', type: 'killEffect', effectId: 'explode' },
-  killeffect_disintegrate: { name: '✨ Disintegrate', cost: 600, desc: 'Target fades to dust', type: 'killEffect', effectId: 'disintegrate' },
-  killeffect_lightning: { name: '⚡ Smited', cost: 700, desc: 'Lightning strikes the loser', type: 'killEffect', effectId: 'smite' },
+  killeffect_explode: { name: '💥 Explosion', cost: 3000, desc: 'Target explodes on defeat', type: 'killEffect', effectId: 'explode' },
+  killeffect_disintegrate: { name: '✨ Disintegrate', cost: 3500, desc: 'Target fades to dust', type: 'killEffect', effectId: 'disintegrate' },
+  killeffect_lightning: { name: '⚡ Smited', cost: 4500, desc: 'Lightning strikes the loser', type: 'killEffect', effectId: 'smite' },
 };
 
 // ═══════════════════════════════════════════
@@ -158,9 +256,9 @@ const ACHIEVEMENTS = {
   dmg_1k:         { name: '⚔️ Thousand Cuts', desc: 'Deal 1,000 total damage', check: (p) => p.totalDamage >= 1000 },
   dmg_10k:        { name: '🔥 Inferno', desc: 'Deal 10,000 total damage', check: (p) => p.totalDamage >= 10000 },
   dmg_100k:       { name: '☄️ Cataclysm', desc: 'Deal 100,000 total damage', check: (p) => p.totalDamage >= 100000 },
-  gold_100:       { name: '🪙 Moneybags', desc: 'Hold 100 gold at once', check: (p) => p.gold >= 100 },
-  gold_500:       { name: '💰 Wealthy', desc: 'Hold 500 gold at once', check: (p) => p.gold >= 500 },
-  gold_2k:        { name: '🏦 Tycoon', desc: 'Hold 2,000 gold at once', check: (p) => p.gold >= 2000 },
+  gold_100:       { name: '🪙 Moneybags', desc: 'Hold 500 gold at once', check: (p) => p.gold >= 500 },
+  gold_500:       { name: '💰 Wealthy', desc: 'Hold 2,500 gold at once', check: (p) => p.gold >= 2500 },
+  gold_2k:        { name: '🏦 Tycoon', desc: 'Hold 10,000 gold at once', check: (p) => p.gold >= 10000 },
   level_5:        { name: '⬆️ Rising Star', desc: 'Reach level 5', check: (p) => p.level >= 5 },
   level_10:       { name: '🌟 Veteran', desc: 'Reach level 10', check: (p) => p.level >= 10 },
   level_25:       { name: '💫 Elite', desc: 'Reach level 25', check: (p) => p.level >= 25 },
@@ -234,7 +332,7 @@ class Game {
     this.admin = 'mikeydamike';
     this.rpgEnabled = false;
     this.gamblingEnabled = false;
-    this.wheelRewards = ['1500g Gold Rain','Double / Re-spin','750g Jackpot','Re-spin!','Random Viewer Pick'];
+    this.wheelRewards = ['10,000g Gold Rain','Double / Re-spin','5,000g Jackpot','Re-spin!','Random Viewer Pick'];
     this.prizeMultiplier = 1;
     this.comboCount = 0;
     this.lastAttacker = null;
@@ -242,10 +340,10 @@ class Game {
 
     // Shop temp buffs
     this.shopItems = {
-      whetstone: { name: '🗡️ Whetstone', cost: 50, desc: '+3 bonus dmg this boss', type: 'dmg_boost', value: 3 },
-      charm:     { name: '🍀 Lucky Charm', cost: 75, desc: '+15% crit this boss', type: 'crit_boost', value: 0.15 },
-      boots:     { name: '👟 Swift Boots', cost: 100, desc: 'Half cooldown this boss', type: 'speed_boost' },
-      potion:    { name: '💪 Mega Potion', cost: 150, desc: '2x damage this boss', type: 'mega_dmg' },
+      whetstone: { name: '🗡️ Whetstone', cost: 300, desc: '+3 bonus dmg this boss', type: 'dmg_boost', value: 3 },
+      charm:     { name: '🍀 Lucky Charm', cost: 450, desc: '+15% crit this boss', type: 'crit_boost', value: 0.15 },
+      boots:     { name: '👟 Swift Boots', cost: 600, desc: 'Half cooldown this boss', type: 'speed_boost' },
+      potion:    { name: '💪 Mega Potion', cost: 1000, desc: '2x damage this boss', type: 'mega_dmg' },
     };
     this.playerBuffs = {};
 
@@ -388,8 +486,122 @@ class Game {
     return val;
   }
 
-  minDmg(p) { return Math.floor((CONFIG.baseMinDmg + (p.level - 1) * CONFIG.dmgPerLevel) * (1 + this.equipStat(p, 'dmgMult') + (p.prestigeBonus || 0))); }
-  maxDmg(p) { return Math.floor((CONFIG.baseMaxDmg + (p.level - 1) * CONFIG.dmgPerLevel) * (1 + this.equipStat(p, 'dmgMult') + (p.prestigeBonus || 0))); }
+  // Get bonus damage from equipped weapon (new item system)
+  weaponDmgBonus(p) {
+    const wep = (p.equipped || {}).weapon;
+    return (wep && wep.dmgBonus && (!wep.durability || wep.durability > 0)) ? wep.dmgBonus : 0;
+  }
+
+  // Get damage reduction from equipped armor (new item system)
+  armorDefBonus(p) {
+    const arm = (p.equipped || {}).armor;
+    return (arm && arm.defBonus && (!arm.durability || arm.durability > 0)) ? arm.defBonus : 0;
+  }
+
+  // Degrade durability of an equipped slot
+  degradeEquipped(p, slot, amount) {
+    const item = (p.equipped || {})[slot];
+    if (!item || item.durability === undefined) return;
+    item.durability = Math.max(0, item.durability - amount);
+    if (item.durability <= 0) {
+      // Item is destroyed
+      delete p.equipped[slot];
+      return { broken: true, name: item.name };
+    }
+    return { broken: false, durability: item.durability, maxDurability: item.maxDurability };
+  }
+
+  equipItem(username, uid) {
+    const p = this.player(username);
+    const idx = p.inventory.findIndex(i => i.uid === uid);
+    if (idx === -1) return { error: 'not_found' };
+    const item = p.inventory[idx];
+    if (item.type !== 'weapon' && item.type !== 'armor') return { error: 'not_equippable' };
+    if (item.durability !== undefined && item.durability <= 0) return { error: 'broken' };
+    const slot = item.type; // 'weapon' or 'armor'
+    // Unequip current item in that slot
+    if (p.equipped[slot]) {
+      p.inventory.push(p.equipped[slot]);
+    }
+    p.equipped[slot] = item;
+    p.inventory.splice(idx, 1);
+    this.saveData();
+    return { success: true, slot, item };
+  }
+
+  unequipItem(username, slot) {
+    const p = this.player(username);
+    if (!p.equipped[slot]) return { error: 'nothing_equipped' };
+    p.inventory.push(p.equipped[slot]);
+    const item = p.equipped[slot];
+    delete p.equipped[slot];
+    this.saveData();
+    return { success: true, slot, item };
+  }
+
+  repairItem(username, uid) {
+    const p = this.player(username);
+    // Find item in inventory or equipped
+    let item = p.inventory.find(i => i.uid === uid);
+    if (!item) {
+      for (const eq of Object.values(p.equipped || {})) {
+        if (eq && eq.uid === uid) { item = eq; break; }
+      }
+    }
+    if (!item) return { error: 'not_found' };
+    if (item.durability === undefined) return { error: 'no_durability' };
+    if (item.durability >= item.maxDurability) return { error: 'full_durability' };
+    // Consume a repair kit
+    if (!this.removeStackable(p, 'repair_kit', 1)) return { error: 'no_repair_kit' };
+    const repairAmount = ITEMS.repair_kit.value || 50;
+    item.durability = Math.min(item.maxDurability, item.durability + repairAmount);
+    this.saveData();
+    return { success: true, item, durability: item.durability, maxDurability: item.maxDurability };
+  }
+
+  useConsumable(username, itemId) {
+    const p = this.player(username);
+    const template = ITEMS[itemId];
+    if (!template || template.type !== 'consumable') return { error: 'not_consumable' };
+    if (!this.removeStackable(p, itemId, 1)) return { error: 'none_owned' };
+    const rp = this.rpgPlayers[username];
+    let result = { success: true, item: itemId, name: template.name };
+    switch (template.subtype) {
+      case 'heal':
+        if (rp) { rp.hp = Math.min(rp.maxHP, rp.hp + template.value); result.hp = rp.hp; result.maxHP = rp.maxHP; }
+        break;
+      case 'buff_dmg':
+        if (!p.rpg) p.rpg = {};
+        p.rpg.buffDmg = { mult: template.value, expires: Date.now() + template.duration };
+        result.buff = 'dmg'; result.duration = template.duration;
+        break;
+      case 'buff_def':
+        if (!p.rpg) p.rpg = {};
+        p.rpg.buffDef = { value: template.value, expires: Date.now() + template.duration };
+        result.buff = 'def'; result.duration = template.duration;
+        break;
+      case 'buff_speed':
+        if (!p.rpg) p.rpg = {};
+        p.rpg.buffSpeed = { mult: template.value, expires: Date.now() + template.duration };
+        result.buff = 'speed'; result.duration = template.duration;
+        break;
+    }
+    this.saveData();
+    return result;
+  }
+
+  minDmg(p) {
+    const base = Math.floor((CONFIG.baseMinDmg + (p.level - 1) * CONFIG.dmgPerLevel) * (1 + this.equipStat(p, 'dmgMult') + (p.prestigeBonus || 0)));
+    let bonus = this.weaponDmgBonus(p);
+    if (p.rpg && p.rpg.buffDmg && Date.now() < p.rpg.buffDmg.expires) bonus = Math.floor(bonus * p.rpg.buffDmg.mult);
+    return base + bonus;
+  }
+  maxDmg(p) {
+    const base = Math.floor((CONFIG.baseMaxDmg + (p.level - 1) * CONFIG.dmgPerLevel) * (1 + this.equipStat(p, 'dmgMult') + (p.prestigeBonus || 0)));
+    let bonus = this.weaponDmgBonus(p);
+    if (p.rpg && p.rpg.buffDmg && Date.now() < p.rpg.buffDmg.expires) bonus = Math.floor(bonus * p.rpg.buffDmg.mult);
+    return base + bonus;
+  }
   critChance(p) {
     let base = p.level >= CONFIG.critLevel ? CONFIG.baseCritChance + (p.level - CONFIG.critLevel) * CONFIG.critPerLevel : 0;
     return base + this.equipStat(p, 'critChance');
@@ -399,6 +611,51 @@ class Game {
   cooldownReduce(p) { return this.equipStat(p, 'cdReduce'); }
   goldFindMult(p) { return 1 + this.equipStat(p, 'goldFind'); }
   xpNeeded(p) { return p.level * CONFIG.xpPerLevel; }
+
+  buyFromShop(username, itemId) {
+    const template = ITEMS[itemId];
+    if (!template) return { error: 'not_found' };
+    if (template.shopPrice === undefined) return { error: 'not_for_sale' };
+    const p = this.player(username);
+    if (template.shopPrice > 0 && p.gold < template.shopPrice) return { error: 'broke', gold: p.gold, cost: template.shopPrice };
+    if (template.shopPrice > 0) p.gold -= template.shopPrice;
+    const item = this.addItemToInventory(p, itemId);
+    this.saveData();
+    return { success: true, item, gold: p.gold };
+  }
+
+  craftItem(username, recipeId) {
+    const recipe = RECIPES[recipeId];
+    if (!recipe) return { error: 'unknown_recipe' };
+    const p = this.player(username);
+    // Check gold
+    if (p.gold < recipe.goldCost) return { error: 'broke', gold: p.gold, cost: recipe.goldCost };
+    // Check materials
+    for (const [matId, qty] of Object.entries(recipe.materials)) {
+      if (this.getStackCount(p, matId) < qty) {
+        return { error: 'missing_material', material: matId, need: qty, have: this.getStackCount(p, matId) };
+      }
+    }
+    // Consume gold + materials
+    p.gold -= recipe.goldCost;
+    for (const [matId, qty] of Object.entries(recipe.materials)) {
+      this.removeStackable(p, matId, qty);
+    }
+    // Create the item(s)
+    const resultQty = recipe.resultQty || 1;
+    const items = [];
+    for (let i = 0; i < resultQty; i++) {
+      const item = this.addItemToInventory(p, recipe.result);
+      if (item) items.push(item);
+    }
+    this.saveData();
+    return { success: true, items, gold: p.gold };
+  }
+
+  getInventory(username) {
+    const p = this.player(username);
+    return { inventory: p.inventory, equipped: p.equipped, gold: p.gold };
+  }
 
   addXP(p, amount) {
     if (Date.now() < this.doubleXPUntil) amount *= 2;
@@ -412,6 +669,79 @@ class Game {
     amount = Math.floor(amount * this.goldFindMult(p));
     p.gold += amount;
     return amount;
+  }
+
+  // ── Inventory helpers ────────────────────
+  addItemToInventory(p, itemId, qty = 1) {
+    const template = ITEMS[itemId];
+    if (!template) return null;
+    if (template.stackable) {
+      // Stackable: find existing stack or create new
+      const existing = p.inventory.find(i => i.id === itemId && i.stackable);
+      if (existing) {
+        existing.qty += qty;
+        return existing;
+      }
+      const stack = { id: itemId, name: template.name, type: template.type, rarity: template.rarity, icon: template.icon, desc: template.desc, stackable: true, qty };
+      if (template.subtype) stack.subtype = template.subtype;
+      if (template.value !== undefined) stack.value = template.value;
+      if (template.duration) stack.duration = template.duration;
+      p.inventory.push(stack);
+      return stack;
+    }
+    // Non-stackable: create unique instance with durability
+    const item = {
+      id: itemId, uid: Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6),
+      name: template.name, type: template.type, rarity: template.rarity, icon: template.icon, desc: template.desc,
+    };
+    if (template.dmgBonus !== undefined) item.dmgBonus = template.dmgBonus;
+    if (template.defBonus !== undefined) item.defBonus = template.defBonus;
+    if (template.maxDurability) { item.durability = template.maxDurability; item.maxDurability = template.maxDurability; }
+    if (template.crafted) item.crafted = true;
+    // Random craft bonus (5% chance for +10-25% bonus stats on craft)
+    if (template.crafted && Math.random() < 0.05) {
+      const bonusMult = 1 + (0.10 + Math.random() * 0.15);
+      if (item.dmgBonus) item.dmgBonus = Math.round(item.dmgBonus * bonusMult);
+      if (item.defBonus) item.defBonus = Math.round(item.defBonus * bonusMult);
+      item.bonusRoll = true;
+      item.name = '★ ' + item.name;
+    }
+    p.inventory.push(item);
+    return item;
+  }
+
+  removeItemFromInventory(p, uid) {
+    const idx = p.inventory.findIndex(i => i.uid === uid);
+    if (idx === -1) return null;
+    return p.inventory.splice(idx, 1)[0];
+  }
+
+  removeStackable(p, itemId, qty = 1) {
+    const stack = p.inventory.find(i => i.id === itemId && i.stackable);
+    if (!stack || stack.qty < qty) return false;
+    stack.qty -= qty;
+    if (stack.qty <= 0) p.inventory.splice(p.inventory.indexOf(stack), 1);
+    return true;
+  }
+
+  getStackCount(p, itemId) {
+    const stack = p.inventory.find(i => i.id === itemId && i.stackable);
+    return stack ? stack.qty : 0;
+  }
+
+  rollLootTable(tableId) {
+    const table = LOOT_TABLES[tableId];
+    if (!table) return { items: [], guaranteed: null };
+    const items = [];
+    // Guaranteed drop
+    if (table.guaranteed) items.push({ itemId: table.guaranteed, qty: 1 });
+    // Chance drops
+    for (const drop of (table.drops || [])) {
+      if (Math.random() < drop.chance) {
+        items.push({ itemId: drop.itemId, qty: drop.qty || 1 });
+      }
+    }
+    return items;
   }
 
   // ── Achievement checker ──────────────────
@@ -554,7 +884,7 @@ class Game {
     const lootResults = [];
 
     // Boss prize: top 3 attackers get gold
-    const prizeGold = num === 1 ? 300 : 450;
+    const prizeGold = num === 1 ? 500 : 800;
 
     // Base rewards (XP + participation gold)
     for (const u of all) {
@@ -758,37 +1088,83 @@ class Game {
     const p = this.player(username);
     const priceNum = parseInt(price);
     if (isNaN(priceNum) || priceNum < 1) return { error: 'invalid_price' };
+    // Max 5 listings per player
+    const myListings = this.market.filter(l => l.seller === username);
+    if (myListings.length >= 5) return { error: 'max_listings', message: 'Max 5 active listings' };
     const idx = p.inventory.findIndex(i => i.uid === itemUid);
     if (idx === -1) return { error: 'not_found' };
+    // 2% listing fee
+    const listFee = Math.max(1, Math.floor(priceNum * 0.02));
+    if (p.gold < listFee) return { error: 'cant_afford_fee', fee: listFee, gold: p.gold };
+    p.gold -= listFee;
     const item = p.inventory.splice(idx, 1)[0];
-    const listing = { id: this.marketIdCounter++, seller: username, type: 'equipment', itemData: item, price: priceNum, listedAt: Date.now() };
+    const listing = { id: this.marketIdCounter++, seller: username, type: 'equipment', itemData: item, price: priceNum, listFee, listedAt: Date.now() };
     this.market.push(listing);
     this.saveData();
-    return { username, listing };
+    return { username, listing, fee: listFee, gold: p.gold };
+  }
+
+  handleSellMaterial(username, itemId, qty, price) {
+    const p = this.player(username);
+    const priceNum = parseInt(price);
+    const qtyNum = parseInt(qty);
+    if (isNaN(priceNum) || priceNum < 1) return { error: 'invalid_price' };
+    if (isNaN(qtyNum) || qtyNum < 1) return { error: 'invalid_qty' };
+    const myListings = this.market.filter(l => l.seller === username);
+    if (myListings.length >= 5) return { error: 'max_listings', message: 'Max 5 active listings' };
+    if (this.getStackCount(p, itemId) < qtyNum) return { error: 'not_enough', have: this.getStackCount(p, itemId) };
+    const template = ITEMS[itemId];
+    if (!template) return { error: 'invalid_item' };
+    const listFee = Math.max(1, Math.floor(priceNum * 0.02));
+    if (p.gold < listFee) return { error: 'cant_afford_fee', fee: listFee, gold: p.gold };
+    p.gold -= listFee;
+    this.removeStackable(p, itemId, qtyNum);
+    const listing = {
+      id: this.marketIdCounter++, seller: username, type: 'material',
+      itemData: { id: itemId, name: template.name, icon: template.icon, rarity: template.rarity, qty: qtyNum },
+      price: priceNum, listFee, listedAt: Date.now(),
+    };
+    this.market.push(listing);
+    this.saveData();
+    return { username, listing, fee: listFee, gold: p.gold };
   }
 
   handleSellCosmetic(username, cosmeticKey, price) {
     const p = this.player(username);
     const priceNum = parseInt(price);
     if (isNaN(priceNum) || priceNum < 1) return { error: 'invalid_price' };
+    const myListings = this.market.filter(l => l.seller === username);
+    if (myListings.length >= 5) return { error: 'max_listings', message: 'Max 5 active listings' };
     const key = (cosmeticKey || '').toLowerCase();
     if (!p.cosmetics.includes(key)) return { error: 'not_owned' };
     for (const v of Object.values(p.activeCosmetics)) { if (v === key) return { error: 'unequip_first' }; }
+    const listFee = Math.max(1, Math.floor(priceNum * 0.02));
+    if (p.gold < listFee) return { error: 'cant_afford_fee', fee: listFee, gold: p.gold };
+    p.gold -= listFee;
     p.cosmetics = p.cosmetics.filter(c => c !== key);
-    const listing = { id: this.marketIdCounter++, seller: username, type: 'cosmetic', itemData: { key, ...COSMETICS[key] }, price: priceNum, listedAt: Date.now() };
+    const listing = { id: this.marketIdCounter++, seller: username, type: 'cosmetic', itemData: { key, ...COSMETICS[key] }, price: priceNum, listFee, listedAt: Date.now() };
     this.market.push(listing);
     this.saveData();
-    return { username, listing };
+    return { username, listing, fee: listFee, gold: p.gold };
   }
 
   handleMarket(username) {
     return {
       username,
-      listings: this.market.slice(-20).map(l => ({
+      listings: this.market.slice(-50).map(l => ({
         id: l.id, seller: l.seller, type: l.type,
         name: l.itemData.name, rarity: l.itemData.rarity || null, price: l.price,
+        icon: l.itemData.icon || null, qty: l.itemData.qty || null,
       })),
     };
+  }
+
+  getMarketListings() {
+    return this.market.map(l => ({
+      id: l.id, seller: l.seller, type: l.type,
+      name: l.itemData.name, rarity: l.itemData.rarity || null, price: l.price,
+      icon: l.itemData.icon || null, qty: l.itemData.qty || null,
+    }));
   }
 
   handleBuyMarket(username, listingId) {
@@ -801,8 +1177,11 @@ class Game {
     if (buyer.gold < listing.price) return { error: 'broke', gold: buyer.gold, cost: listing.price };
     buyer.gold -= listing.price;
     const seller = this.player(listing.seller);
-    seller.gold += listing.price;
+    // 5% sale tax taken from seller's proceeds
+    const tax = Math.max(1, Math.floor(listing.price * 0.05));
+    seller.gold += listing.price - tax;
     if (listing.type === 'equipment') buyer.inventory.push(listing.itemData);
+    else if (listing.type === 'material') this.addItemToInventory(buyer, listing.itemData.id, listing.itemData.qty || 1);
     else if (listing.type === 'cosmetic') buyer.cosmetics.push(listing.itemData.key);
     this.market.splice(idx, 1);
     buyer.tradeCount = (buyer.tradeCount || 0) + 1;
@@ -810,7 +1189,7 @@ class Game {
     this.saveData();
     this.emitAchievements(username);
     this.emitAchievements(listing.seller);
-    return { buyer: username, seller: listing.seller, item: listing.itemData.name, price: listing.price, buyerGold: buyer.gold };
+    return { buyer: username, seller: listing.seller, item: listing.itemData.name, price: listing.price, tax, buyerGold: buyer.gold };
   }
 
   handleCancelListing(username, listingId) {
@@ -820,6 +1199,7 @@ class Game {
     const listing = this.market.splice(idx, 1)[0];
     const p = this.player(username);
     if (listing.type === 'equipment') p.inventory.push(listing.itemData);
+    else if (listing.type === 'material') this.addItemToInventory(p, listing.itemData.id, listing.itemData.qty || 1);
     else if (listing.type === 'cosmetic') p.cosmetics.push(listing.itemData.key);
     this.saveData();
     return { username, cancelled: listing.itemData.name };
@@ -1203,7 +1583,7 @@ class Game {
     const goldWinners = [];
 
     if (reward.includes('Gold Rain')) {
-      const totalGold = 1500 * m;
+      const totalGold = 10000 * m;
       const perPlayer = Math.floor(totalGold / 2);
       // Pick 2 random hitters
       const shuffled = all.sort(() => Math.random() - 0.5);
@@ -1213,7 +1593,7 @@ class Game {
         goldWinners.push({ username: u, gold: perPlayer });
       }
     } else if (reward.includes('Jackpot')) {
-      const totalGold = 750 * m;
+      const totalGold = 5000 * m;
       const winner = all.length > 0 ? pick(all) : null;
       if (winner) {
         this.addGold(this.player(winner), totalGold);
@@ -1440,7 +1820,7 @@ class Game {
     if (!validMethods.includes(method)) return { error: 'invalid_method', message: 'Nah fam, only Solana or Discord. We ain\'t PayPal over here 😤' };
     const p = this.player(username);
     const amt = parseInt(goldAmount);
-    const minRedeem = 1000;
+    const minRedeem = 5000;  // $25 minimum
     if (isNaN(amt) || amt < minRedeem) return { error: 'min_redeem', minimum: minRedeem };
     if (p.gold < amt) return { error: 'broke', gold: p.gold, message: 'You\'re down bad rn... go farm some bosses 💀' };
     if (this.payoutQueue.find(r => r.username === username && r.status === 'pending')) return { error: 'already_pending', message: 'Chill, you already got one cooking 🍳' };
@@ -1685,12 +2065,12 @@ class Game {
   // Prestige System
   // ═══════════════════════════════════════════
   PRESTIGE_LEVELS = [
-    { rank: 1, name: 'Certified Grinder',  minLevel: 30, goldReward: 2000,  dmgBonus: 0.05, icon: '⚒️' },
-    { rank: 2, name: 'Touch Grass? Never',  minLevel: 35, goldReward: 5000,  dmgBonus: 0.12, icon: '🌿' },
-    { rank: 3, name: 'Built Different',     minLevel: 40, goldReward: 10000, dmgBonus: 0.20, icon: '💪' },
-    { rank: 4, name: 'No Life Speedrun',    minLevel: 45, goldReward: 20000, dmgBonus: 0.30, icon: '💀' },
-    { rank: 5, name: 'Actual Legend',        minLevel: 50, goldReward: 50000, dmgBonus: 0.45, icon: '☀️' },
-    { rank: 6, name: 'Mikey X',              minLevel: 50, goldReward: 100000, dmgBonus: 0.60, icon: '🔥' },
+    { rank: 1, name: 'Certified Grinder',  minLevel: 30, goldReward: 50000,   dmgBonus: 0.05, icon: '⚒️' },
+    { rank: 2, name: 'Touch Grass? Never',  minLevel: 35, goldReward: 100000,  dmgBonus: 0.12, icon: '🌿' },
+    { rank: 3, name: 'Built Different',     minLevel: 40, goldReward: 250000,  dmgBonus: 0.20, icon: '💪' },
+    { rank: 4, name: 'No Life Speedrun',    minLevel: 45, goldReward: 500000,  dmgBonus: 0.30, icon: '💀' },
+    { rank: 5, name: 'Actual Legend',        minLevel: 50, goldReward: 1000000, dmgBonus: 0.45, icon: '☀️' },
+    { rank: 6, name: 'Mikey X',              minLevel: 50, goldReward: 1500000, dmgBonus: 0.60, icon: '🔥' },
   ];
 
   canPrestige(username) {
@@ -2317,11 +2697,14 @@ class Game {
             if (!rp.hp || rp.hp <= 0) continue;
             const dx = (rp.x || 400) - mob.x, dy = (rp.y || 200) - mob.y;
             if (Math.sqrt(dx * dx + dy * dy) < 120) {
-              const dmg = Math.max(1, mob.atk - Math.floor(Math.random() * 3));
+              const p = this.player(username);
+              const def = this.armorDefBonus(p) + ((p.rpg && p.rpg.buffDef && Date.now() < p.rpg.buffDef.expires) ? p.rpg.buffDef.value : 0);
+              const dmg = Math.max(1, mob.atk - Math.floor(Math.random() * 3) - def);
               rp.hp = Math.max(0, rp.hp - dmg);
-              this.rpgSendTo(username, { type: 'rpg_mob_attack', data: { mobId: mob.id, dmg, hp: rp.hp, maxHP: rp.maxHP } });
+              // Degrade armor durability (mob hit = -1)
+              const armorResult = this.degradeEquipped(p, 'armor', 1);
+              this.rpgSendTo(username, { type: 'rpg_mob_attack', data: { mobId: mob.id, dmg, hp: rp.hp, maxHP: rp.maxHP, armorBroke: armorResult && armorResult.broken ? armorResult.name : null } });
               if (rp.hp <= 0) {
-                const p = this.player(username);
                 const lost = Math.floor(p.gold * 0.02);
                 p.gold = Math.max(0, p.gold - lost);
                 this.saveData();
@@ -2341,11 +2724,13 @@ class Game {
             if (rp.zone !== zoneId || !rp.hp || rp.hp <= 0) continue;
             const dx = (rp.x || 400) - sap.x, dy = (rp.y || 200) - sap.y;
             if (Math.sqrt(dx * dx + dy * dy) < 80) {
-              const dmg = Math.max(1, sap.atk - Math.floor(Math.random() * 2));
+              const p = this.player(username);
+              const def = this.armorDefBonus(p) + ((p.rpg && p.rpg.buffDef && Date.now() < p.rpg.buffDef.expires) ? p.rpg.buffDef.value : 0);
+              const dmg = Math.max(1, sap.atk - Math.floor(Math.random() * 2) - def);
               rp.hp = Math.max(0, rp.hp - dmg);
-              this.rpgSendTo(username, { type: 'rpg_mob_attack', data: { mobId: sap.id, dmg, hp: rp.hp, maxHP: rp.maxHP } });
+              const armorResult = this.degradeEquipped(p, 'armor', 1);
+              this.rpgSendTo(username, { type: 'rpg_mob_attack', data: { mobId: sap.id, dmg, hp: rp.hp, maxHP: rp.maxHP, armorBroke: armorResult && armorResult.broken ? armorResult.name : null } });
               if (rp.hp <= 0) {
-                const p = this.player(username);
                 const lost = Math.floor(p.gold * 0.02);
                 p.gold = Math.max(0, p.gold - lost);
                 this.saveData();
@@ -2491,13 +2876,17 @@ class Game {
       }
     }
     if (hit) {
-      const dmg = atk.dmg + Math.floor(Math.random() * 4);
+      const p = this.player(target.username);
+      const def = this.armorDefBonus(p) + ((p.rpg && p.rpg.buffDef && Date.now() < p.rpg.buffDef.expires) ? p.rpg.buffDef.value : 0);
+      const dmg = Math.max(1, atk.dmg + Math.floor(Math.random() * 4) - def);
       target.rp.hp = Math.max(0, target.rp.hp - dmg);
+      // Boss hit degrades armor by 3
+      const armorResult = this.degradeEquipped(p, 'armor', 3);
       this.rpgSendTo(target.username, { type: 'rpg_boss_hit', data: {
         dmg, hp: target.rp.hp, maxHP: target.rp.maxHP, attack: atk.name,
+        armorBroke: armorResult && armorResult.broken ? armorResult.name : null,
       }});
       if (target.rp.hp <= 0) {
-        const p = this.player(target.username);
         const lost = Math.floor(p.gold * 0.03);
         p.gold = Math.max(0, p.gold - lost);
         this.saveData();
@@ -2545,6 +2934,8 @@ class Game {
       crit = true;
     }
     boss.hp -= dmg;
+    // Degrade weapon durability (boss hit = -3)
+    const wepResult = this.degradeEquipped(p, 'weapon', 3);
 
     if (boss.hp <= 0) {
       boss.dead = true;
@@ -2557,12 +2948,20 @@ class Game {
       this.addGold(p, gold);
       const leveled = this.addXP(p, xpR);
       p.rpg.mobKills = (p.rpg.mobKills || 0) + 1;
+      // Roll boss loot table
+      const bossKey = zone.boss.name.toLowerCase().replace(/\s+/g, '_');
+      const lootDrops = this.rollLootTable(bossKey);
+      const droppedItems = [];
+      for (const drop of lootDrops) {
+        const added = this.addItemToInventory(p, drop.itemId, drop.qty);
+        if (added) droppedItems.push({ id: drop.itemId, name: (ITEMS[drop.itemId] || {}).name, qty: drop.qty, icon: (ITEMS[drop.itemId] || {}).icon });
+      }
       this.saveData();
       this.emitAchievements(username);
       this.rpgBroadcastZone(rp.zone, { type: 'rpg_boss_died', data: { bossId: boss.id, killer: username } });
-      return { killed: true, dmg, crit, gold, xp: xpR, leveled, level: p.level, totalGold: p.gold, mobName: boss.name };
+      return { killed: true, dmg, crit, gold, xp: xpR, leveled, level: p.level, totalGold: p.gold, mobName: boss.name, drops: droppedItems, weaponBroke: wepResult && wepResult.broken ? wepResult.name : null };
     }
-    return { hit: true, dmg, crit, bossHP: boss.hp, bossMaxHP: boss.maxHP };
+    return { hit: true, dmg, crit, bossHP: boss.hp, bossMaxHP: boss.maxHP, weaponBroke: wepResult && wepResult.broken ? wepResult.name : null };
   }
 
   rpgGetPlayerData(username) {
@@ -2711,6 +3110,17 @@ class Game {
     this.saveData();
     this.rpgBroadcastZone(rp.zone, { type: 'rpg_node_mined', data: { nodeId, username } });
 
+    // Roll mining loot table
+    const mineTableMap = { quarry: 'mine_quarry', deep_mine: 'mine_deep', gold_vein: 'mine_gold_vein' };
+    const mineTableId = mineTableMap[rp.zone];
+    const mineDrops = mineTableId ? this.rollLootTable(mineTableId) : [];
+    const droppedItems = [];
+    for (const drop of mineDrops) {
+      const added = this.addItemToInventory(p, drop.itemId, drop.qty);
+      if (added) droppedItems.push({ id: drop.itemId, name: (ITEMS[drop.itemId] || {}).name, qty: drop.qty, icon: (ITEMS[drop.itemId] || {}).icon });
+    }
+    if (droppedItems.length > 0) this.saveData();
+
     return {
       success: true,
       oreType: node.type,
@@ -2721,6 +3131,7 @@ class Game {
       miningXPNeeded: p.rpg.miningLevel * 30,
       leveledUp,
       totalGold: p.gold,
+      drops: droppedItems,
     };
   }
 
@@ -2741,6 +3152,8 @@ class Game {
       crit = true;
     }
     mob.hp -= dmg;
+    // Degrade weapon durability (mob hit = -1)
+    const wepResult = this.degradeEquipped(p, 'weapon', 1);
 
     if (mob.hp <= 0) {
       mob.dead = true;
@@ -2751,13 +3164,21 @@ class Game {
       this.addGold(p, gold);
       const leveled = this.addXP(p, mob.xpReward);
       p.rpg.mobKills = (p.rpg.mobKills || 0) + 1;
+      // Roll loot table for this mob
+      const mobKey = mob.name.toLowerCase().replace(/\s+/g, '_');
+      const lootDrops = this.rollLootTable(mobKey);
+      const droppedItems = [];
+      for (const drop of lootDrops) {
+        const added = this.addItemToInventory(p, drop.itemId, drop.qty);
+        if (added) droppedItems.push({ id: drop.itemId, name: (ITEMS[drop.itemId] || {}).name, qty: drop.qty, icon: (ITEMS[drop.itemId] || {}).icon });
+      }
       this.saveData();
       this.emitAchievements(username);
       this.rpgBroadcastZone(rp.zone, { type: 'rpg_mob_died', data: { mobId, killer: username } });
-      return { killed: true, dmg, crit, gold, xp: mob.xpReward, leveled, level: p.level, totalGold: p.gold, mobName: mob.name };
+      return { killed: true, dmg, crit, gold, xp: mob.xpReward, leveled, level: p.level, totalGold: p.gold, mobName: mob.name, drops: droppedItems, weaponBroke: wepResult && wepResult.broken ? wepResult.name : null };
     }
 
-    return { hit: true, dmg, crit, mobHP: mob.hp, mobMaxHP: mob.maxHP };
+    return { hit: true, dmg, crit, mobHP: mob.hp, mobMaxHP: mob.maxHP, weaponBroke: wepResult && wepResult.broken ? wepResult.name : null };
   }
 
   rpgBuyPickaxe(username, tier) {
@@ -2997,8 +3418,8 @@ class Game {
     if (winner && loser) {
       const wP = this.player(winner);
       const avgLevel = Math.floor((duel.p1Level + duel.p2Level) / 2);
-      goldReward = 1 + Math.floor(avgLevel / 5);
-      xpReward = 10 + avgLevel * 2;
+      goldReward = 5 + Math.floor(avgLevel * 2);
+      xpReward = 10 + avgLevel * 3;
       this.addGold(wP, goldReward);
       this.addXP(wP, xpReward);
       this.saveData();
@@ -3032,10 +3453,10 @@ class Game {
 // ═══════════════════════════════════════════
 const RPG_PICKAXES = [
   { tier: 1, name: 'Stone Pickaxe',   cost: 0,    power: 1, speed: 1.0,  icon: '🪨' },
-  { tier: 2, name: 'Iron Pickaxe',    cost: 50,   power: 2, speed: 1.3,  icon: '⛏️' },
-  { tier: 3, name: 'Gold Pickaxe',    cost: 150,  power: 3, speed: 1.6,  icon: '🥇' },
-  { tier: 4, name: 'Diamond Pickaxe', cost: 500,  power: 4, speed: 2.0,  icon: '💎' },
-  { tier: 5, name: 'Crystal Pickaxe', cost: 1500, power: 5, speed: 2.5,  icon: '🔮' },
+  { tier: 2, name: 'Iron Pickaxe',    cost: 300,  power: 2, speed: 1.3,  icon: '⛏️' },
+  { tier: 3, name: 'Gold Pickaxe',    cost: 800,  power: 3, speed: 1.6,  icon: '🥇' },
+  { tier: 4, name: 'Diamond Pickaxe', cost: 2000, power: 4, speed: 2.0,  icon: '💎' },
+  { tier: 5, name: 'Crystal Pickaxe', cost: 5000, power: 5, speed: 2.5,  icon: '🔮' },
 ];
 
 // ═══════════════════════════════════════════
@@ -3090,11 +3511,11 @@ const RPG_ZONES = {
     nodes: 16,
     respawnTime: 60000,
     drops: [
-      { type: 'stone',  weight: 85, gold: 0,  xp: 1,  hp: 8,  color: '#888888' },
-      { type: 'copper', weight: 8,  gold: 0,  xp: 2,  hp: 10, color: '#CD7F32' },
-      { type: 'iron',   weight: 4,  gold: 0,  xp: 4,  hp: 12, color: '#B0B0B0' },
-      { type: 'gold',   weight: 2.5,gold: 1,  xp: 6,  hp: 15, color: '#FFD700' },
-      { type: 'gem',    weight: 0.5,gold: 2,  xp: 10, hp: 18, color: '#00BFFF' },
+      { type: 'stone',  weight: 85, gold: 1,  xp: 1,  hp: 8,  color: '#888888' },
+      { type: 'copper', weight: 8,  gold: 2,  xp: 2,  hp: 10, color: '#CD7F32' },
+      { type: 'iron',   weight: 4,  gold: 3,  xp: 4,  hp: 12, color: '#B0B0B0' },
+      { type: 'gold',   weight: 2.5,gold: 5,  xp: 6,  hp: 15, color: '#FFD700' },
+      { type: 'gem',    weight: 0.5,gold: 10, xp: 10, hp: 18, color: '#00BFFF' },
     ],
   },
   deep_mine: {
@@ -3104,11 +3525,11 @@ const RPG_ZONES = {
     nodes: 14,
     respawnTime: 120000,
     drops: [
-      { type: 'iron',    weight: 60, gold: 0,  xp: 4,  hp: 15, color: '#B0B0B0' },
-      { type: 'gold',    weight: 20, gold: 0,  xp: 6,  hp: 18, color: '#FFD700' },
-      { type: 'crystal', weight: 11, gold: 1,  xp: 10, hp: 22, color: '#c084fc' },
-      { type: 'diamond', weight: 6,  gold: 1,  xp: 16, hp: 28, color: '#00BFFF' },
-      { type: 'ruby',    weight: 3,  gold: 2,  xp: 24, hp: 35, color: '#FF0044' },
+      { type: 'iron',    weight: 60, gold: 3,  xp: 4,  hp: 15, color: '#B0B0B0' },
+      { type: 'gold',    weight: 20, gold: 6,  xp: 6,  hp: 18, color: '#FFD700' },
+      { type: 'crystal', weight: 11, gold: 10, xp: 10, hp: 22, color: '#c084fc' },
+      { type: 'diamond', weight: 6,  gold: 15, xp: 16, hp: 28, color: '#00BFFF' },
+      { type: 'ruby',    weight: 3,  gold: 25, xp: 24, hp: 35, color: '#FF0044' },
     ],
   },
   gold_vein: {
@@ -3118,11 +3539,11 @@ const RPG_ZONES = {
     nodes: 10,
     respawnTime: 240000,
     drops: [
-      { type: 'gold',    weight: 50, gold: 0,  xp: 6,  hp: 20, color: '#FFD700' },
-      { type: 'crystal', weight: 24, gold: 1,  xp: 12, hp: 26, color: '#c084fc' },
-      { type: 'diamond', weight: 15, gold: 1,  xp: 20, hp: 34, color: '#00BFFF' },
-      { type: 'ruby',    weight: 8,  gold: 2,  xp: 30, hp: 44, color: '#FF0044' },
-      { type: 'void',    weight: 3,  gold: 4,  xp: 45, hp: 55, color: '#9900ff' },
+      { type: 'gold',    weight: 50, gold: 8,  xp: 6,  hp: 20, color: '#FFD700' },
+      { type: 'crystal', weight: 24, gold: 15, xp: 12, hp: 26, color: '#c084fc' },
+      { type: 'diamond', weight: 15, gold: 25, xp: 20, hp: 34, color: '#00BFFF' },
+      { type: 'ruby',    weight: 8,  gold: 40, xp: 30, hp: 44, color: '#FF0044' },
+      { type: 'void',    weight: 3,  gold: 80, xp: 45, hp: 55, color: '#9900ff' },
     ],
   },
   forest: {
@@ -3131,14 +3552,14 @@ const RPG_ZONES = {
     minMiningLevel: 0,
     mobCount: 18,
     mobs: [
-      { name: 'Slime',    maxHP: 60,  atk: 3,  goldMin: 0,  goldMax: 0,  xpReward: 3,  color: '#44ff44' },
-      { name: 'Goblin',   maxHP: 90,  atk: 5,  goldMin: 0,  goldMax: 1,  xpReward: 5,  color: '#ff8800' },
-      { name: 'Wolf',     maxHP: 140, atk: 8,  goldMin: 0,  goldMax: 1,  xpReward: 9,  color: '#aaaaaa' },
+      { name: 'Slime',    maxHP: 60,  atk: 3,  goldMin: 2,  goldMax: 4,  xpReward: 3,  color: '#44ff44' },
+      { name: 'Goblin',   maxHP: 90,  atk: 5,  goldMin: 3,  goldMax: 7,  xpReward: 5,  color: '#ff8800' },
+      { name: 'Wolf',     maxHP: 140, atk: 8,  goldMin: 5,  goldMax: 10, xpReward: 9,  color: '#aaaaaa' },
     ],
     boss: {
       name: 'Ancient Treant',
       maxHP: 600,
-      goldReward: 150,
+      goldReward: 300,
       xpReward: 200,
       color: '#2d5a1e',
       arenaX: 360, arenaY: 360,
@@ -3158,12 +3579,12 @@ const RPG_ZONES = {
     minMiningLevel: 0,
     mobCount: 8,
     mobs: [
-      { name: 'Skeleton', maxHP: 200, atk: 10, goldMin: 0,  goldMax: 1,  xpReward: 10, color: '#ffffff' },
-      { name: 'Zombie',   maxHP: 300, atk: 14, goldMin: 0,  goldMax: 1,  xpReward: 16, color: '#6b8e23' },
-      { name: 'Wraith',   maxHP: 430, atk: 18, goldMin: 0,  goldMax: 2,  xpReward: 24, color: '#8844cc' },
-      { name: 'Demon',    maxHP: 600, atk: 24, goldMin: 1,  goldMax: 2,  xpReward: 40, color: '#ff2222' },
+      { name: 'Skeleton', maxHP: 200, atk: 10, goldMin: 5,  goldMax: 10, xpReward: 10, color: '#ffffff' },
+      { name: 'Zombie',   maxHP: 300, atk: 14, goldMin: 7,  goldMax: 12, xpReward: 16, color: '#6b8e23' },
+      { name: 'Wraith',   maxHP: 430, atk: 18, goldMin: 8,  goldMax: 15, xpReward: 24, color: '#8844cc' },
+      { name: 'Demon',    maxHP: 600, atk: 24, goldMin: 10, goldMax: 20, xpReward: 40, color: '#ff2222' },
     ],
   },
 };
 
-module.exports = { Game, CONFIG, COSMETICS, BOSS_LOOT, ACHIEVEMENTS, RARITY_COLOR, VENDOR_PRICE, RANK_BADGES, getRankBadge, RPG_ZONES, RPG_PICKAXES, TILE, TILE_PROPS, TILE_SIZE, MAP_W, MAP_H };
+module.exports = { Game, CONFIG, COSMETICS, BOSS_LOOT, ITEMS, LOOT_TABLES, RECIPES, NPC_SHOP, ACHIEVEMENTS, RARITY_COLOR, VENDOR_PRICE, RANK_BADGES, getRankBadge, RPG_ZONES, RPG_PICKAXES, TILE, TILE_PROPS, TILE_SIZE, MAP_W, MAP_H };

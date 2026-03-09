@@ -1249,6 +1249,7 @@ function renderCosmetics() {
 function renderMarket(listings) {
   const myListings = listings.filter(l => l.seller === username);
   const otherListings = listings.filter(l => l.seller !== username);
+  const rarityColors = {common:'#888',uncommon:'#4ade80',rare:'#60a5fa',epic:'#c084fc',legendary:'#fbbf24',mythic:'#ff4444'};
 
   // My listings
   const myEl = document.getElementById('my-listings');
@@ -1259,11 +1260,11 @@ function renderMarket(listings) {
   } else {
     myEmpty.style.display = 'none';
     myEl.innerHTML = myListings.map(l => {
-      const isCosmetic = l.type === 'cosmetic';
-      const rColor = isCosmetic ? 'var(--purple)' : (rarityColors[l.itemData?.rarity] || '#aaa');
-      const name = l.itemData?.name || 'Unknown';
+      const rColor = rarityColors[l.rarity] || '#aaa';
+      const name = l.name || 'Unknown';
       return `<div class="market-item" style="border-left:3px solid ${rColor}">
-        <div class="item-name" style="color:${rColor}">${name}</div>
+        <div class="item-name" style="color:${rColor}">${l.icon||''} ${name}${l.qty?' x'+l.qty:''}</div>
+        <div style="font-size:10px;color:var(--dim)">${l.type}</div>
         <div class="price">🪙 ${l.price}</div>
         ${authToken ? `<button class="btn btn-sm btn-danger" style="margin-top:8px" onclick="doCancel('${l.id}')">Cancel</button>` : ''}
       </div>`;
@@ -1279,14 +1280,12 @@ function renderMarket(listings) {
   } else {
     marketEmpty.style.display = 'none';
     marketEl.innerHTML = otherListings.map(l => {
-      const isCosmetic = l.type === 'cosmetic';
-      const rColor = isCosmetic ? 'var(--purple)' : (rarityColors[l.itemData?.rarity] || '#aaa');
-      const name = l.itemData?.name || 'Unknown';
-      const desc = l.itemData?.desc || '';
+      const rColor = rarityColors[l.rarity] || '#aaa';
+      const name = l.name || 'Unknown';
       return `<div class="market-item">
         <div class="seller">Sold by ${l.seller}</div>
-        <div class="item-name" style="color:${rColor}">${name}</div>
-        <div style="font-size:11px;color:var(--dim)">${desc}</div>
+        <div class="item-name" style="color:${rColor}">${l.icon||''} ${name}${l.qty?' x'+l.qty:''}</div>
+        <div style="font-size:10px;color:var(--dim)">${l.type}</div>
         <div class="price">🪙 ${l.price}</div>
         ${authToken ? `<button class="btn btn-sm btn-gold" style="margin-top:8px" onclick="doBuyMarket('${l.id}')">Buy</button>` : ''}
       </div>`;

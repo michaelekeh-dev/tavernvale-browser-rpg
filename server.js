@@ -2,7 +2,7 @@ const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
 const path = require('path');
-const { Game, CONFIG, COSMETICS, BOSS_LOOT, ACHIEVEMENTS, RARITY_COLOR, VENDOR_PRICE, RANK_BADGES, getRankBadge, RPG_ZONES, RPG_PICKAXES } = require('./game');
+const { Game, CONFIG, COSMETICS, BOSS_LOOT, ITEMS, LOOT_TABLES, RECIPES, NPC_SHOP, ACHIEVEMENTS, RARITY_COLOR, VENDOR_PRICE, RANK_BADGES, getRankBadge, RPG_ZONES, RPG_PICKAXES } = require('./game');
 
 // ═══════════════════════════════════════════
 // CONFIGURATION — Edit these values
@@ -58,6 +58,9 @@ app.get('/api/market', (req, res) => res.json(game.getMarketListings()));
 app.get('/api/cosmetics', (req, res) => res.json(COSMETICS));
 app.get('/api/achievements', (req, res) => res.json(ACHIEVEMENTS));
 app.get('/api/loot', (req, res) => res.json(BOSS_LOOT));
+app.get('/api/items', (req, res) => res.json(ITEMS));
+app.get('/api/shop', (req, res) => res.json(NPC_SHOP));
+app.get('/api/recipes', (req, res) => res.json(RECIPES));
 app.get('/api/leaderboard', (req, res) => res.json(game.handleLeaderboard()));
 app.get('/api/rarity-colors', (req, res) => res.json(RARITY_COLOR));
 app.get('/api/rank-badges', (req, res) => res.json(RANK_BADGES));
@@ -117,10 +120,18 @@ app.post('/api/buymarket', requireAuth, (req, res) => {
   if (r && !r.error) { broadcast('market_purchased', r); return res.json(r); }
   res.status(400).json(r || { error: 'Failed' });
 });
+app.post('/api/sellmaterial', requireAuth, (req, res) => {
+  const r = game.handleSellMaterial(req.playerName, req.body.itemId, req.body.qty, req.body.price);
+  if (r && !r.error) { broadcast('market_listed', r); return res.json(r); }
+  res.status(400).json(r || { error: 'Failed' });
+});
 app.post('/api/cancel', requireAuth, (req, res) => {
   const r = game.handleCancelListing(req.playerName, req.body.listingId);
   if (r && !r.error) { broadcast('market_cancelled', r); return res.json(r); }
   res.status(400).json(r || { error: 'Failed' });
+});
+app.get('/api/market', (req, res) => {
+  res.json(game.getMarketListings());
 });
 
 // Gamble
@@ -677,6 +688,55 @@ wss.on('connection', (ws) => {
         const r = game.rpgDuelAction(ws.rpgUser, msg.action);
         ws.send(JSON.stringify({ type: 'rpg_duel_action_result', data: r }));
       }
+      // ── Equipment & Items ──
+      if (msg.type === 'rpg_equip' && ws.isRPG && ws.rpgUser) {
+        const r = game.equipItem(ws.rpgUser, msg.uid);
+        ws.send(JSON.stringify({ type: 'rpg_equip_result', data: r }));
+      }
+      if (msg.type === 'rpg_unequip' && ws.isRPG && ws.rpgUser) {
+        const r = game.unequipItem(ws.rpgUser, msg.slot);
+        ws.send(JSON.stringify({ type: 'rpg_unequip_result', data: r }));
+      }
+      if (msg.type === 'rpg_use_item' && ws.isRPG && ws.rpgUser) {
+        const r = game.useConsumable(ws.rpgUser, msg.itemId);
+        ws.send(JSON.stringify({ type: 'rpg_use_item_result', data: r }));
+      }
+      if (msg.type === 'rpg_repair' && ws.isRPG && ws.rpgUser) {
+        const r = game.repairItem(ws.rpgUser, msg.uid);
+        ws.send(JSON.stringify({ type: 'rpg_repair_result', data: r }));
+      }
+      if (msg.type === 'rpg_shop_buy' && ws.isRPG && ws.rpgUser) {
+        const r = game.buyFromShop(ws.rpgUser, msg.itemId);
+        ws.send(JSON.stringify({ type: 'rpg_shop_buy_result', data: r }));
+      }
+      if (msg.type === 'rpg_craft' && ws.isRPG && ws.rpgUser) {
+        const r = game.craftItem(ws.rpgUser, msg.recipeId);
+        ws.send(JSON.stringify({ type: 'rpg_craft_result', data: r }));
+      }
+      if (msg.type === 'rpg_inventory' && ws.isRPG && ws.rpgUser) {
+        const r = game.getInventory(ws.rpgUser);
+        ws.send(JSON.stringify({ type: 'rpg_inventory_result', data: r }));
+      }
+      if (msg.type === 'rpg_market_sell' && ws.isRPG && ws.rpgUser) {
+        const r = game.handleSellItem(ws.rpgUser, msg.itemUid, msg.price);
+        ws.send(JSON.stringify({ type: 'rpg_market_sell_result', data: r }));
+        if (r && !r.error) broadcast('market_listed', r);
+      }
+      if (msg.type === 'rpg_market_sell_material' && ws.isRPG && ws.rpgUser) {
+        const r = game.handleSellMaterial(ws.rpgUser, msg.itemId, msg.qty, msg.price);
+        ws.send(JSON.stringify({ type: 'rpg_market_sell_result', data: r }));
+        if (r && !r.error) broadcast('market_listed', r);
+      }
+      if (msg.type === 'rpg_market_buy' && ws.isRPG && ws.rpgUser) {
+        const r = game.handleBuyMarket(ws.rpgUser, msg.listingId);
+        ws.send(JSON.stringify({ type: 'rpg_market_buy_result', data: r }));
+        if (r && !r.error) broadcast('market_purchased', r);
+      }
+      if (msg.type === 'rpg_market_cancel' && ws.isRPG && ws.rpgUser) {
+        const r = game.handleCancelListing(ws.rpgUser, msg.listingId);
+        ws.send(JSON.stringify({ type: 'rpg_market_cancel_result', data: r }));
+        if (r && !r.error) broadcast('market_cancelled', r);
+      }
     } catch {}
   });
 
@@ -901,6 +961,14 @@ function handleChatMessage(data) {
       const parts = content.split(' ');
       const key = parts[1]; const price = parts[2];
       const r = game.handleSellCosmetic(username, key, price);
+      if (r && !r.error) broadcast('market_listed', r);
+      else if (r) broadcast('market_error', { username, ...r });
+      break;
+    }
+    case '!sellmat': {
+      const parts = content.split(' ');
+      const itemId = parts[1]; const qty = parts[2]; const price = parts[3];
+      const r = game.handleSellMaterial(username, itemId, qty, price);
       if (r && !r.error) broadcast('market_listed', r);
       else if (r) broadcast('market_error', { username, ...r });
       break;

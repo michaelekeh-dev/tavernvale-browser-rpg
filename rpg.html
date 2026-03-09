@@ -152,6 +152,55 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;di
 .mobile-btn-interact:active{background:rgba(96,165,250,.5)}
 .mobile-btn-tool{width:52px;height:52px;font-size:18px}
 .mobile-btn-map{width:52px;height:52px;font-size:18px}
+/* Panel overlay — shared for inventory, shop, craft, market */
+.panel-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.75);z-index:250;justify-content:center;align-items:center;backdrop-filter:blur(3px)}
+.panel-overlay.show{display:flex}
+.panel{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:18px;width:94%;max-width:720px;max-height:80vh;overflow-y:auto;position:relative}
+.panel h3{font-family:'Press Start 2P',monospace;font-size:11px;color:var(--gold);margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}
+.panel h3 .close-btn{background:none;border:none;color:var(--dim);font-size:18px;cursor:pointer}
+.panel h3 .close-btn:hover{color:var(--red)}
+.panel-tabs{display:flex;gap:4px;margin-bottom:12px}
+.panel-tab{padding:6px 14px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--dim);cursor:pointer;font-size:10px;transition:.15s}
+.panel-tab.active{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+.item-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px}
+.item-card{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:10px;cursor:pointer;transition:.15s;position:relative}
+.item-card:hover{border-color:var(--accent);transform:translateY(-2px)}
+.item-card .ic-icon{font-size:22px;text-align:center;margin-bottom:4px}
+.item-card .ic-name{font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item-card .ic-stats{font-size:9px;color:var(--dim);margin-top:3px}
+.item-card .ic-rarity{font-size:8px;padding:2px 6px;border-radius:3px;display:inline-block;margin-top:4px}
+.rarity-common{border:1px solid #888;color:#ccc}
+.rarity-uncommon{border:1px solid #4ade80;color:#4ade80}
+.rarity-rare{border:1px solid #60a5fa;color:#60a5fa}
+.rarity-epic{border:1px solid #c084fc;color:#c084fc}
+.rarity-legendary{border:1px solid #fbbf24;color:#fbbf24}
+.rarity-mythic{border:1px solid #ff4444;color:#ff4444;text-shadow:0 0 6px rgba(255,68,68,.4)}
+.dur-bar{width:100%;height:4px;background:#333;border-radius:2px;margin-top:4px;overflow:hidden}
+.dur-fill{height:100%;border-radius:2px;transition:width .3s}
+.equip-slots{display:flex;gap:12px;margin-bottom:14px;padding:10px;background:var(--bg3);border-radius:10px;border:1px solid var(--border)}
+.equip-slot{flex:1;text-align:center;padding:10px;border:2px dashed var(--border);border-radius:8px;min-height:60px;position:relative}
+.equip-slot.filled{border-style:solid;border-color:var(--accent)}
+.equip-slot .es-label{font-size:8px;color:var(--dim);margin-bottom:4px;text-transform:uppercase}
+.equip-slot .es-icon{font-size:24px}
+.equip-slot .es-name{font-size:9px;margin-top:2px;color:var(--text)}
+.market-listing{display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px;background:var(--bg3)}
+.market-listing .ml-icon{font-size:22px;flex-shrink:0;width:32px;text-align:center}
+.market-listing .ml-info{flex:1;min-width:0}
+.market-listing .ml-name{font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.market-listing .ml-seller{font-size:9px;color:var(--dim)}
+.market-listing .ml-price{font-size:13px;font-weight:700;color:var(--gold);white-space:nowrap}
+.market-listing .ml-actions{display:flex;gap:4px}
+.recipe-card{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;cursor:pointer;transition:.15s}
+.recipe-card:hover{border-color:var(--accent);transform:translateY(-2px)}
+.recipe-card.craftable{border-color:var(--green)}
+.recipe-card .rc-icon{font-size:26px;margin-bottom:4px}
+.recipe-card .rc-name{font-size:11px;font-weight:700}
+.recipe-card .rc-mats{font-size:9px;color:var(--dim);margin-top:4px;line-height:1.6}
+.recipe-card .rc-cost{font-size:10px;color:var(--gold);margin-top:4px}
+.drop-toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:300;display:flex;flex-direction:column;gap:4px;pointer-events:none;align-items:center}
+.drop-item{background:rgba(10,10,20,.9);border:1px solid var(--border);border-radius:8px;padding:6px 14px;font-size:12px;display:flex;align-items:center;gap:6px;animation:dropIn .4s ease;white-space:nowrap}
+@keyframes dropIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+
 </style>
 </head>
 <body>
@@ -176,6 +225,8 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;di
       <span class="stat">Players: <b id="hud-online">1</b></span>
       <button class="btn btn-purple" id="duel-queue-btn" onclick="toggleDuelQueue()">Duel (<span id="duel-q-count">0</span>)</button>
       <button class="btn btn-gold" onclick="showPickaxeShop()">Shop</button>
+      <button class="btn btn-gold" onclick="toggleInventory()">Inv</button>
+      <button class="btn btn-purple" onclick="toggleMarketPanel()">Market</button>
       <button class="btn" id="home-btn" onclick="goHome()" style="display:none">Home</button>
       <a href="/play" class="btn">Portal</a>
     </div>
@@ -196,7 +247,7 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;di
         <div class="tool" id="tool-pick"><span class="key">[2]</span> Pickaxe</div>
       </div>
       <div><span class="key">Hold E</span> Attack &middot; <span class="key">E</span> Interact</div>
-      <div><span class="key">WASD</span> Move &middot; <span class="key">M</span> Map &middot; <span class="key">ESC</span> Home</div>
+      <div><span class="key">WASD</span> Move &middot; <span class="key">M</span> Map &middot; <span class="key">I</span> Inventory &middot; <span class="key">ESC</span> Home</div>
     </div>
     <div class="minimap-wrap"><canvas id="minimap" width="150" height="90"></canvas></div>
 
@@ -272,6 +323,62 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;di
     <button class="btn" onclick="closePickaxeShop()" style="margin-top:10px;width:100%">Close</button>
   </div>
 </div>
+
+<!-- Inventory / Equipment Panel -->
+<div class="panel-overlay" id="inv-panel">
+  <div class="panel">
+    <h3>INVENTORY <button class="close-btn" onclick="toggleInventory()">&times;</button></h3>
+    <div class="equip-slots" id="equip-slots">
+      <div class="equip-slot" id="eslot-weapon"><div class="es-label">Weapon</div><div class="es-icon">—</div></div>
+      <div class="equip-slot" id="eslot-armor"><div class="es-label">Armor</div><div class="es-icon">—</div></div>
+    </div>
+    <div class="panel-tabs">
+      <button class="panel-tab active" onclick="invTab('all')">All</button>
+      <button class="panel-tab" onclick="invTab('weapon')">Weapons</button>
+      <button class="panel-tab" onclick="invTab('armor')">Armor</button>
+      <button class="panel-tab" onclick="invTab('consumable')">Consumables</button>
+      <button class="panel-tab" onclick="invTab('material')">Materials</button>
+    </div>
+    <div class="item-grid" id="inv-grid"></div>
+  </div>
+</div>
+
+<!-- NPC Shop Panel -->
+<div class="panel-overlay" id="shop-panel">
+  <div class="panel">
+    <h3>NPC SHOP <button class="close-btn" onclick="toggleShopPanel()">&times;</button></h3>
+    <div class="panel-tabs">
+      <button class="panel-tab active" onclick="shopTab('weapons')">Weapons</button>
+      <button class="panel-tab" onclick="shopTab('armor')">Armor</button>
+      <button class="panel-tab" onclick="shopTab('consumables')">Consumables</button>
+    </div>
+    <div class="item-grid" id="shop-grid"></div>
+  </div>
+</div>
+
+<!-- Crafting Panel -->
+<div class="panel-overlay" id="craft-panel">
+  <div class="panel">
+    <h3>CRAFTING <button class="close-btn" onclick="toggleCraftPanel()">&times;</button></h3>
+    <div class="item-grid" id="craft-grid"></div>
+  </div>
+</div>
+
+<!-- Market Panel -->
+<div class="panel-overlay" id="market-panel">
+  <div class="panel">
+    <h3>MARKETPLACE <button class="close-btn" onclick="toggleMarketPanel()">&times;</button></h3>
+    <div class="panel-tabs">
+      <button class="panel-tab active" onclick="marketTab('browse')">Browse</button>
+      <button class="panel-tab" onclick="marketTab('my')">My Listings</button>
+      <button class="panel-tab" onclick="marketTab('sell')">Sell</button>
+    </div>
+    <div id="market-content"></div>
+  </div>
+</div>
+
+<!-- Drop Toast Container -->
+<div class="drop-toast" id="drop-toast"></div>
 
 <script>
 // =============================================
@@ -478,12 +585,12 @@ function loadQuests(){
   }catch{}
 }
 const TAVERN_QUESTS=[
-  {id:'q_goblins',title:'Goblin Trouble',desc:"There's goblins causin' havoc in the forest. Clear out 5 of 'em.",type:'kill',target:'goblin',goal:5,reward:50},
-  {id:'q_wolves',title:'Wolf Pelts',desc:"Wolves been gettin' bold lately. Take down 3 and I'll make it worth yer while.",type:'kill',target:'wolf',goal:3,reward:35},
-  {id:'q_stones',title:'Stone Supply',desc:"The quarry needs supplies. Mine 8 stones for the builders.",type:'mine',goal:8,reward:40},
-  {id:'q_slimes',title:'Slime Infestation',desc:"Slimes are oozin' through the Shadow Forest. Squish 6 of 'em before they spread.",type:'kill',target:'slime',goal:6,reward:30},
-  {id:'q_forest_clear',title:'Forest Patrol',desc:"The Shadow Forest needs clearin'. Kill 10 of anything in there — slimes, goblins, wolves, don't matter.",type:'kill_any_forest',goal:10,reward:75},
-  {id:'q_wolf_alpha',title:'Alpha Hunt',desc:"There's a big pack of wolves terrorizing travelers. Take down 6 wolves and bring proof.",type:'kill',target:'wolf',goal:6,reward:60},
+  {id:'q_goblins',title:'Goblin Trouble',desc:"There's goblins causin' havoc in the forest. Clear out 5 of 'em.",type:'kill',target:'goblin',goal:5,reward:250},
+  {id:'q_wolves',title:'Wolf Pelts',desc:"Wolves been gettin' bold lately. Take down 3 and I'll make it worth yer while.",type:'kill',target:'wolf',goal:3,reward:200},
+  {id:'q_stones',title:'Stone Supply',desc:"The quarry needs supplies. Mine 8 stones for the builders.",type:'mine',goal:8,reward:220},
+  {id:'q_slimes',title:'Slime Infestation',desc:"Slimes are oozin' through the Shadow Forest. Squish 6 of 'em before they spread.",type:'kill',target:'slime',goal:6,reward:180},
+  {id:'q_forest_clear',title:'Forest Patrol',desc:"The Shadow Forest needs clearin'. Kill 10 of anything in there — slimes, goblins, wolves, don't matter.",type:'kill_any_forest',goal:10,reward:400},
+  {id:'q_wolf_alpha',title:'Alpha Hunt',desc:"There's a big pack of wolves terrorizing travelers. Take down 6 wolves and bring proof.",type:'kill',target:'wolf',goal:6,reward:350},
 ];
 
 // ── Quest progress tracking ──
@@ -748,6 +855,20 @@ function handleMessage(msg){
       if(ws){try{ws.close()}catch{}}ws=null;
       break;
     case'announcement':showAnnouncement(d.message);break;
+    // Economy panel responses
+    case'rpg_inventory_result':if(d){invCache=d;renderInventory()}break;
+    case'rpg_equip_result':if(d&&!d.error){logMsg('Equipped!','loot');refreshInventory()}else if(d)logMsg(d.error,'dmg');break;
+    case'rpg_unequip_result':if(d&&!d.error){logMsg('Unequipped','loot');refreshInventory()}else if(d)logMsg(d.error,'dmg');break;
+    case'rpg_use_item_result':if(d&&!d.error){logMsg('Used '+d.itemId,'loot');if(d.healed)addFloat(px,py-20,'+'+d.healed+'HP','#4ade80');gold=d.gold!==undefined?d.gold:gold;refreshInventory()}else if(d)logMsg(d.error,'dmg');break;
+    case'rpg_repair_result':if(d&&!d.error){logMsg('Repaired!','loot');refreshInventory()}else if(d)logMsg(d.error,'dmg');break;
+    case'rpg_shop_buy_result':if(d&&!d.error){logMsg('Bought '+d.itemId,'loot');gold=d.gold;updateHUD();refreshInventory()}else if(d)logMsg(d.error||'Purchase failed','dmg');break;
+    case'rpg_craft_result':if(d&&!d.error){logMsg('Crafted '+d.recipeId+'!','loot');gold=d.gold!==undefined?d.gold:gold;updateHUD();refreshInventory()}else if(d)logMsg(d.error,'dmg');break;
+    case'rpg_market_sell_result':if(d&&!d.error){logMsg('Listed on market! Fee: '+d.fee+'g','loot');gold=d.gold;updateHUD();fetchMarket()}else if(d)logMsg(d.error||d.message||'Sell failed','dmg');break;
+    case'rpg_market_buy_result':if(d&&!d.error){logMsg('Bought '+d.item+' for '+d.price+'g','loot');gold=d.buyerGold;updateHUD();fetchMarket();refreshInventory()}else if(d)logMsg(d.error,'dmg');break;
+    case'rpg_market_cancel_result':if(d&&!d.error){logMsg('Listing cancelled','loot');fetchMarket();refreshInventory()}break;
+    case'market_listed':break;
+    case'market_purchased':break;
+    case'market_cancelled':break;
   }
 }
 
@@ -764,6 +885,7 @@ function onJoined(d){
   resizeCanvas();
   loadQuests();
   loadDungeonHint();
+  fetchEconomyData();
   ghostDefeated=!!d.ghostDefeated;
   enterZone('hub');
   updateHUD();
@@ -842,6 +964,8 @@ function onMineResult(d){
     gold=d.totalGold;miningLevel=d.miningLevel;miningXP=d.miningXPCurrent;miningXPNeeded=d.miningXPNeeded;
     if(d.leveledUp){logMsg('Mining Level UP! Lv '+d.miningLevel,'xp');playSound('levelup');addFloat(px,py-40,'MINING LV '+d.miningLevel+'!','#fbbf24',true)}
     if(d.gold>0)logMsg(d.oreType+': +'+d.gold+'g','loot');
+    // Show material drops as toast notifications
+    if(d.drops&&d.drops.length){d.drops.forEach(dr=>{const def=itemData[dr.itemId]||{};showDropToast(def.icon||'📦',def.name||dr.itemId,def.rarity||'common',dr.qty||1)})}
     // Quest tracking: mine success
     checkQuestProgress('mine',d.oreType);
     updateHUD();updateZoneGrid();
@@ -894,6 +1018,8 @@ function onAttackResult(d){
     gold=d.totalGold;playerLevel=d.level;
     if(d.leveled){logMsg('LEVEL UP! Lv '+d.level,'xp');playSound('levelup');addFloat(px,py-50,'LEVEL '+d.level+'!','#fbbf24',true)}
     logMsg(d.mobName+': +'+d.gold+'g +'+d.xp+'XP','loot');updateHUD();
+    // Show item drops as toast notifications
+    if(d.drops&&d.drops.length){d.drops.forEach(dr=>{const def=itemData[dr.itemId]||{};showDropToast(def.icon||'📦',def.name||dr.itemId,def.rarity||'common',dr.qty||1)})}
     // Quest tracking: mob kill
     checkQuestProgress('kill',d.mobName);
   }
@@ -947,6 +1073,8 @@ function onBossAttackResult(d){
     gold=d.totalGold;playerLevel=d.level;
     if(d.leveled){logMsg('LEVEL UP! Lv '+d.level,'xp');playSound('levelup');addFloat(px,py-50,'LEVEL '+d.level+'!','#fbbf24',true)}
     logMsg('BOSS SLAIN: '+d.mobName+'! +'+d.gold+'g +'+d.xp+'XP','loot');updateHUD();
+    // Show boss item drops as toast
+    if(d.drops&&d.drops.length){d.drops.forEach(dr=>{const def=itemData[dr.itemId]||{};showDropToast(def.icon||'📦',def.name||dr.itemId,def.rarity||'common',dr.qty||1)})}
     checkQuestProgress('kill',d.mobName);
   }
 }
@@ -7042,16 +7170,22 @@ function openDialogue(npcId){
     } else if(hasActive){
       const aq=activeQuests[0];
       showDialogueUI('Grunt','Still workin\' on it? '+aq.progress+'/'+aq.goal+' done so far. Get to it.',[
+        {label:'� Open Shop',action:'open_shop'},
+        {label:'🔨 Open Crafting',action:'open_craft'},
         {label:'👋 On it, boss',action:'leave'},
       ]);
     } else if(available){
       showDialogueUI('Grunt','*scrapes blade along whetstone* ...You look handy enough. Got a job if yer interested.',[
         {label:'⚔️ What\'s the job?',action:'quest_info'},
+        {label:'🛒 Open Shop',action:'open_shop'},
+        {label:'🔨 Open Crafting',action:'open_craft'},
         {label:'👋 Maybe later',action:'leave'},
       ]);
     } else {
       showDialogueUI('Grunt','*grunts* No more jobs. You\'ve done \'em all. Not bad.',[
-        {label:'👋 Cheers',action:'leave'},
+        {label:'� Open Shop',action:'open_shop'},
+        {label:'🔨 Open Crafting',action:'open_craft'},
+        {label:'�👋 Cheers',action:'leave'},
       ]);
     }
   } else if(npcId==='lucky'){
@@ -7120,10 +7254,15 @@ function selectDialogueOption(idx){
       turnInQuest(doneQ.id);
       showDialogueUI('Grunt','*nods approvingly* Good work. Here\'s yer pay. Come back if you want more work.',[
         {label:'⚔️ Got another job?',action:'quest_info'},
+        {label:'� Open Shop',action:'open_shop'},
+        {label:'🔨 Open Crafting',action:'open_craft'},
         {label:'👋 See ya',action:'leave'},
       ]);
     }
   }
+  // ── NPC Shop / Craft ──
+  else if(opt.action==='open_shop'){closeDialogue();toggleShopPanel()}
+  else if(opt.action==='open_craft'){closeDialogue();toggleCraftPanel()}
   // ── Lucky Pete dice actions ──
   else if(opt.action==='dice_play'){
     closeDialogue();
@@ -7696,8 +7835,13 @@ document.addEventListener('keydown',e=>{
   if(k==='1'&&!dialogueOpen){activeTool='sword';updateToolHUD();logMsg('Equipped: Sword','xp')}
   if(k==='2'&&!dialogueOpen){activeTool='pickaxe';updateToolHUD();logMsg('Equipped: Pickaxe','xp')}
   if(k==='m'&&zoneType==='hub'){document.getElementById('zone-overlay').classList.toggle('show');updateZoneGrid()}
+  if(k==='i'&&!dialogueOpen&&!diceGameOpen){toggleInventory()}
   if(k==='escape'){
-    if(diceGameOpen){closeDiceGame()}
+    if(document.getElementById('inv-panel').classList.contains('show')){toggleInventory()}
+    else if(document.getElementById('shop-panel').classList.contains('show')){toggleShopPanel()}
+    else if(document.getElementById('craft-panel').classList.contains('show')){toggleCraftPanel()}
+    else if(document.getElementById('market-panel').classList.contains('show')){toggleMarketPanel()}
+    else if(diceGameOpen){closeDiceGame()}
     else if(dialogueOpen){closeDialogue()}
     else if(document.getElementById('zone-overlay').classList.contains('show')){document.getElementById('zone-overlay').classList.remove('show')}
     else if(!inDuel&&currentZone!=='hub')goHome();
@@ -7894,6 +8038,252 @@ function renderPickaxeShop(){
   }).join('');
 }
 function buyPickaxe(tier){send('rpg_buy_pickaxe',{tier})}
+
+// =============================================
+// Item / Economy Data Cache (fetched once on join)
+// =============================================
+let itemData={},shopData={},recipeData={};
+let invCache={inventory:[],equipped:{},gold:0};
+let marketCache=[];
+let activeInvTab='all',activeShopTab='weapons',activeMarketTab='browse';
+
+const RARITY_CLASSES={common:'rarity-common',uncommon:'rarity-uncommon',rare:'rarity-rare',epic:'rarity-epic',legendary:'rarity-legendary',mythic:'rarity-mythic'};
+const RARITY_COLORS={common:'#888',uncommon:'#4ade80',rare:'#60a5fa',epic:'#c084fc',legendary:'#fbbf24',mythic:'#ff4444'};
+
+function fetchEconomyData(){
+  const base=location.origin;
+  fetch(base+'/api/items').then(r=>r.json()).then(d=>{itemData=d}).catch(()=>{});
+  fetch(base+'/api/shop').then(r=>r.json()).then(d=>{shopData=d}).catch(()=>{});
+  fetch(base+'/api/recipes').then(r=>r.json()).then(d=>{recipeData=d}).catch(()=>{});
+}
+
+function refreshInventory(){
+  send('rpg_inventory',{});
+}
+
+// ── Inventory Panel ──
+function toggleInventory(){
+  const el=document.getElementById('inv-panel');
+  if(el.classList.contains('show')){el.classList.remove('show');return}
+  refreshInventory();
+  el.classList.add('show');
+}
+
+function invTab(tab){
+  activeInvTab=tab;
+  document.querySelectorAll('#inv-panel .panel-tab').forEach(t=>t.classList.remove('active'));
+  event.target.classList.add('active');
+  renderInventory();
+}
+
+function renderInventory(){
+  // Equipment slots
+  ['weapon','armor'].forEach(slot=>{
+    const el=document.getElementById('eslot-'+slot);
+    const eq=invCache.equipped&&invCache.equipped[slot];
+    if(eq){
+      const def=itemData[eq.id]||{};
+      const durPct=eq.maxDurability?Math.round(eq.durability/eq.maxDurability*100):100;
+      const durCol=durPct>50?'var(--green)':durPct>20?'var(--gold)':'var(--red)';
+      el.className='equip-slot filled';
+      el.innerHTML='<div class="es-label">'+slot+'</div><div class="es-icon">'+(def.icon||'?')+'</div><div class="es-name">'+(def.name||eq.id)+'</div>'
+        +'<div class="dur-bar"><div class="dur-fill" style="width:'+durPct+'%;background:'+durCol+'"></div></div>'
+        +'<button class="btn btn-red" style="margin-top:4px;font-size:9px;padding:2px 8px" onclick="doUnequip(\''+slot+'\')">Unequip</button>';
+    } else {
+      el.className='equip-slot';
+      el.innerHTML='<div class="es-label">'+slot+'</div><div class="es-icon">—</div>';
+    }
+  });
+  // Items
+  let items=invCache.inventory||[];
+  if(activeInvTab!=='all') items=items.filter(i=>{
+    const def=itemData[i.id]||{};
+    return def.type===activeInvTab||(activeInvTab==='material'&&def.type==='material');
+  });
+  const grid=document.getElementById('inv-grid');
+  if(!items.length){grid.innerHTML='<div style="color:var(--dim);padding:20px;text-align:center;grid-column:1/-1">No items</div>';return}
+  grid.innerHTML=items.map(i=>{
+    const def=itemData[i.id]||{};
+    const rc=RARITY_CLASSES[def.rarity||'common']||'rarity-common';
+    let stats='';
+    if(def.dmgBonus) stats+='DMG +'+def.dmgBonus+' ';
+    if(def.defBonus) stats+='DEF +'+def.defBonus+' ';
+    if(i.qty>1) stats+='x'+i.qty;
+    let dur='';
+    if(i.maxDurability){
+      const pct=Math.round(i.durability/i.maxDurability*100);
+      const col=pct>50?'var(--green)':pct>20?'var(--gold)':'var(--red)';
+      dur='<div class="dur-bar"><div class="dur-fill" style="width:'+pct+'%;background:'+col+'"></div></div>';
+    }
+    let actions='';
+    if(def.type==='weapon'||def.type==='armor') actions='<button class="btn btn-gold" style="font-size:9px;padding:2px 8px;margin-top:4px" onclick="doEquip(\''+i.uid+'\')">Equip</button>';
+    if(def.type==='consumable') actions='<button class="btn btn-green" style="font-size:9px;padding:2px 8px;margin-top:4px;background:rgba(74,222,128,.12);color:var(--green);border-color:rgba(74,222,128,.3)" onclick="doUseItem(\''+i.id+'\')">Use</button>';
+    if(i.maxDurability&&i.durability<i.maxDurability) actions+=' <button class="btn" style="font-size:9px;padding:2px 8px;margin-top:4px" onclick="doRepair(\''+i.uid+'\')">Repair</button>';
+    return '<div class="item-card"><div class="ic-icon">'+(def.icon||'?')+'</div><div class="ic-name" style="color:'+(RARITY_COLORS[def.rarity]||'#ccc')+'">'+(def.name||i.id)+'</div>'
+      +'<div class="ic-stats">'+stats+'</div><span class="ic-rarity '+rc+'">'+(def.rarity||'common')+'</span>'+dur+actions+'</div>';
+  }).join('');
+}
+
+function doEquip(uid){send('rpg_equip',{uid});setTimeout(refreshInventory,300)}
+function doUnequip(slot){send('rpg_unequip',{slot});setTimeout(refreshInventory,300)}
+function doRepair(uid){send('rpg_repair',{uid});setTimeout(refreshInventory,300)}
+function doUseItem(itemId){send('rpg_use_item',{itemId});setTimeout(refreshInventory,300)}
+
+// ── NPC Shop Panel ──
+function toggleShopPanel(){
+  const el=document.getElementById('shop-panel');
+  if(el.classList.contains('show')){el.classList.remove('show');return}
+  el.classList.add('show');
+  renderShop();
+}
+function shopTab(tab){
+  activeShopTab=tab;
+  document.querySelectorAll('#shop-panel .panel-tab').forEach(t=>t.classList.remove('active'));
+  event.target.classList.add('active');
+  renderShop();
+}
+function renderShop(){
+  const list=shopData[activeShopTab]||[];
+  const grid=document.getElementById('shop-grid');
+  grid.innerHTML=list.map(itemId=>{
+    const def=itemData[itemId]||{};
+    const rc=RARITY_CLASSES[def.rarity||'common']||'rarity-common';
+    let stats='';
+    if(def.dmgBonus) stats+='DMG +'+def.dmgBonus+' ';
+    if(def.defBonus) stats+='DEF +'+def.defBonus+' ';
+    if(def.heal) stats+='Heal '+def.heal+'HP ';
+    const price=def.shopPrice||0;
+    const canBuy=gold>=price;
+    return '<div class="item-card"><div class="ic-icon">'+(def.icon||'?')+'</div><div class="ic-name" style="color:'+(RARITY_COLORS[def.rarity]||'#ccc')+'">'+(def.name||itemId)+'</div>'
+      +'<div class="ic-stats">'+stats+'</div><span class="ic-rarity '+rc+'">'+(def.rarity||'common')+'</span>'
+      +'<div style="margin-top:6px;color:var(--gold);font-size:11px;font-weight:700">'+price+'g</div>'
+      +'<button class="btn '+(canBuy?'btn-gold':'')+'" style="font-size:9px;padding:3px 10px;margin-top:4px;width:100%" onclick="doBuyShop(\''+itemId+'\')" '+(canBuy?'':'disabled')+'>Buy</button></div>';
+  }).join('');
+}
+function doBuyShop(itemId){
+  send('rpg_shop_buy',{itemId});
+  setTimeout(()=>{refreshInventory();renderShop()},400);
+}
+
+// ── Crafting Panel ──
+function toggleCraftPanel(){
+  const el=document.getElementById('craft-panel');
+  if(el.classList.contains('show')){el.classList.remove('show');return}
+  refreshInventory();
+  el.classList.add('show');
+  setTimeout(renderCrafting,200);
+}
+function renderCrafting(){
+  const grid=document.getElementById('craft-grid');
+  const recipes=Object.entries(recipeData);
+  if(!recipes.length){grid.innerHTML='<div style="color:var(--dim);padding:20px;text-align:center;grid-column:1/-1">No recipes available</div>';return}
+  grid.innerHTML=recipes.map(([id,r])=>{
+    const result=itemData[r.result]||{};
+    const rc=RARITY_CLASSES[result.rarity||'common']||'rarity-common';
+    let mats='';
+    let canCraft=gold>=(r.goldCost||0);
+    if(r.materials){
+      for(const [matId,qty] of Object.entries(r.materials)){
+        const md=itemData[matId]||{};
+        const have=countInvItem(matId);
+        const ok=have>=qty;
+        if(!ok) canCraft=false;
+        mats+='<div style="color:'+(ok?'var(--green)':'var(--red)')+'">'+( md.icon||'')+(md.name||matId)+' '+have+'/'+qty+'</div>';
+      }
+    }
+    return '<div class="recipe-card '+(canCraft?'craftable':'')+'"><div class="rc-icon">'+(result.icon||'?')+'</div><div class="rc-name" style="color:'+(RARITY_COLORS[result.rarity]||'#ccc')+'">'+(result.name||r.result)+(r.resultQty>1?' x'+r.resultQty:'')+'</div>'
+      +'<span class="ic-rarity '+rc+'" style="margin-top:4px">'+(result.rarity||'common')+'</span>'
+      +'<div class="rc-mats" style="margin-top:6px">'+mats+'</div>'
+      +(r.goldCost?'<div class="rc-cost">'+r.goldCost+'g</div>':'')
+      +'<button class="btn '+(canCraft?'btn-gold':'')+'" style="font-size:9px;padding:3px 10px;margin-top:6px;width:100%" onclick="doCraft(\''+id+'\')" '+(canCraft?'':'disabled')+'>Craft</button></div>';
+  }).join('');
+}
+function countInvItem(itemId){
+  return (invCache.inventory||[]).reduce((sum,i)=>i.id===itemId?sum+(i.qty||1):sum,0);
+}
+function doCraft(recipeId){
+  send('rpg_craft',{recipeId});
+  setTimeout(()=>{refreshInventory();setTimeout(renderCrafting,200)},400);
+}
+
+// ── Market Panel ──
+function toggleMarketPanel(){
+  const el=document.getElementById('market-panel');
+  if(el.classList.contains('show')){el.classList.remove('show');return}
+  el.classList.add('show');
+  fetchMarket();
+}
+function marketTab(tab){
+  activeMarketTab=tab;
+  document.querySelectorAll('#market-panel .panel-tab').forEach(t=>t.classList.remove('active'));
+  event.target.classList.add('active');
+  renderMarket();
+}
+function fetchMarket(){
+  fetch(location.origin+'/api/market').then(r=>r.json()).then(d=>{marketCache=d;renderMarket()}).catch(()=>{});
+  refreshInventory();
+}
+function renderMarket(){
+  const cont=document.getElementById('market-content');
+  if(activeMarketTab==='browse'){
+    if(!marketCache.length){cont.innerHTML='<div style="color:var(--dim);padding:20px;text-align:center">No listings</div>';return}
+    cont.innerHTML=marketCache.map(l=>{
+      const canBuy=l.seller!==username&&gold>=l.price;
+      return '<div class="market-listing"><div class="ml-icon">'+(l.icon||'📦')+'</div><div class="ml-info"><div class="ml-name" style="color:'+(RARITY_COLORS[l.rarity]||'#ccc')+'">'+l.name+(l.qty?' x'+l.qty:'')+'</div><div class="ml-seller">by '+l.seller+' &middot; '+l.type+'</div></div><div class="ml-price">'+l.price+'g</div><div class="ml-actions">'
+        +(l.seller!==username?'<button class="btn '+(canBuy?'btn-gold':'')+'" style="font-size:9px;padding:3px 8px" onclick="doBuyMarket('+l.id+')" '+(canBuy?'':'disabled')+'>Buy</button>':'<span style="color:var(--dim);font-size:9px">Your listing</span>')
+        +'</div></div>';
+    }).join('');
+  } else if(activeMarketTab==='my'){
+    const mine=marketCache.filter(l=>l.seller===username);
+    if(!mine.length){cont.innerHTML='<div style="color:var(--dim);padding:20px;text-align:center">No active listings</div>';return}
+    cont.innerHTML=mine.map(l=>{
+      return '<div class="market-listing"><div class="ml-icon">'+(l.icon||'📦')+'</div><div class="ml-info"><div class="ml-name" style="color:'+(RARITY_COLORS[l.rarity]||'#ccc')+'">'+l.name+(l.qty?' x'+l.qty:'')+'</div><div class="ml-seller">'+l.type+' &middot; '+l.price+'g</div></div><div class="ml-actions">'
+        +'<button class="btn btn-red" style="font-size:9px;padding:3px 8px" onclick="doCancelListing('+l.id+')">Cancel</button></div></div>';
+    }).join('');
+  } else if(activeMarketTab==='sell'){
+    // Sell tab: list inventory items that can be sold
+    const items=invCache.inventory||[];
+    if(!items.length){cont.innerHTML='<div style="color:var(--dim);padding:20px;text-align:center">No items to sell</div>';return}
+    cont.innerHTML='<div style="margin-bottom:8px;font-size:10px;color:var(--dim)">2% listing fee &middot; 5% sale tax on completion &middot; Max 5 listings</div>'
+      +items.map(i=>{
+      const def=itemData[i.id]||{};
+      const isStack=i.qty&&i.qty>1;
+      const inputId='sell-price-'+(i.uid||i.id);
+      return '<div class="market-listing"><div class="ml-icon">'+(def.icon||'?')+'</div><div class="ml-info"><div class="ml-name" style="color:'+(RARITY_COLORS[def.rarity]||'#ccc')+'">'+(def.name||i.id)+(isStack?' x'+i.qty:'')+'</div><div class="ml-seller">'+(def.type||'item')+'</div></div>'
+        +'<input type="number" id="'+inputId+'" placeholder="Price" min="1" style="width:70px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:3px 6px;font-size:11px">'
+        +'<button class="btn btn-gold" style="font-size:9px;padding:3px 8px;margin-left:4px" onclick="doSellItem(\''+( i.uid||'')+'\',\''+i.id+'\','+( i.qty||1)+',\''+inputId+'\')">Sell</button></div>';
+    }).join('');
+  }
+}
+function doBuyMarket(listingId){
+  send('rpg_market_buy',{listingId:String(listingId)});
+  setTimeout(fetchMarket,500);
+}
+function doCancelListing(listingId){
+  send('rpg_market_cancel',{listingId:String(listingId)});
+  setTimeout(fetchMarket,500);
+}
+function doSellItem(uid,itemId,qty,inputId){
+  const price=parseInt(document.getElementById(inputId).value);
+  if(!price||price<1){logMsg('Enter a valid price','dmg');return}
+  if(uid){
+    send('rpg_market_sell',{itemUid:uid,price:String(price)});
+  } else {
+    send('rpg_market_sell_material',{itemId,qty:String(qty),price:String(price)});
+  }
+  setTimeout(fetchMarket,500);
+}
+
+// ── Drop Toast Notifications ──
+function showDropToast(icon,name,rarity,qty){
+  const container=document.getElementById('drop-toast');
+  const el=document.createElement('div');
+  el.className='drop-item';
+  el.style.borderColor=RARITY_COLORS[rarity]||'#888';
+  el.innerHTML=icon+' <span style="color:'+(RARITY_COLORS[rarity]||'#ccc')+'">'+name+(qty>1?' x'+qty:'')+'</span>';
+  container.appendChild(el);
+  setTimeout(()=>{el.style.opacity='0';el.style.transition='opacity .5s';setTimeout(()=>el.remove(),500)},3000);
+}
 
 // =============================================
 // Mobile Controls
