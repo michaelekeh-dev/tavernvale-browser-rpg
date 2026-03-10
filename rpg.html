@@ -1848,36 +1848,33 @@ function update(dt){
         sd.fadeAlpha=Math.min(1,t/halfDur);
       } else if(t<dur){
         if(sd.phase==='fadeOut'){
-          // Teleport at midpoint (skip for zone transitions — enterZone handles positioning)
-          if(sd.type!=='dungeon_door_enter'&&sd.type!=='dungeon_door_exit'){
-            px=sd.config.endX;py=sd.config.endY;camX=px;camY=py;
-            send('rpg_move',{x:Math.round(px),y:Math.round(py)});
-            playerInDungeon=sd.goingDown;
+          // Teleport at midpoint
+          px=sd.config.endX;py=sd.config.endY;camX=px;camY=py;
+          send('rpg_move',{x:Math.round(px),y:Math.round(py)});
+          // Ensure all basement/dungeon flags are set so tiles render under the fade
+          if(sd.type==='dungeon_door_enter'||sd.type==='dungeon_door_exit'){
+            playerInBasement=true;
+            // Kill tavern dim overlay — its bottom strip covers the entire screen at this camera Y
+            tavernDimAlpha=0;
           }
+          playerInDungeon=sd.goingDown;
           sd.phase='fadeIn';
         }
         sd.fadeAlpha=Math.max(0,1-(t-halfDur)/halfDur);
       } else {
-        const wasType=sd.type;
-        scriptedDescent=null;
-        if(wasType==='dungeon_door_enter'){
-          // Actually enter the dungeon zone
-          enterZone('dungeon');
-        } else if(wasType==='dungeon_door_exit'){
-          // Return to hub and reposition in basement
-          enterZone('hub');
-          // After hub reloads, teleport back to basement stairs
-          setTimeout(()=>{
-            if(secretDoorOpen){
-              px=52*TILE_SIZE+TILE_SIZE/2;py=27*TILE_SIZE+TILE_SIZE/2;camX=px;camY=py;
-              send('rpg_move',{x:Math.round(px),y:Math.round(py)});
-            }
-          },200);
-        } else {
-          px=sd.config.endX;py=sd.config.endY;camX=px;camY=py;
-          send('rpg_move',{x:Math.round(px),y:Math.round(py)});
-          playerInDungeon=sd.goingDown;
+        px=sd.config.endX;py=sd.config.endY;camX=px;camY=py;
+        send('rpg_move',{x:Math.round(px),y:Math.round(py)});
+        // Ensure all basement/dungeon flags are set before clearing scriptedDescent
+        if(sd.type==='dungeon_door_enter'||sd.type==='dungeon_door_exit'){
+          playerInBasement=true;
+          tavernDimAlpha=0;
         }
+        playerInDungeon=sd.goingDown;
+        // Spawn ghost boss when entering dungeon
+        if(sd.goingDown&&!ghostDefeated&&!ghostBoss){
+          spawnGhostBoss();
+        }
+        scriptedDescent=null;
       }
     }
     // Block movement during any scripted descent
