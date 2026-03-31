@@ -8803,7 +8803,7 @@ class Game {
       this.logAction(inst.members[0], 'rpg_pdung_clear', `Party dungeon cleared by ${inst.members.join(', ')}`);
       // Schedule cleanup
       setTimeout(() => this.rpgDungeonEnd(instId, true), 10000);
-      return { killed: true, dmg, crit, bossName: boss.name, weaponBroke: wepResult && wepResult.broken ? wepResult.name : null };
+      return { killed: true, dmg, crit, bossName: boss.name, cfgId: boss.cfgId, weaponBroke: wepResult && wepResult.broken ? wepResult.name : null };
     }
     return { hit: true, dmg, crit, bossHP: boss.hp, bossMaxHP: boss.maxHP, burn, poison, holy, lifesteal: lifestealHeal, hp: rp.hp, weaponBroke: wepResult && wepResult.broken ? wepResult.name : null };
   }

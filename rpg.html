@@ -1514,7 +1514,7 @@ let treantGrave=null; // persistent treant aftermath until respawn {x,y,roots,tr
 let envParticles=[]; // leaves, dust, fireflies
 let hubMusicPlaying=false,hubMusicNodes=[];
 let zoneMusicFade=null,zoneMusicCurrent=null;
-const ZONE_MUSIC_MAP={hub:'audio/HUB%20music.mp3',forest:'audio/Forest%20Music.mp3',quarry:'audio/Mines%20Music.mp3',underground_mine:'audio/Mines%20Music.mp3',deep_mine:'audio/Mines%20Music.mp3',gold_vein:'audio/Mines%20Music.mp3',dungeon:'audio/Dungeon%20Music.mp3'};
+const ZONE_MUSIC_MAP={hub:'audio/Music/HUB%20music.mp3',forest:'audio/Music/Forest%20Music.mp3',quarry:'audio/Music/Mines%20Music.mp3',underground_mine:'audio/Music/Mines%20Music.mp3',deep_mine:'audio/Music/Mines%20Music.mp3',gold_vein:'audio/Music/Mines%20Music.mp3',dungeon:'audio/Dungeon%20Music.mp3'};
 // Asset pack fallback music (used when primary mp3 fails to load)
 const ZONE_MUSIC_FALLBACK={
   hub:'superpowers-asset-packs/medieval-fantasy/music/theme-1.ogg',
@@ -2145,12 +2145,12 @@ function playCombatSoundSynth(type){
 // =============================================
 const bossSFXCache={};
 const BOSS_SFX_MAP={
-  treant_wake:'audio/Treant Boss Wake.mp3',
-  goblin_wake:'audio/Goblin Boss Wake.mp3',
-  goblin_laugh:'audio/Goblin Laugh.mp3',
-  treant_root:'audio/Treant Root Attack.mp3',
-  goblin_stomp:'audio/Goblin Boss Stomp.mp3',
-  dragon_roar:'audio/Dragon Roar SFX.mp3',
+  treant_wake:'audio/BOSSES%20SFX/Treant%20Boss%20Wake.mp3',
+  goblin_wake:'audio/BOSSES%20SFX/Goblin%20Boss%20Wake.mp3',
+  goblin_laugh:'audio/BOSSES%20SFX/Goblin%20Laugh.mp3',
+  treant_root:'audio/BOSSES%20SFX/Treant%20Root%20Attack.mp3',
+  goblin_stomp:'audio/BOSSES%20SFX/Goblin%20Boss%20Stomp.mp3',
+  dragon_roar:'audio/BOSSES%20SFX/Dragon%20Roar%20SFX.mp3',
   burrower_wake:'audio/New music/Burrower Boss Intro.mp3',
   boulder_impact:'audio/New music/SFX Boulder Impact.mp3',
   earth_impact:'audio/New music/SFX Boulder Impact.mp3',
@@ -2296,7 +2296,7 @@ const BOSS_ATTACK_SFX={
   'Summon Shades':  {sfx:'frost_impact',volume:0.4,minPitch:0.5,maxPitch:0.7},
   // Crystal Burrower attacks (56% volume — 75% × 75%)
   'Tunnel Charge':  {sfx:'boulder_impact',volume:0.28,minPitch:0.8,maxPitch:1.0},
-  'Acid Pools':     {sfx:'water_impact',volume:0.25,minPitch:0.85,maxPitch:1.05},
+  'Acid Pools':     {skip:true},
   'Burrow':         {sfx:'earth_impact',volume:0.31,minPitch:0.7,maxPitch:0.9},
   'Tail Whip':      {sfx:'boulder_impact',volume:0.22,minPitch:0.9,maxPitch:1.1},
   'Cave-In':        {sfx:'earth_impact',volume:0.34,minPitch:0.6,maxPitch:0.8},
@@ -2307,7 +2307,18 @@ const BOSS_ATTACK_SFX={
   'Boulder Throw':  {sfx:'rock_break',volume:0.28,minPitch:0.85,maxPitch:1.05},
   'Earthquake':     {sfx:'earth_impact',volume:0.34,minPitch:0.5,maxPitch:0.7},
   'Crystal Barrage': {sfx:'rock_break',volume:0.31,minPitch:0.9,maxPitch:1.15},
-  'Collapse':       {sfx:'earth_impact',volume:0.37,minPitch:0.4,maxPitch:0.6}
+  'Collapse':       {sfx:'earth_impact',volume:0.37,minPitch:0.4,maxPitch:0.6},
+  // Abyssal Dragon attacks
+  'Dragon Claw':    {sfx:'dragon_roar',volume:0.3,minPitch:1.1,maxPitch:1.3},
+  'Shadow Breath':  {sfx:'dragon_roar',volume:0.4,minPitch:0.7,maxPitch:0.9},
+  'Tail Sweep':     {sfx:'boulder_impact',volume:0.35,minPitch:0.7,maxPitch:0.9},
+  'Abyssal Flames': {sfx:'dragon_roar',volume:0.45,minPitch:0.6,maxPitch:0.8},
+  'Inferno Nova':   {sfx:'dragon_roar',volume:0.55,minPitch:0.5,maxPitch:0.7},
+  'Meteor Storm':   {sfx:'boulder_impact',volume:0.5,minPitch:0.45,maxPitch:0.65},
+  'Fire Breath Sweep':{sfx:'dragon_roar',volume:0.5,minPitch:0.55,maxPitch:0.75},
+  'Devouring Maw':  {sfx:'dragon_roar',volume:0.5,minPitch:0.8,maxPitch:1.0},
+  'Wing Tempest':   {sfx:'wind_impact',volume:0.4,minPitch:0.7,maxPitch:0.9},
+  'Summon Dragonkin':{sfx:'dragon_roar',volume:0.35,minPitch:0.9,maxPitch:1.1}
 };
 
 // =============================================
@@ -2482,7 +2493,7 @@ function handleMessage(msg){
     case'rpg_boss_attack_result':onBossAttackResult(d);break;
     case'rpg_boss_died':onBossDied(d);break;
     case'rpg_boss_spawn':boss=d;bossTelegraph=null;dyingTreant=null;treantGrave=null;logMsg('The boss has respawned!','xp');if(d.name){discoveredBosses.add(d.name);localStorage.setItem('rpg_discovered_bosses',JSON.stringify([...discoveredBosses]))}break;
-    case'rpg_boss_wake':if(boss&&boss.id===d.id){boss.sleeping=false;boss.waking=true;boss.wakeTime=Date.now();boss.phaseName='Awakening';setTimeout(()=>{if(boss)boss.waking=false},5000);logMsg(d.name+' stirs from its ancient slumber!','dmg');shakeTimer=15;if(d.cfgId&&BOSS_MUSIC_TRACKS[d.cfgId])startBossMusic(d.cfgId);if(d.cfgId==='ancient_treant')playBossSFX('treant_wake',{volume:0.55,minPitch:0.9,maxPitch:1.1});else if(d.cfgId==='goblin_king')playBossSFX('goblin_wake',{volume:0.5});else if(d.cfgId==='crystal_burrower')playBossSFX('burrower_wake',{volume:0.31,minPitch:0.85,maxPitch:1.05});else if(d.cfgId==='stone_guardian'){playBossSFX('dragon_roar',{volume:0.28,minPitch:0.6,maxPitch:0.8});setTimeout(()=>playBossSFX('earth_impact',{volume:0.22,minPitch:0.5,maxPitch:0.7}),600)}else if(d.cfgId==='hollow_sentinel')playBossSFX('frost_impact',{volume:0.5,minPitch:0.5,maxPitch:0.7})}break;
+    case'rpg_boss_wake':if(boss&&boss.id===d.id){boss.sleeping=false;boss.waking=true;boss.wakeTime=Date.now();boss.phaseName='Awakening';setTimeout(()=>{if(boss)boss.waking=false},5000);logMsg(d.name+' stirs from its ancient slumber!','dmg');shakeTimer=15;if(d.cfgId&&BOSS_MUSIC_TRACKS[d.cfgId])startBossMusic(d.cfgId);if(d.cfgId==='ancient_treant')playBossSFX('treant_wake',{volume:0.55,minPitch:0.9,maxPitch:1.1});else if(d.cfgId==='goblin_king')playBossSFX('goblin_wake',{volume:0.5});else if(d.cfgId==='crystal_burrower')playBossSFX('burrower_wake',{volume:0.31,minPitch:0.85,maxPitch:1.05});else if(d.cfgId==='stone_guardian'){playBossSFX('dragon_roar',{volume:0.28,minPitch:0.6,maxPitch:0.8});setTimeout(()=>playBossSFX('earth_impact',{volume:0.22,minPitch:0.5,maxPitch:0.7}),600)}else if(d.cfgId==='hollow_sentinel')playBossSFX('frost_impact',{volume:0.5,minPitch:0.5,maxPitch:0.7});else if(d.cfgId==='pdung_abyssal_dragon'){playBossSFX('dragon_roar',{volume:0.55,minPitch:0.7,maxPitch:0.9});setTimeout(()=>playBossSFX('dragon_roar',{volume:0.4,minPitch:0.5,maxPitch:0.7}),800)}}break;
     case'rpg_boss_summon':if(d.saplings)d.saplings.forEach(s=>mobs.push(s));break;
     case'rpg_boss_burrow_start':
       bossTelegraph=null;
@@ -2495,6 +2506,7 @@ function handleMessage(msg){
       if(bossBurrow){bossBurrow.trailX=d.x;bossBurrow.trailY=d.y;bossBurrow.timer=d.timer}break;
     case'rpg_boss_acid_pools':
       if(d.pools){const now=Date.now();d.pools.forEach(p=>bossAcidPools.push({x:p.x,y:p.y,radius:p.radius,duration:p.duration,startTime:now,expires:now+p.duration}))}
+      playBossSFX('water_impact',{volume:0.25,minPitch:0.85,maxPitch:1.05});
       logMsg('Acid pools spread across the ground!','dmg');break;
     case'rpg_boss_acid_pools_clear':bossAcidPools=[];break;
     case'rpg_boss_constrict':
@@ -2505,7 +2517,7 @@ function handleMessage(msg){
     case'rpg_sapling_move':if(d.saplings){d.saplings.forEach(sd=>{const m=mobs.find(mm=>mm.id===sd.id);if(m){m.x=sd.x;m.y=sd.y;m.hp=sd.hp;m.maxHP=sd.maxHP}})}break;
     // Secondary boss messages
     case'rpg_sboss_move':{const sb=secondaryBosses.find(s=>s.id===d.id);if(sb){sb.x=d.x;sb.y=d.y;sb.phase=d.phase}}break;
-    case'rpg_sboss_wake':{const sb=secondaryBosses.find(s=>s.id===d.id);if(sb){sb.sleeping=false;sb.waking=true;sb.wakeTime=Date.now();sb.phaseName='Awakening';sb.showHP=false;sb.hpBarAnim=0;setTimeout(()=>{if(sb){sb.waking=false;sb.showHP=true}},5000)}logMsg(d.name+' awakens with a thunderous ROAR!','dmg');shakeTimer=12;if(d.cfgId&&BOSS_MUSIC_TRACKS[d.cfgId])startBossMusic(d.cfgId);if(d.cfgId==='goblin_king')playBossSFX('goblin_wake',{volume:0.5});else if(d.cfgId==='ancient_treant')playBossSFX('treant_wake',{volume:0.55,minPitch:0.9,maxPitch:1.1});else if(d.cfgId==='crystal_burrower')playBossSFX('burrower_wake',{volume:0.31,minPitch:0.85,maxPitch:1.05});else if(d.cfgId==='stone_guardian'){playBossSFX('dragon_roar',{volume:0.28,minPitch:0.6,maxPitch:0.8});setTimeout(()=>playBossSFX('earth_impact',{volume:0.22,minPitch:0.5,maxPitch:0.7}),600)}else if(d.cfgId==='hollow_sentinel')playBossSFX('frost_impact',{volume:0.5,minPitch:0.5,maxPitch:0.7})}break;
+    case'rpg_sboss_wake':{const sb=secondaryBosses.find(s=>s.id===d.id);if(sb){sb.sleeping=false;sb.waking=true;sb.wakeTime=Date.now();sb.phaseName='Awakening';sb.showHP=false;sb.hpBarAnim=0;setTimeout(()=>{if(sb){sb.waking=false;sb.showHP=true}},5000)}logMsg(d.name+' awakens with a thunderous ROAR!','dmg');shakeTimer=12;if(d.cfgId&&BOSS_MUSIC_TRACKS[d.cfgId])startBossMusic(d.cfgId);if(d.cfgId==='goblin_king')playBossSFX('goblin_wake',{volume:0.5});else if(d.cfgId==='ancient_treant')playBossSFX('treant_wake',{volume:0.55,minPitch:0.9,maxPitch:1.1});else if(d.cfgId==='crystal_burrower')playBossSFX('burrower_wake',{volume:0.31,minPitch:0.85,maxPitch:1.05});else if(d.cfgId==='stone_guardian'){playBossSFX('dragon_roar',{volume:0.28,minPitch:0.6,maxPitch:0.8});setTimeout(()=>playBossSFX('earth_impact',{volume:0.22,minPitch:0.5,maxPitch:0.7}),600)}else if(d.cfgId==='hollow_sentinel')playBossSFX('frost_impact',{volume:0.5,minPitch:0.5,maxPitch:0.7});else if(d.cfgId==='pdung_abyssal_dragon'){playBossSFX('dragon_roar',{volume:0.55,minPitch:0.7,maxPitch:0.9});setTimeout(()=>playBossSFX('dragon_roar',{volume:0.4,minPitch:0.5,maxPitch:0.7}),800)}}break;
     case'rpg_sboss_phase':{const sb=secondaryBosses.find(s=>s.id===d.id);if(sb){sb.phaseName=d.phase;sb.hp=d.hp;sb.maxHP=d.maxHP;if(d.enraged)sb.enraged=true}}break;
     case'rpg_sboss_attack_start':sbossTelegraph={id:d.id,attack:d.attack,type:d.type,timer:d.telegraphTime,maxTimer:d.telegraphTime,bossX:d.bossX,bossY:d.bossY,targetX:d.targetX,targetY:d.targetY,radius:d.radius,range:d.range,width:d.width,spreadAngle:d.spreadAngle||0,knifeCount:d.knifeCount||0};break;
     case'rpg_sboss_telegraph':if(sbossTelegraph&&sbossTelegraph.id===d.id){sbossTelegraph.timer=d.timer;sbossTelegraph.bossX=d.bossX;sbossTelegraph.bossY=d.bossY}break;
@@ -3057,7 +3069,18 @@ function onDungeonAttackBossResult(d){
   }
   if(d.killed){
     logMsg('BOSS DEFEATED! '+d.bossName+' has been slain!','loot');
-    if(boss){boss.dead=true;boss.hp=0}
+    if(boss){
+      // Death animation — spin + fade + particle burst (same as overworld boss kill)
+      dyingMobs.push({x:boss.x,y:boss.y,color:boss.color||'#4a0a08',name:boss.name||d.bossName,scale:2.5,alpha:1,life:1500,maxLife:1500,eliteTier:'champion'});
+      for(let i=0;i<30;i++){
+        const a2=Math.random()*Math.PI*2;
+        particles.push({x:boss.x,y:boss.y-15,vx:Math.cos(a2)*(3+Math.random()*4),vy:Math.sin(a2)*(3+Math.random()*4)-3,
+          color:i%3===0?'#fbbf24':i%3===1?'#ff4444':'#fff',life:800+Math.random()*600,maxLife:1400});
+      }
+      spawnGroundLoot(boss.x,boss.y,0);
+    }
+    boss=null;bossTelegraph=null;
+    if(d.cfgId&&BOSS_MUSIC_TRACKS[d.cfgId])playBossSlainMusic(d.cfgId);
     playCombatSound('kill');
   }
   if(d.weaponBroke)logMsg('Your '+d.weaponBroke+' broke!','dmg');
@@ -3583,7 +3606,7 @@ function onBossAttackLand(d){
 
   // Play boss attack SFX with pitch variation
   const atkSfx=BOSS_ATTACK_SFX[d.attack];
-  if(atkSfx){
+  if(atkSfx&&!atkSfx.skip){
     if(atkSfx.sfx){
       playBossSFX(atkSfx.sfx,{volume:atkSfx.volume||0.4,minPitch:atkSfx.minPitch||0.88,maxPitch:atkSfx.maxPitch||1.12});
     }else if(atkSfx.synth){
@@ -23007,26 +23030,32 @@ let bossMusicIntro=null, bossMusicMain=null, bossMusicSlain=null;
 let bossFadeInterval=null;
 const BOSS_MUSIC_TRACKS={
   ancient_treant:{
-    intro:'audio/Treant%20Boss%20Intro.mp3',
-    main:'audio/Treant%20Boss%20Main.mp3',
-    slain:'audio/Treant%20Boss%20Slain.mp3'
+    intro:'audio/BOSSES%20SFX/Treant%20Boss%20Intro.mp3',
+    main:'audio/BOSSES%20SFX/Treant%20Boss%20Main.mp3',
+    slain:'audio/BOSSES%20SFX/Treant%20Boss%20Slain.mp3'
   },
   goblin_king:{
-    intro:'audio/Goblin%20Intro%20Music.mp3',
-    main:'audio/Goblin%20King%20Main.mp3',
-    slain:'audio/Goblin%20Boss%20Slain%20music.mp3'
+    intro:'audio/BOSSES%20SFX/Goblin%20Intro%20Music.mp3',
+    main:'audio/BOSSES%20SFX/Goblin%20King%20Main.mp3',
+    slain:'audio/BOSSES%20SFX/Goblin%20Boss%20Slain%20music.mp3'
   },
   crystal_burrower:{
     intro:'audio/New%20music/Burrower%20Boss%20Intro.mp3',
-    main:'audio/New%20music/Burrower%20Boss%20Main.mp3'
+    main:'audio/New%20music/Burrower%20Boss%20Main.mp3',
+    slain:'audio/New%20music/Burrower%20Boss%20Slain.mp3'
   },
   stone_guardian:{
     intro:'audio/New%20music/Stone%20Guardian%20Intro.mp3',
     main:'audio/New%20music/Stone%20Guardian%20Main.mp3'
   },
   hollow_sentinel:{
-    intro:'audio/Dragon%20Roar%20SFX.mp3',
+    intro:'audio/BOSSES%20SFX/Dragon%20Roar%20SFX.mp3',
     main:'audio/Dungeon%20Music.mp3',
+    slain:'audio/New%20music/Boss%20Victory%20Music.mp3'
+  },
+  pdung_abyssal_dragon:{
+    intro:'audio/BOSSES%20SFX/Dragon%20Roar%20SFX.mp3',
+    main:'audio/Dragon%20Boss%20Music.mp3',
     slain:'audio/New%20music/Boss%20Victory%20Music.mp3'
   }
 };
@@ -23059,13 +23088,25 @@ function startBossMusic(cfgId){
   bossMusicMain=tracks.main;
   bossMusicSlain=tracks.slain;
   bossMusicIntro.loop=false;
-  bossMusicIntro.currentTime=0;bossMusicIntro.volume=0.45;
+  bossMusicIntro.currentTime=0;bossMusicIntro.volume=0;
   bossMusicIntro.play().catch(()=>{});
+  // Fade in intro music
+  clearInterval(bossFadeInterval);
+  bossFadeInterval=setInterval(()=>{
+    if(!bossMusicPlaying){clearInterval(bossFadeInterval);bossFadeInterval=null;return}
+    // Fade whichever track is currently playing
+    if(bossMusicIntro&&!bossMusicIntro.paused&&bossMusicIntro.volume<0.45){
+      bossMusicIntro.volume=Math.min(0.45,bossMusicIntro.volume+0.009);
+    }
+    if(bossMusicMain&&!bossMusicMain.paused&&bossMusicMain.volume<0.45){
+      bossMusicMain.volume=Math.min(0.45,bossMusicMain.volume+0.009);
+    }
+  },50);
   // When intro ends, start the main loop
   bossMusicIntro.onended=function(){
     if(!bossMusicPlaying||bossMusicCfgId!==cfgId)return;
     bossMusicMain.loop=true;
-    bossMusicMain.currentTime=0;bossMusicMain.volume=0.45;
+    bossMusicMain.currentTime=0;bossMusicMain.volume=0;
     bossMusicMain.play().catch(()=>{});
   };
 }
@@ -23089,14 +23130,14 @@ function stopBossMusic(immediate){
       if(mainEl.volume>0.02)mainEl.volume=Math.max(0,mainEl.volume-0.025);
       else{
         mainEl.pause();mainEl.currentTime=0;clearInterval(bossFadeInterval);
-        // Play slain music
-        if(slainEl){slainEl.loop=false;slainEl.currentTime=0;slainEl.volume=0.45;slainEl.play().catch(()=>{});slainEl.onended=()=>{if(currentZone)startZoneMusic(currentZone)}}
+        // Play slain music with fade-in
+        if(slainEl){slainEl.loop=false;slainEl.currentTime=0;slainEl.volume=0;slainEl.play().catch(()=>{});slainEl.onended=()=>{if(currentZone)startZoneMusic(currentZone)};bossFadeInterval=setInterval(()=>{if(slainEl.volume<0.45)slainEl.volume=Math.min(0.45,slainEl.volume+0.015);else clearInterval(bossFadeInterval)},50)}
       }
     },50);
   } else {
     // Main wasn't playing yet (still in intro or paused) — just play slain
     if(mainEl){mainEl.pause();mainEl.currentTime=0}
-    if(slainEl){slainEl.loop=false;slainEl.currentTime=0;slainEl.volume=0.45;slainEl.play().catch(()=>{});slainEl.onended=()=>{if(currentZone)startZoneMusic(currentZone)}}
+    if(slainEl){slainEl.loop=false;slainEl.currentTime=0;slainEl.volume=0;slainEl.play().catch(()=>{});slainEl.onended=()=>{if(currentZone)startZoneMusic(currentZone)};bossFadeInterval=setInterval(()=>{if(slainEl.volume<0.45)slainEl.volume=Math.min(0.45,slainEl.volume+0.015);else clearInterval(bossFadeInterval)},50)}
   }
   bossMusicIntro=null;bossMusicMain=null;bossMusicSlain=null;bossMusicCfgId=null;
 }
@@ -23105,9 +23146,9 @@ function playBossSlainMusic(cfgId){
   if(bossMusicPlaying&&bossMusicCfgId===cfgId){
     stopBossMusic(false);
   } else {
-    // Boss music wasn't playing, just play slain directly
+    // Boss music wasn't playing, just play slain directly with fade-in
     const tracks=bossMusicCache[cfgId];
-    if(tracks&&tracks.slain){tracks.slain.loop=false;tracks.slain.currentTime=0;tracks.slain.volume=0.45;tracks.slain.play().catch(()=>{})}
+    if(tracks&&tracks.slain){tracks.slain.loop=false;tracks.slain.currentTime=0;tracks.slain.volume=0;tracks.slain.play().catch(()=>{});const sl=tracks.slain;const fi=setInterval(()=>{if(sl.volume<0.45)sl.volume=Math.min(0.45,sl.volume+0.015);else clearInterval(fi)},50)}
   }
 }
 
