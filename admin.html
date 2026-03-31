@@ -155,9 +155,25 @@ body{font-family:'Segoe UI',sans-serif;background:#0a0a0f;color:#e0e0e0;min-heig
 </head>
 <body>
 
+<!-- Login Overlay -->
+<div id="loginOverlay" style="position:fixed;inset:0;background:#0a0a0f;z-index:9999;display:flex;align-items:center;justify-content:center">
+  <div style="background:#12121a;border:1px solid #e94560;border-radius:12px;padding:30px 40px;max-width:360px;width:90%;text-align:center">
+    <h1 style="color:#e94560;font-size:20px;margin-bottom:6px">⚔️ Admin Login</h1>
+    <p style="color:#666;font-size:12px;margin-bottom:20px">KickStream MMO Dashboard</p>
+    <input type="password" id="loginPassword" placeholder="Admin password" autocomplete="current-password"
+      style="width:100%;padding:10px 14px;background:#1a1a2a;border:1px solid #2a2a3a;border-radius:6px;color:#fff;font-size:14px;margin-bottom:12px;text-align:center"
+      onkeydown="if(event.key==='Enter')doLogin()">
+    <button onclick="doLogin()" style="width:100%;padding:10px;background:#e94560;border:none;border-radius:6px;color:#fff;font-size:14px;font-weight:600;cursor:pointer">Login</button>
+    <p id="loginError" style="color:#f87171;font-size:12px;margin-top:10px;display:none"></p>
+  </div>
+</div>
+
 <div class="header">
   <h1>⚔️ KickStream MMO — Admin Dashboard</h1>
-  <span class="status disconnected" id="wsStatus">● Disconnected</span>
+  <div style="display:flex;align-items:center;gap:10px">
+    <span class="status disconnected" id="wsStatus">● Disconnected</span>
+    <button onclick="doLogout()" style="padding:4px 10px;background:#4b5563;border:none;border-radius:4px;color:#ccc;font-size:11px;cursor:pointer">Logout</button>
+  </div>
 </div>
 
 <div class="tab-bar">
@@ -603,8 +619,50 @@ let ws = null;
 let allPlayers = {};
 let currentConfig = {};
 let editingPlayer = null;
+let adminToken = sessionStorage.getItem('adminToken') || null;
+
+// ── Login / Logout ──
+function doLogin() {
+  const pw = document.getElementById('loginPassword').value;
+  const errEl = document.getElementById('loginError');
+  errEl.style.display = 'none';
+  fetch('/api/admin/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password: pw })
+  }).then(r => r.json()).then(d => {
+    if (d.error) { errEl.textContent = d.error; errEl.style.display = 'block'; return; }
+    adminToken = d.token;
+    sessionStorage.setItem('adminToken', adminToken);
+    document.getElementById('loginOverlay').style.display = 'none';
+    connect();
+  }).catch(() => { errEl.textContent = 'Connection error'; errEl.style.display = 'block'; });
+}
+
+function doLogout() {
+  fetch('/api/admin/logout', { method: 'POST', headers: { 'Authorization': 'Bearer ' + adminToken } });
+  adminToken = null;
+  sessionStorage.removeItem('adminToken');
+  if (ws) ws.close();
+  document.getElementById('loginOverlay').style.display = 'flex';
+}
+
+// Helper: fetch with admin auth
+function adminFetch(url, opts = {}) {
+  opts.headers = opts.headers || {};
+  opts.headers['Authorization'] = 'Bearer ' + adminToken;
+  if (!opts.headers['Content-Type'] && opts.body) opts.headers['Content-Type'] = 'application/json';
+  return fetch(url, opts);
+}
+
+// Auto-login if token is stored
+if (adminToken) {
+  document.getElementById('loginOverlay').style.display = 'none';
+  // Will be validated when WS sends admin_auth
+}
 
 function connect() {
+  if (!adminToken) { document.getElementById('loginOverlay').style.display = 'flex'; return; }
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
   ws = new WebSocket(proto + '://' + location.host);
 
@@ -612,9 +670,8 @@ function connect() {
     document.getElementById('wsStatus').className = 'status connected';
     document.getElementById('wsStatus').textContent = '● Connected';
     addLog('Connected to server', 'success');
-    ws.send(JSON.stringify({ type: 'admin_get_players' }));
-    ws.send(JSON.stringify({ type: 'admin_get_config' }));
-    ws.send(JSON.stringify({ type: 'admin_get_kick_status' }));
+    // Authenticate WebSocket before sending admin commands
+    ws.send(JSON.stringify({ type: 'admin_auth', token: adminToken }));
   };
 
   ws.onclose = () => {
@@ -632,6 +689,16 @@ function connect() {
 function handleMessage(msg) {
   const { type, data } = msg;
   switch (type) {
+    case 'admin_auth_ok':
+      addLog('Admin authenticated', 'success');
+      ws.send(JSON.stringify({ type: 'admin_get_players' }));
+      ws.send(JSON.stringify({ type: 'admin_get_config' }));
+      ws.send(JSON.stringify({ type: 'admin_get_kick_status' }));
+      break;
+    case 'admin_auth_fail':
+      addLog('Admin auth failed — session expired', 'error');
+      doLogout();
+      break;
     case 'state_sync': updateGameState(data); break;
     case 'boss_spawn':
       updateBossDisplay(data);
@@ -768,7 +835,7 @@ function adminCmd(cmd) {
 function fullReset() {
   if (!confirm('⚠️ WIPE ALL PLAYER DATA?\n\nThis will delete ALL players, gold, items, stats, market listings, and payout queue.\n\nThis CANNOT be undone!')) return;
   if (!confirm('Are you ABSOLUTELY sure? Type OK to confirm.')) return;
-  fetch('/api/admin/fullreset', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+  adminFetch('/api/admin/fullreset', { method: 'POST' })
     .then(r => r.json())
     .then(d => { addLog('🔥 FULL RESET — All data wiped!', 'error'); loadPlayers(); })
     .catch(e => addLog('Reset failed: ' + e.message, 'error'));
@@ -803,7 +870,7 @@ function updateRPGBtn() {
   else { btn.textContent = '🗡️ RPG: DISABLED — Click to Enable'; btn.style.background = 'linear-gradient(90deg,#dc2626,#9a1c1c)'; }
 }
 function toggleRPG() {
-  fetch('/api/admin/rpg-toggle', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled: !rpgEnabled }) })
+  adminFetch('/api/admin/rpg-toggle', { method: 'POST', body: JSON.stringify({ enabled: !rpgEnabled }) })
     .then(r => r.json()).then(r => { if (r.success) { rpgEnabled = r.enabled; updateRPGBtn(); addLog('RPG ' + (rpgEnabled ? 'ENABLED' : 'DISABLED'), 'success'); } });
 }
 let gamblingEnabled = false;
@@ -813,14 +880,14 @@ function updateGamblingBtn() {
   else { btn.textContent = '🎰 GAMBLING: DISABLED — Click to Enable'; btn.style.background = 'linear-gradient(90deg,#dc2626,#9a1c1c)'; }
 }
 function toggleGambling() {
-  fetch('/api/admin/gambling-toggle', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled: !gamblingEnabled }) })
+  adminFetch('/api/admin/gambling-toggle', { method: 'POST', body: JSON.stringify({ enabled: !gamblingEnabled }) })
     .then(r => r.json()).then(r => { if (r.success) { gamblingEnabled = r.enabled; updateGamblingBtn(); addLog('Gambling ' + (gamblingEnabled ? 'ENABLED' : 'DISABLED'), 'success'); } });
 }
 function sendAnnouncement() {
   const input = document.getElementById('announceInput');
   const message = input.value.trim();
   if (!message) return;
-  fetch('/api/admin/announce', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message }) })
+  adminFetch('/api/admin/announce', { method: 'POST', body: JSON.stringify({ message }) })
     .then(r => r.json()).then(r => { if (r.success) { input.value = ''; addLog('📢 Announcement sent: ' + message, 'success'); } });
 }
 function updateGameState(data) {
@@ -956,7 +1023,7 @@ function toast(msg, isError) {
 
 /* ── Payout Queue ── */
 function loadPayouts() {
-  fetch('/api/admin/payouts').then(r => r.json()).then(data => {
+  adminFetch('/api/admin/payouts').then(r => r.json()).then(data => {
     if (!Array.isArray(data)) return;
     renderPayouts(data);
   }).catch(() => {
@@ -1009,9 +1076,8 @@ function renderPayouts(queue) {
 }
 function processPayout(id, action) {
   if (!confirm(action === 'approve' ? 'Approve this payout? Make sure you\'ve sent the funds!' : 'Deny this payout? Gold will be refunded to the player.')) return;
-  fetch('/api/admin/payout', {
+  adminFetch('/api/admin/payout', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ requestId: id, action })
   }).then(r => r.json()).then(data => {
     if (data.error) { toast(data.error, true); return; }
@@ -1023,7 +1089,7 @@ function processPayout(id, action) {
 
 /* ── Discord Webhook ── */
 function loadDiscordWebhook() {
-  fetch('/api/admin/discord-webhook').then(r => r.json()).then(data => {
+  adminFetch('/api/admin/discord-webhook').then(r => r.json()).then(data => {
     if (data.url) {
       document.getElementById('discordWebhook').value = data.url;
       document.getElementById('discordStatus').textContent = '✅ Webhook configured';
@@ -1033,9 +1099,8 @@ function loadDiscordWebhook() {
 }
 function saveDiscordWebhook() {
   const url = document.getElementById('discordWebhook').value.trim();
-  fetch('/api/admin/discord-webhook', {
+  adminFetch('/api/admin/discord-webhook', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ url })
   }).then(r => r.json()).then(data => {
     if (data.error) { toast(data.error, true); return; }
@@ -1059,7 +1124,7 @@ function testDiscordWebhook() {
 
 /* ── Discord Bot (Two-Way Chat) ── */
 function loadDiscordBot() {
-  fetch('/api/admin/discord-bot').then(r => r.json()).then(data => {
+  adminFetch('/api/admin/discord-bot').then(r => r.json()).then(data => {
     const el = document.getElementById('discordBotStatus');
     if (data.configured) {
       el.textContent = '✅ Bot connected • Chat channel: ' + data.chatChannelId;
@@ -1074,9 +1139,8 @@ function saveDiscordBot() {
   const botToken = document.getElementById('discordBotToken').value.trim();
   const chatChannelId = document.getElementById('discordChatChannel').value.trim();
   if (!botToken || !chatChannelId) { toast('Need both bot token and channel ID', true); return; }
-  fetch('/api/admin/discord-bot', {
+  adminFetch('/api/admin/discord-bot', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ botToken, chatChannelId })
   }).then(r => r.json()).then(data => {
     if (data.error) { toast(data.error, true); return; }
@@ -1086,7 +1150,7 @@ function saveDiscordBot() {
   }).catch(() => toast('Failed to save bot config', true));
 }
 function disconnectDiscordBot() {
-  fetch('/api/admin/discord-bot/disconnect', { method: 'POST' })
+  adminFetch('/api/admin/discord-bot/disconnect', { method: 'POST' })
     .then(r => r.json()).then(() => {
       toast('Discord bot disconnected');
       document.getElementById('discordBotStatus').textContent = '⚠️ Not configured';
@@ -1109,8 +1173,7 @@ setInterval(() => {
 let gameDb = null;
 let currentDbTab = 'items';
 function loadGameDb() {
-  const pw = new URLSearchParams(window.location.search).get('pw');
-  fetch('/api/admin/gamedata?pw=' + encodeURIComponent(pw || ''))
+  adminFetch('/api/admin/gamedata')
     .then(r => r.json())
     .then(data => {
       if (data.error) { toast(data.error, true); return; }
@@ -1664,10 +1727,14 @@ function renderPlayerLog(log) {
   }).join('');
 }
 
-connect();
-loadPayouts();
-loadDiscordWebhook();
-loadDiscordBot();
+if (adminToken) {
+  connect();
+  loadPayouts();
+  loadDiscordWebhook();
+  loadDiscordBot();
+} else {
+  document.getElementById('loginPassword').focus();
+}
 </script>
 </body>
 </html>

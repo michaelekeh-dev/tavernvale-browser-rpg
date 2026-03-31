@@ -1,6 +1,7 @@
 const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
+const crypto = require('crypto');
 const path = require('path');
 require('dotenv').config();
 const { Game, CONFIG, COSMETICS, WEARABLES, BOSS_LOOT, ITEMS, LOOT_TABLES, RECIPES, NPC_SHOP, ACHIEVEMENTS, RARITY_COLOR, VENDOR_PRICE, RANK_BADGES, getRankBadge, RPG_ZONES, RPG_PICKAXES, TAVERN_QUESTS, GRIZZLE_QUESTS, ENCHANTMENTS, REFINE_RECIPES, ORE_QUALITY } = require('./game');
@@ -11,6 +12,48 @@ const { Game, CONFIG, COSMETICS, WEARABLES, BOSS_LOOT, ITEMS, LOOT_TABLES, RECIP
 const KICK_CHANNEL = 'mikeydamike';
 const PORT = process.env.PORT || 3000;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'kickstream2026';
+
+// ═══════════════════════════════════════════
+// Admin Session Auth (no password in URLs)
+// ═══════════════════════════════════════════
+const adminSessions = new Map(); // token -> { created, ip }
+const ADMIN_SESSION_TTL = 12 * 60 * 60 * 1000; // 12 hours
+const loginAttempts = new Map(); // ip -> { count, firstAttempt }
+const LOGIN_RATE_WINDOW = 15 * 60 * 1000; // 15 minutes
+const LOGIN_MAX_ATTEMPTS = 5;
+
+function createAdminSession(ip) {
+  // Clean expired sessions
+  for (const [t, s] of adminSessions) {
+    if (Date.now() - s.created > ADMIN_SESSION_TTL) adminSessions.delete(t);
+  }
+  const token = crypto.randomBytes(32).toString('hex');
+  adminSessions.set(token, { created: Date.now(), ip });
+  return token;
+}
+
+function validateAdminToken(token) {
+  if (!token) return false;
+  const session = adminSessions.get(token);
+  if (!session) return false;
+  if (Date.now() - session.created > ADMIN_SESSION_TTL) {
+    adminSessions.delete(token);
+    return false;
+  }
+  return true;
+}
+
+function checkLoginRate(ip) {
+  const now = Date.now();
+  const entry = loginAttempts.get(ip);
+  if (!entry || now - entry.firstAttempt > LOGIN_RATE_WINDOW) {
+    loginAttempts.set(ip, { count: 1, firstAttempt: now });
+    return true;
+  }
+  if (entry.count >= LOGIN_MAX_ATTEMPTS) return false;
+  entry.count++;
+  return true;
+}
 
 // If auto-detection fails, set your chatroom ID manually:
 // 1. Open your browser and go to: https://kick.com/api/v2/channels/mikeydamike
@@ -101,13 +144,32 @@ app.get('/rpg', (req, res) => {
   res.sendFile(path.join(__dirname, 'rpg.html'));
 });
 app.get('/admin', (req, res) => {
-  const pw = req.query.pw;
-  if (pw !== ADMIN_PASSWORD) return res.status(403).send('Access denied.');
   res.sendFile(path.join(__dirname, 'admin.html'));
 });
-app.get('/api/admin/gamedata', (req, res) => {
-  const pw = req.query.pw;
-  if (pw !== ADMIN_PASSWORD) return res.status(403).json({ error: 'Access denied' });
+
+app.post('/api/admin/login', (req, res) => {
+  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+  if (!checkLoginRate(ip)) {
+    console.log(`🚫 Admin login rate limited: ${ip}`);
+    return res.status(429).json({ error: 'Too many attempts. Try again in 15 minutes.' });
+  }
+  const { password } = req.body;
+  if (!password || password !== ADMIN_PASSWORD) {
+    console.log(`❌ Admin login failed from ${ip}`);
+    return res.status(401).json({ error: 'Wrong password' });
+  }
+  const token = createAdminSession(ip);
+  console.log(`✅ Admin login from ${ip}`);
+  res.json({ token });
+});
+
+app.post('/api/admin/logout', (req, res) => {
+  const token = (req.headers.authorization || '').replace('Bearer ', '');
+  adminSessions.delete(token);
+  res.json({ success: true });
+});
+
+app.get('/api/admin/gamedata', requireAdminAuth, (req, res) => {
   res.json(game.rpgAdminGetGameData());
 });
 
@@ -181,11 +243,14 @@ app.post('/api/create-checkout', (req, res) => {
   });
 });
 
-// Auth middleware for admin API actions
+// Auth middleware for admin API actions — checks Bearer token
 function requireAdminAuth(req, res, next) {
-  const pw = req.query.pw || req.headers['x-admin-password'];
-  if (pw !== ADMIN_PASSWORD) return res.status(403).json({ error: 'Access denied' });
-  next();
+  const token = (req.headers.authorization || '').replace('Bearer ', '');
+  if (validateAdminToken(token)) return next();
+  // Legacy fallback for overlay (OBS browser source can't set headers)
+  const pw = req.query.pw;
+  if (pw === ADMIN_PASSWORD) return next();
+  return res.status(403).json({ error: 'Access denied' });
 }
 
 // Auth middleware for portal actions
@@ -724,6 +789,25 @@ wss.on('connection', (ws) => {
       if (msg.type === 'reward_effect' && msg.effect) game.applyRewardEffect(msg.effect);
       if (msg.type === 'start_game') game.resetForNewStream();
       if (msg.type === 'test_command') handleChatMessage({ sender: { slug: msg.username }, content: msg.content });
+
+      // Admin WebSocket auth — must authenticate before any admin_ messages
+      if (msg.type === 'admin_auth') {
+        if (validateAdminToken(msg.token)) {
+          ws.isAdmin = true;
+          ws.send(JSON.stringify({ type: 'admin_auth_ok' }));
+        } else {
+          ws.send(JSON.stringify({ type: 'admin_auth_fail' }));
+        }
+        return;
+      }
+
+      // Gate all admin_ messages behind auth
+      if (msg.type && msg.type.startsWith('admin_')) {
+        if (!ws.isAdmin) {
+          ws.send(JSON.stringify({ type: 'admin_error', data: { error: 'Not authenticated' } }));
+          return;
+        }
+      }
 
       // Admin panel messages
       if (msg.type === 'admin_get_players') {
