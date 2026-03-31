@@ -4636,9 +4636,8 @@ function buyGoldPackage(packageId){
     headers:{'Content-Type':'application/json'},
     body:JSON.stringify({username,token:authToken,packageId})
   }).then(r=>r.json()).then(d=>{
-    if(d.url){window.open(d.url,'_blank')}
-    else{showToast(d.error||'Checkout failed','error')}
-    grid.innerHTML=origHTML;
+    if(d.url){window.location.href=d.url}
+    else{showToast(d.error||'Checkout failed','error');grid.innerHTML=origHTML}
   }).catch(()=>{showToast('Payment system error','error');grid.innerHTML=origHTML});
 }
 
