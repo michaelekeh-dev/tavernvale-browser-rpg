@@ -795,6 +795,7 @@ class Game {
     this.linkTokens = {};  // { username: { token, created } }
     this.pendingLinkCodes = {};  // { username: { code, created } }
     this.authAccounts = {};  // { username: { hash, salt } }
+    this.purchaseLog = [];  // Stripe purchase dedup log
 
     // Portal chat (in-memory, last 100 messages)
     this.chatMessages = [];
@@ -845,6 +846,7 @@ class Game {
         this.communityMilestonesCompleted = d.communityMilestonesCompleted || [];
         this.communityMilestoneData = d.communityMilestoneData || { bossKills: 0 };
         this.housingStreets = d.housingStreets || [];
+        this.purchaseLog = d.purchaseLog || [];
       }
     } catch (e) {
       console.error('⚠️ loadData failed:', e.message);
@@ -891,6 +893,7 @@ class Game {
       communityMilestonesCompleted: this.communityMilestonesCompleted,
       communityMilestoneData: this.communityMilestoneData,
       housingStreets: this.housingStreets || [],
+      purchaseLog: this.purchaseLog || [],
     }, null, 2);
     const tmpFile = DATA_FILE + '.tmp';
     try {
@@ -6776,22 +6779,22 @@ class Game {
   creditPurchasedGold(username, goldAmount, transactionId) {
     if (!username || !goldAmount || goldAmount <= 0) return { error: 'invalid' };
     // Prevent duplicate transactions
-    if (!this.data.purchaseLog) this.data.purchaseLog = [];
-    if (this.data.purchaseLog.find(t => t.txId === transactionId)) {
+    if (!this.purchaseLog) this.purchaseLog = [];
+    if (this.purchaseLog.find(t => t.txId === transactionId)) {
       console.log(`⚠️ Duplicate purchase blocked: ${transactionId}`);
       return { error: 'duplicate', gold: 0 };
     }
     const p = this.rpgGetPlayerData(username);
     // Direct gold add (no goldFindMult — purchased gold is exact)
     p.gold += Math.floor(goldAmount);
-    this.data.purchaseLog.push({
+    this.purchaseLog.push({
       txId: transactionId,
       username,
       gold: goldAmount,
       time: Date.now()
     });
     // Keep purchase log trimmed to last 1000 entries
-    if (this.data.purchaseLog.length > 1000) this.data.purchaseLog = this.data.purchaseLog.slice(-1000);
+    if (this.purchaseLog.length > 1000) this.purchaseLog = this.purchaseLog.slice(-1000);
     this.logAction(username, 'purchase', `+${goldAmount}g (Stripe: ${transactionId.slice(0, 20)})`);
     this.saveData();
     return { success: true, gold: p.gold, added: goldAmount };
