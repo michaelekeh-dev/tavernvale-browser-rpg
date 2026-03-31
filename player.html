@@ -402,6 +402,7 @@
     </div>
     <div class="user-info">
       <span class="gold-display" id="top-gold">🪙 0</span>
+      <span class="gold-display" id="top-vg" style="color:#60a5fa">💎 0 VG</span>
       <button class="btn btn-sm btn-gold" onclick="showTipModal()" style="padding:4px 12px;">💸 Tip</button>
       <button class="btn btn-sm btn-primary" onclick="openRPG()" style="padding:4px 14px;background:#c084fc;border-color:#c084fc;">🗡️ Play RPG</button>
       <button class="btn btn-sm btn-gold" id="link-btn" onclick="showLinkModal()">🔗 Link Account</button>
@@ -892,17 +893,28 @@
 
     <div class="panel" id="panel-redeem">
       <div class="card">
-        <div class="card-header">💰 Redeem Gold for Cash</div>
+        <div class="card-header">� Convert Gold → Vault Gold</div>
         <div style="background:var(--bg3);border-radius:8px;padding:14px;margin-bottom:16px;">
-          <div style="font-size:14px;font-weight:700;color:var(--gold);margin-bottom:4px;">Exchange Rate: <span id="redeem-rate">1000</span>g = $1</div>
-          <div style="font-size:12px;color:var(--dim);">Minimum redeem: <span id="redeem-min">5000</span>g · Max: 50,000g/day ($50)</div>
+          <div style="font-size:14px;font-weight:700;color:var(--gold);margin-bottom:4px;">Your Gold: <span id="convert-gold" style="color:var(--gold)">0</span></div>
+          <div style="font-size:14px;font-weight:700;color:#60a5fa;margin-bottom:4px;">Your VG: <span id="convert-vg" style="color:#60a5fa">0</span> 💎</div>
+          <div style="font-size:12px;color:var(--dim);margin-bottom:4px;">Convert 5,000 gold → 1,000 Vault Gold · Once per 24hrs</div>
+          <div style="font-size:11px;color:var(--dim);margin-bottom:8px;font-style:italic;">Only Vault Gold can be withdrawn for real money</div>
+          <div id="portal-vg-cooldown" style="font-size:11px;color:#ef4444;display:none;margin-bottom:8px"></div>
+          <button class="btn btn-gold btn-full" id="portal-vg-btn" onclick="portalConvertVG()" style="background:linear-gradient(135deg,#3b82f6,#8b5cf6);border-color:#60a5fa;">💎 Convert 5,000g → 1,000 VG</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">💰 Redeem Vault Gold for Cash</div>
+        <div style="background:var(--bg3);border-radius:8px;padding:14px;margin-bottom:16px;">
+          <div style="font-size:14px;font-weight:700;color:#60a5fa;margin-bottom:4px;">Exchange Rate: <span id="redeem-rate">1000</span> VG = $1</div>
+          <div style="font-size:12px;color:var(--dim);">Minimum redeem: <span id="redeem-min">1000</span> VG ($1) · Max: 5,000 VG/day ($5)</div>
           <div style="font-size:12px;color:var(--green);margin-top:2px;">Payouts processed quickly by ur boy mikeydamike 🏄‍♂️💨</div>
           <div style="font-size:11px;color:var(--dim);margin-top:2px;font-style:italic;">"we ain't a bank out here, we move FAST" — mikeydamike</div>
-          <div style="font-size:12px;color:var(--dim);margin-top:2px;">Your gold: <span id="redeem-gold" style="color:var(--gold);font-weight:700;">0</span></div>
+          <div style="font-size:12px;color:var(--dim);margin-top:2px;">Your Vault Gold: <span id="redeem-gold" style="color:#60a5fa;font-weight:700;">0</span> 💎</div>
         </div>
         <div class="redeem-form">
-          <label>Amount (gold)</label>
-          <input type="number" id="redeem-amount" placeholder="e.g. 1500" min="1" oninput="updateRedeemPreview()" />
+          <label>Amount (Vault Gold)</label>
+          <input type="number" id="redeem-amount" placeholder="e.g. 1000" min="1" oninput="updateRedeemPreview()" />
           <div style="font-size:12px;color:var(--green);margin-top:4px;" id="redeem-preview"></div>
 
           <label>Payout Method</label>
@@ -1191,6 +1203,7 @@ function refreshTab(tab) {
 function renderAll() {
   if (!profile) return;
   document.getElementById('top-gold').textContent = '🪙 ' + profile.gold.toLocaleString();
+  document.getElementById('top-vg').textContent = '💎 ' + (profile.vaultGold || 0).toLocaleString() + ' VG';
   // Update rank badge in topbar
   if (profile.rankBadge && profile.rankBadge.badge) {
     document.getElementById('top-rank-badge').style.display = 'inline-flex';
@@ -4431,7 +4444,7 @@ function connectChat() {
       if (msg.type === 'boss_spawn') appendSystemMsg(`⚔️ ${msg.data.name} appeared! HP: ${msg.data.hp}`);
       if (msg.type === 'boss_attack') appendSystemMsg(`⚠️ BOSS ATTACK: ${msg.data.attack}! Type !dodge in chat!`);
       if (msg.type === 'payout_processed' && msg.data.username === username) {
-        const funny = msg.data.status === 'approved' ? 'mikeydamike just blessed your wallet 🙏💸' : 'Denied rip... gold refunded tho dw 😅';
+        const funny = msg.data.status === 'approved' ? 'mikeydamike just blessed your wallet 🙏💸' : 'Denied rip... VG refunded tho dw 😅';
         toast(funny, msg.data.status === 'approved' ? 'success' : 'error');
         loadRedeemHistory();
       }
@@ -4532,8 +4545,8 @@ function submitRedeem() {
   fetch('/api/redeem', { method: 'POST', headers: authHeaders(), body: authBody({ gold, method, address }) })
     .then(r => r.json()).then(r => {
       if (r.error) {
-        if (r.error === 'min_redeem') toast(`Minimum redeem is ${r.minimum}g no cap 💰`, 'error');
-        else if (r.error === 'broke') toast(r.message || "You're down bad rn... go farm some bosses 💀", 'error');
+        if (r.error === 'min_redeem') toast(`Minimum redeem is ${r.minimum} VG 💎`, 'error');
+        else if (r.error === 'broke') toast(r.message || "Not enough Vault Gold! Convert gold → VG first 💎", 'error');
         else if (r.error === 'already_pending') toast(r.message || "Chill, you already got one cooking 🍳", 'error');
         else if (r.error === 'invalid_method') toast(r.message || 'Invalid method', 'error');
         else if (r.error === 'max_redeem') toast(r.message || 'Max withdrawal exceeded', 'error');
@@ -4550,6 +4563,31 @@ function submitRedeem() {
     });
 }
 
+function portalConvertVG() {
+  if (!requireLink()) return;
+  const btn = document.getElementById('portal-vg-btn');
+  btn.disabled = true; btn.textContent = 'Converting...';
+  fetch('/api/convert-vg', { method: 'POST', headers: authHeaders(), body: authBody({}) })
+    .then(r => r.json()).then(r => {
+      if (r.error) {
+        if (r.error === 'cooldown' && r.nextConvert) {
+          const remaining = r.nextConvert - Date.now();
+          const hrs = Math.floor(remaining / 3600000);
+          const mins = Math.ceil((remaining % 3600000) / 60000);
+          const cdEl = document.getElementById('portal-vg-cooldown');
+          cdEl.style.display = 'block';
+          cdEl.textContent = '⏰ Cooldown: ' + hrs + 'h ' + mins + 'm remaining';
+        }
+        toast(r.message || r.error, 'error');
+      } else {
+        toast(r.message || 'Converted to Vault Gold! 💎', 'success');
+        document.getElementById('portal-vg-cooldown').style.display = 'none';
+        refreshProfile();
+      }
+      btn.disabled = false; btn.textContent = '💎 Convert 5,000g → 1,000 VG';
+    }).catch(() => { btn.disabled = false; btn.textContent = '💎 Convert 5,000g → 1,000 VG'; toast('Error', 'error'); });
+}
+
 function loadRedeemHistory() {
   fetch('/api/redeem/status/' + encodeURIComponent(username))
     .then(r => r.json()).then(data => {
@@ -4561,7 +4599,7 @@ function loadRedeemHistory() {
         const date = new Date(r.date || r.createdAt).toLocaleDateString();
         return `<div class="redeem-item">
           <div>
-            <div style="font-weight:700;">$${r.dollarValue} (${r.goldAmount}g)</div>
+            <div style="font-weight:700;">$${r.dollarValue} (${r.goldAmount} VG)</div>
             <div style="font-size:11px;color:var(--dim);">${r.method} • ${date}</div>
           </div>
           <span class="redeem-status ${r.status}">${r.status}</span>
@@ -4619,7 +4657,7 @@ enterDashboard = function() {
   loadRedeemHistory();
   // Update redeem panel info
   document.getElementById('redeem-rate').textContent = 1000;
-  document.getElementById('redeem-min').textContent = '5000g · Max: 50,000g/day ($50)';
+  document.getElementById('redeem-min').textContent = '1000 VG ($1) · Max: 5,000 VG/day ($5)';
 };
 
 // Override updateAuthBadge to update chat UI too
@@ -4633,7 +4671,11 @@ updateAuthBadge = function() {
 const _origRenderAll = renderAll;
 renderAll = function() {
   _origRenderAll();
-  if (profile) document.getElementById('redeem-gold').textContent = profile.gold.toLocaleString();
+  if (profile) {
+    document.getElementById('redeem-gold').textContent = (profile.vaultGold || 0).toLocaleString();
+    document.getElementById('convert-gold').textContent = profile.gold.toLocaleString();
+    document.getElementById('convert-vg').textContent = (profile.vaultGold || 0).toLocaleString();
+  }
 };
 
 // Auto-login: check URL params first, then localStorage

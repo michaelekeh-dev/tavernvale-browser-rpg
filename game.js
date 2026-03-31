@@ -908,7 +908,7 @@ class Game {
   player(name) {
     if (!this.players[name]) {
       this.players[name] = {
-        xp: 0, gold: 0, level: 1, totalDamage: 0, lastDaily: 0,
+        xp: 0, gold: 0, vaultGold: 0, level: 1, totalDamage: 0, lastDaily: 0,
         streak: 0, bestStreak: 0, mvpCount: 0, gamblesWon: 0,
         bossKills: 0, dodgeCount: 0, tradeCount: 0,
         prestige: 0, prestigeBonus: 0,
@@ -938,6 +938,8 @@ class Game {
     if (p.prestige === undefined) { p.prestige = 0; p.prestigeBonus = 0; }
     if (p.duelsWon === undefined) { p.duelsWon = 0; p.duelsLost = 0; p.duelWinStreak = 0; p.bestDuelStreak = 0; p.arenaRating = 1000; }
     if (p.arenaTokens === undefined) p.arenaTokens = 0;
+    if (p.vaultGold === undefined) p.vaultGold = 0;
+    if (!p.lastVgConvert) p.lastVgConvert = 0;
     if (!p.activityLog) p.activityLog = [];
     return p;
   }
@@ -948,6 +950,40 @@ class Game {
     if (!p.activityLog) p.activityLog = [];
     p.activityLog.push({ t: Date.now(), a: action, d: detail });
     if (p.activityLog.length > 150) p.activityLog = p.activityLog.slice(-150);
+  }
+
+  // ── Vault Gold System ──────────────────────────
+  // Convert regular gold → Vault Gold (withdrawable). 5000g → 1000 VG, once per day.
+  convertToVaultGold(username) {
+    const p = this.player(username);
+    const CONVERT_COST = 5000;   // gold spent
+    const CONVERT_YIELD = 1000;  // VG received
+    const CONVERT_COOLDOWN = 24 * 60 * 60 * 1000; // 24 hours
+    const since = Date.now() - (p.lastVgConvert || 0);
+    if (since < CONVERT_COOLDOWN) {
+      const remaining = CONVERT_COOLDOWN - since;
+      const hrs = Math.floor(remaining / 3600000);
+      const mins = Math.ceil((remaining % 3600000) / 60000);
+      return { error: 'cooldown', remaining, nextConvert: (p.lastVgConvert || 0) + CONVERT_COOLDOWN, message: `Conversion available in ${hrs}h ${mins}m ⏰` };
+    }
+    if (p.gold < CONVERT_COST) return { error: 'broke', gold: p.gold, cost: CONVERT_COST, message: `Need ${CONVERT_COST.toLocaleString()}g to convert (you have ${p.gold.toLocaleString()}g)` };
+    p.gold -= CONVERT_COST;
+    p.vaultGold = (p.vaultGold || 0) + CONVERT_YIELD;
+    p.lastVgConvert = Date.now();
+    this.logAction(username, 'vg_convert', `${CONVERT_COST}g → ${CONVERT_YIELD} VG`);
+    this.saveData();
+    return { success: true, gold: p.gold, vaultGold: p.vaultGold, converted: CONVERT_YIELD, message: `Converted ${CONVERT_COST.toLocaleString()}g → ${CONVERT_YIELD.toLocaleString()} Vault Gold 💎` };
+  }
+
+  // Award Vault Gold directly (for leaderboards, events, boss kills)
+  awardVaultGold(username, amount, reason) {
+    const p = this.player(username);
+    const amt = Math.floor(amount);
+    if (amt <= 0) return;
+    p.vaultGold = (p.vaultGold || 0) + amt;
+    this.logAction(username, 'vg_award', `+${amt} VG (${reason})`);
+    this.saveData();
+    return { vaultGold: p.vaultGold, added: amt };
   }
 
   randomAppearance() {
@@ -1783,8 +1819,8 @@ class Game {
     listing._buying = true; // lock to prevent double-buy race condition
     buyer.gold -= listing.price;
     const seller = this.player(listing.seller);
-    // 5% sale tax taken from seller's proceeds
-    const tax = Math.max(1, Math.floor(listing.price * 0.05));
+    // 7% sale tax taken from seller's proceeds
+    const tax = Math.max(1, Math.floor(listing.price * 0.07));
     seller.gold += listing.price - tax;
     if (listing.type === 'equipment') buyer.inventory.push(listing.itemData);
     else if (listing.type === 'material') this.addItemToInventory(buyer, listing.itemData.id, listing.itemData.qty || 1);
@@ -1820,7 +1856,7 @@ class Game {
   // ── Cash Balance ─────────────────────────
   handleCashBalance(username) {
     const p = this.player(username);
-    return { username, gold: p.gold, cashValue: (p.gold / CONFIG.goldPerDollar).toFixed(2), rate: CONFIG.goldPerDollar };
+    return { username, gold: p.gold, vaultGold: p.vaultGold || 0, cashValue: ((p.vaultGold || 0) / CONFIG.goldPerDollar).toFixed(2), rate: CONFIG.goldPerDollar, lastVgConvert: p.lastVgConvert || 0 };
   }
 
   // ── Stats / Info ─────────────────────────
@@ -1831,11 +1867,12 @@ class Game {
     return {
       username, level: p.level, xp: p.xp, xpNeeded: this.xpNeeded(p),
       gold: p.gold, totalDamage: p.totalDamage,
+      vaultGold: p.vaultGold || 0,
       minDmg: this.minDmg(p), maxDmg: this.maxDmg(p),
       critChance: Math.round(this.critChance(p) * 100),
       streak: p.streak || 0, bestStreak: p.bestStreak || 0,
       equipped: p.equipped, achievements: p.achievements.length,
-      cashValue: (p.gold / CONFIG.goldPerDollar).toFixed(2),
+      cashValue: ((p.vaultGold || 0) / CONFIG.goldPerDollar).toFixed(2),
       inventoryCount: p.inventory.length, cosmeticCount: p.cosmetics.length,
     };
   }
@@ -2521,12 +2558,14 @@ class Game {
       xp: p.xp,
       xpNeeded: p.level * CONFIG.xpPerLevel,
       gold: p.gold,
+      vaultGold: p.vaultGold || 0,
       totalDamage: p.totalDamage,
       minDmg: this.minDmg(p),
       maxDmg: this.maxDmg(p),
       critChance: this.critChance(p),
       critMultiplier: CONFIG.critMultiplier + this.equipStat(p, 'critMult'),
-      cashValue: (p.gold / CONFIG.goldPerDollar).toFixed(2),
+      cashValue: ((p.vaultGold || 0) / CONFIG.goldPerDollar).toFixed(2),
+      lastVgConvert: p.lastVgConvert || 0,
       streak: p.streak || 0,
       bestStreak: p.bestStreak || 0,
       mvpCount: p.mvpCount || 0,
@@ -2605,12 +2644,13 @@ class Game {
     if (!validMethods.includes(method)) return { error: 'invalid_method', message: 'Nah fam, only Solana or Discord. We ain\'t PayPal over here 😤' };
     const p = this.player(username);
     const amt = parseInt(goldAmount);
-    const minRedeem = 5000;  // $5 minimum (5000g at 1000g/$1)
-    const maxRedeemPerDay = 50000; // $50/day max (50000g at 1000g/$1)
+    const minRedeem = 1000;  // $1 minimum (1000 VG at 1000 VG/$1)
+    const maxRedeemPerDay = 5000; // $5/day max (5000 VG)
     const redeemCooldownMs = 24 * 60 * 60 * 1000; // 24 hours
-    if (isNaN(amt) || amt < minRedeem) return { error: 'min_redeem', minimum: minRedeem };
-    if (amt > maxRedeemPerDay) return { error: 'max_redeem', message: `Max withdrawal is ${maxRedeemPerDay.toLocaleString()}g ($${(maxRedeemPerDay/CONFIG.goldPerDollar).toFixed(0)}) per day 🚫`, maximum: maxRedeemPerDay };
-    if (p.gold < amt) return { error: 'broke', gold: p.gold, message: 'You\'re down bad rn... go farm some bosses 💀' };
+    if (isNaN(amt) || amt < minRedeem) return { error: 'min_redeem', minimum: minRedeem, message: `Minimum withdrawal is ${minRedeem.toLocaleString()} Vault Gold ($${(minRedeem/CONFIG.goldPerDollar).toFixed(0)})` };
+    if (amt > maxRedeemPerDay) return { error: 'max_redeem', message: `Max withdrawal is ${maxRedeemPerDay.toLocaleString()} VG ($${(maxRedeemPerDay/CONFIG.goldPerDollar).toFixed(0)}) per day 🚫`, maximum: maxRedeemPerDay };
+    const vg = p.vaultGold || 0;
+    if (vg < amt) return { error: 'broke', vaultGold: vg, message: `Not enough Vault Gold! You have ${vg.toLocaleString()} VG. Convert gold → VG first! 💎` };
     if (this.payoutQueue.find(r => r.username === username && r.status === 'pending')) return { error: 'already_pending', message: 'Chill, you already got one cooking 🍳' };
     // Check 24h rolling window: total approved + pending in last 24h
     const dayAgo = Date.now() - redeemCooldownMs;
@@ -2619,16 +2659,16 @@ class Game {
       .reduce((sum, r) => sum + r.goldAmount, 0);
     if (recentTotal + amt > maxRedeemPerDay) {
       const remaining = Math.max(0, maxRedeemPerDay - recentTotal);
-      return { error: 'daily_limit', message: `You've hit the daily limit! ${remaining > 0 ? remaining.toLocaleString() + 'g remaining' : 'Try again in 24hrs'} ⏰`, remaining };
+      return { error: 'daily_limit', message: `You've hit the daily limit! ${remaining > 0 ? remaining.toLocaleString() + ' VG remaining' : 'Try again in 24hrs'} ⏰`, remaining };
     }
     const dollarValue = parseFloat((amt / CONFIG.goldPerDollar).toFixed(2));
-    p.gold -= amt;
+    p.vaultGold -= amt;
     const request = {
       id: this.payoutIdCounter++, username, method, address,
       goldAmount: amt, dollarValue, status: 'pending', date: Date.now(),
     };
     this.payoutQueue.push(request);
-    this.logAction(username, 'redeem', amt + 'g ($' + dollarValue + ') via ' + method);
+    this.logAction(username, 'redeem', amt + ' VG ($' + dollarValue + ') via ' + method);
     this.saveData();
     return { success: true, request };
   }
@@ -2647,7 +2687,7 @@ class Game {
       req.status = 'denied';
       req.processedAt = Date.now();
       const p = this.player(req.username);
-      p.gold += req.goldAmount;
+      p.vaultGold = (p.vaultGold || 0) + req.goldAmount;
     }
     this.saveData();
     return { success: true, request: req };
@@ -5360,6 +5400,9 @@ class Game {
       const gold = this.addGold(p, zone.boss.goldReward || 150);
       const xpR = zone.boss.xpReward || 200;
       const leveled = this.addXP(p, xpR);
+      // Award Vault Gold for boss kills
+      const vgAward = zone.boss.vgReward || 0;
+      if (vgAward > 0) { p.vaultGold = (p.vaultGold || 0) + vgAward; }
       p.rpg.mobKills = (p.rpg.mobKills || 0) + 1;
       this.addTrust(p, 10);
       // Roll boss loot table
@@ -5421,8 +5464,8 @@ class Game {
       }
       this.saveData();
       this.emitAchievements(username);
-      this.logAction(username, 'rpg_boss_kill', boss.name + ' +' + gold + 'g +' + xpR + 'xp' + (droppedItems.length ? ' drops:' + droppedItems.map(d=>d.name).join(',') : ''));
-      return { killed: true, dmg, crit, gold, xp: xpR, leveled, level: p.level, currentXP: p.xp, xpNeeded: this.xpNeeded(p), totalGold: p.gold, mobName: boss.name, cfgId: boss.cfgId, drops: droppedItems, wearableDrops: droppedWearables, weaponBroke: wepResult && wepResult.broken ? wepResult.name : null, trust: p.rpg.trust, _zone: rp.zone, _bossId: boss.id };
+      this.logAction(username, 'rpg_boss_kill', boss.name + ' +' + gold + 'g +' + xpR + 'xp' + (vgAward ? ' +' + vgAward + 'VG' : '') + (droppedItems.length ? ' drops:' + droppedItems.map(d=>d.name).join(',') : ''));
+      return { killed: true, dmg, crit, gold, xp: xpR, vgAward, leveled, level: p.level, currentXP: p.xp, xpNeeded: this.xpNeeded(p), totalGold: p.gold, vaultGold: p.vaultGold || 0, mobName: boss.name, cfgId: boss.cfgId, drops: droppedItems, wearableDrops: droppedWearables, weaponBroke: wepResult && wepResult.broken ? wepResult.name : null, trust: p.rpg.trust, _zone: rp.zone, _bossId: boss.id };
     }
     return { hit: true, dmg, crit, bossHP: boss.hp, bossMaxHP: boss.maxHP, burn, poison, holy, lifesteal: lifestealHeal, hp: rp.hp, weaponBroke: wepResult && wepResult.broken ? wepResult.name : null };
   }
@@ -5602,7 +5645,7 @@ class Game {
         const _partyData = _partyId != null ? this.rpgGetPartyData(_partyId) : null;
         return {
           rpg: p.rpg, level: p.level, xp: p.xp, xpNeeded: this.xpNeeded(p),
-          gold: p.gold, maxHP, baseDmg: Math.floor((this.minDmg(p) + this.maxDmg(p)) / 2) || 5,
+          gold: p.gold, vaultGold: p.vaultGold || 0, maxHP, baseDmg: Math.floor((this.minDmg(p) + this.maxDmg(p)) / 2) || 5,
           appearance: p.appearance, equipped: p.equipped,
           activeWearables: p.activeWearables,
           activeCosmetics: p.activeCosmetics || { border: null, title: null, hitEffect: null, badge: null, killEffect: null },
@@ -5647,7 +5690,7 @@ class Game {
         const _partyData = _partyId != null ? this.rpgGetPartyData(_partyId) : null;
         return {
           rpg: p.rpg, level: p.level, xp: p.xp, xpNeeded: this.xpNeeded(p),
-          gold: p.gold, maxHP, baseDmg: Math.floor((this.minDmg(p) + this.maxDmg(p)) / 2) || 5,
+          gold: p.gold, vaultGold: p.vaultGold || 0, maxHP, baseDmg: Math.floor((this.minDmg(p) + this.maxDmg(p)) / 2) || 5,
           appearance: p.appearance, equipped: p.equipped,
           activeWearables: p.activeWearables,
           activeCosmetics: p.activeCosmetics || { border: null, title: null, hitEffect: null, badge: null, killEffect: null },
@@ -5680,6 +5723,7 @@ class Game {
       xp: p.xp,
       xpNeeded: this.xpNeeded(p),
       gold: p.gold,
+      vaultGold: p.vaultGold || 0,
       maxHP,
       baseDmg: Math.floor((this.minDmg(p) + this.maxDmg(p)) / 2) || 5,
       appearance: p.appearance,
@@ -9030,6 +9074,7 @@ const RPG_ZONES = {
       maxHP: 2000,
       goldReward: 800,
       xpReward: 450,
+      vgReward: 10,
       color: '#8844aa',
       arenaX: 2080, arenaY: 1200,
       arenaRadius: 320,
@@ -9080,6 +9125,7 @@ const RPG_ZONES = {
       maxHP: 4000,
       goldReward: 1500,
       xpReward: 800,
+      vgReward: 25,
       color: '#555555',
       arenaX: 1200, arenaY: 360,
       arenaRadius: 300,
@@ -9144,6 +9190,7 @@ const RPG_ZONES = {
       maxHP: 2500,
       goldReward: 750,
       xpReward: 500,
+      vgReward: 15,
       color: '#2d5a1e',
       arenaX: 360, arenaY: 360,
       arenaRadius: 350,
@@ -9216,6 +9263,7 @@ const RPG_ZONES = {
       maxHP: 900,
       goldReward: 600,
       xpReward: 450,
+      vgReward: 5,
       color: '#2a0a3a',
       arenaX: 420, arenaY: 420,
       arenaRadius: 300,
@@ -9270,6 +9318,7 @@ const PARTY_DUNGEON_CONFIG = {
     maxHP: 2500,
     goldReward: 1000,
     xpReward: 800,
+    vgReward: 20,
     color: '#6a1aaa',
     arenaX: 1200, arenaY: 1200,
     arenaRadius: 350,

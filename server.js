@@ -346,6 +346,17 @@ app.post('/api/vendorsell', requireAuth, (req, res) => {
 });
 app.get('/api/vendorprices', (req, res) => res.json(VENDOR_PRICE));
 
+// Vault Gold conversion
+app.post('/api/convert-vg', requireAuth, (req, res) => {
+  const r = game.convertToVaultGold(req.playerName);
+  if (r && r.success) {
+    // Notify connected RPG client
+    broadcastToUser(req.playerName, { type: 'rpg_convert_vg_result', data: r });
+    return res.json(r);
+  }
+  res.status(400).json(r || { error: 'Failed' });
+});
+
 // Payout queue
 app.post('/api/redeem', requireAuth, (req, res) => {
   const { method, address, gold } = req.body;
@@ -355,7 +366,7 @@ app.post('/api/redeem', requireAuth, (req, res) => {
     broadcastToPortal('payout_requested', r.request);
     discordEmbed({
       title: '💰 Payout Request',
-      description: `**${req.playerName}** wants **$${r.request.dollarValue}** (${r.request.goldAmount}g)\n**Method:** ${method}`,
+      description: `**${req.playerName}** wants **$${r.request.dollarValue}** (${r.request.goldAmount} VG)\n**Method:** ${method}`,
       color: 0xFFAA00,
     });
     return res.json(r);
@@ -857,6 +868,10 @@ wss.on('connection', (ws) => {
       if (msg.type === 'rpg_get_achievements' && ws.isRPG && ws.rpgUser) {
         const r = game.rpgGetAchievements(ws.rpgUser);
         ws.send(JSON.stringify({ type: 'rpg_achievements_data', data: r }));
+      }
+      if (msg.type === 'rpg_convert_vg' && ws.isRPG && ws.rpgUser) {
+        const r = game.convertToVaultGold(ws.rpgUser);
+        ws.send(JSON.stringify({ type: 'rpg_convert_vg_result', data: r }));
       }
       if (msg.type === 'rpg_ghost_defeated' && ws.isRPG && ws.rpgUser) {
         // Server validates ghost is actually dead
