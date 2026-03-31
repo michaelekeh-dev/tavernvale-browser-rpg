@@ -31,10 +31,11 @@ const server = http.createServer(app);
 for (const key of Object.keys(process.env)) {
   if (key !== key.trim()) { process.env[key.trim()] = process.env[key]; delete process.env[key]; }
 }
-const STRIPE_SECRET = process.env.STRIPE_SECRET_KEY;
-const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
+const STRIPE_SECRET = (process.env.STRIPE_SECRET_KEY || '').trim();
+const STRIPE_WEBHOOK_SECRET = (process.env.STRIPE_WEBHOOK_SECRET || '').trim();
 const stripe = STRIPE_SECRET ? require('stripe')(STRIPE_SECRET) : null;
 console.log(`💳 Stripe: ${stripe ? 'ENABLED' : 'DISABLED (no STRIPE_SECRET_KEY)'} | Webhook: ${STRIPE_WEBHOOK_SECRET ? 'SET' : 'NOT SET'} | PubKey: ${process.env.STRIPE_PUBLISHABLE_KEY ? 'SET' : 'NOT SET'}`);
+if (STRIPE_SECRET) console.log(`🔑 SK length=${STRIPE_SECRET.length} first8=${STRIPE_SECRET.slice(0,8)} last4=${STRIPE_SECRET.slice(-4)} charCodes=[${[...STRIPE_SECRET.slice(0,12)].map(c=>c.charCodeAt(0)).join(',')}]`);
 
 const GOLD_PACKAGES = [
   { id: 'gold_500',   gold: 500,    price: 100,  label: '500 Gold',    emoji: '🪙' },
