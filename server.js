@@ -46,6 +46,7 @@ const GOLD_PACKAGES = [
 
 // Stripe webhook must use raw body — register BEFORE express.json()
 app.post('/api/stripe-webhook', express.raw({ type: 'application/json' }), (req, res) => {
+  console.log('🔔 Stripe webhook received, type:', req.headers['content-type'], 'bodyLen:', req.body?.length);
   if (!stripe) return res.status(503).json({ error: 'Stripe not configured' });
   let event;
   try {
@@ -61,11 +62,14 @@ app.post('/api/stripe-webhook', express.raw({ type: 'application/json' }), (req,
     return res.status(400).send('Webhook signature verification failed');
   }
 
+  console.log('✅ Webhook event:', event.type);
+
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
     const username = (session.metadata && session.metadata.username) || '';
     const packageId = (session.metadata && session.metadata.package_id) || '';
     const pkg = GOLD_PACKAGES.find(p => p.id === packageId);
+    console.log(`📦 Checkout completed: user=${username} pkg=${packageId} found=${!!pkg}`);
 
     if (username && pkg) {
       const result = game.creditPurchasedGold(username, pkg.gold, session.id);
@@ -76,6 +80,8 @@ app.post('/api/stripe-webhook', express.raw({ type: 'application/json' }), (req,
       } else {
         console.error(`❌ Failed to credit gold to ${username}:`, result);
       }
+    } else {
+      console.error(`❌ Missing data: username=${username} packageId=${packageId} pkgFound=${!!pkg}`);
     }
   }
   res.json({ received: true });
