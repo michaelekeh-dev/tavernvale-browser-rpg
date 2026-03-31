@@ -164,8 +164,8 @@ app.post('/api/create-checkout', (req, res) => {
       quantity: 1,
     }],
     mode: 'payment',
-    success_url: `${origin}/rpg?purchase=success`,
-    cancel_url: `${origin}/rpg?purchase=cancelled`,
+    success_url: `${origin}/play?purchase=success&pkg=${pkg.id}`,
+    cancel_url: `${origin}/play?purchase=cancelled`,
     metadata: { username: username.toLowerCase(), package_id: pkg.id, gold_amount: String(pkg.gold) },
   }).then(session => {
     res.json({ url: session.url });

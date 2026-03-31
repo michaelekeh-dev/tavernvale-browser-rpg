@@ -4649,6 +4649,19 @@ enterDashboard = function() {
   // Update redeem panel info
   document.getElementById('redeem-rate').textContent = 1000;
   document.getElementById('redeem-min').textContent = '1000 VG ($1) · Max: 15,000 VG/day ($15)';
+  // Check for Stripe purchase redirect
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('purchase') === 'success') {
+    const pkgId = params.get('pkg') || '';
+    setTimeout(() => {
+      toast('💰 Payment successful! Gold will be credited shortly.', 'success');
+      refreshProfile();
+    }, 500);
+    window.history.replaceState({}, '', '/play');
+  } else if (params.get('purchase') === 'cancelled') {
+    setTimeout(() => toast('Purchase cancelled.', 'error'), 500);
+    window.history.replaceState({}, '', '/play');
+  }
 };
 
 // Override updateAuthBadge to update chat UI too
