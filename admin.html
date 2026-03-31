@@ -241,7 +241,7 @@ body{font-family:'Segoe UI',sans-serif;background:#0a0a0f;color:#e0e0e0;min-heig
     <input class="player-search" id="playerSearch" placeholder="Search players..." oninput="filterPlayers()">
     <div class="player-scroll">
       <table class="player-table">
-        <thead><tr><th>Player</th><th>Level</th><th>XP</th><th>Gold</th><th>Total DMG</th><th>Items</th><th>Ach</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Player</th><th>Level</th><th>XP</th><th>Gold</th><th>Trust</th><th>Total DMG</th><th>Items</th><th>Ach</th><th>Actions</th></tr></thead>
         <tbody id="playerBody"></tbody>
       </table>
     </div>
@@ -588,6 +588,7 @@ body{font-family:'Segoe UI',sans-serif;background:#0a0a0f;color:#e0e0e0;min-heig
     <label>XP</label><input type="number" id="editXP" min="0">
     <label>Gold</label><input type="number" id="editGold" min="0">
     <label>Total Damage</label><input type="number" id="editDamage" min="0">
+    <label>Trust</label><input type="number" id="editTrust" min="0" max="200">
     <div class="modal-btns">
       <button class="btn btn-gray" onclick="closeModal()">Cancel</button>
       <button class="btn btn-green" onclick="savePlayer()">Save</button>
@@ -876,6 +877,7 @@ function renderPlayers() {
     '<td>' + p.level + '</td>' +
     '<td>' + p.xp + '/' + (p.level * 100) + '</td>' +
     '<td style="color:#fbbf24">🪙 ' + p.gold + '</td>' +
+    '<td style="color:#60a5fa">' + ((p.rpg && p.rpg.trust) || 0) + '</td>' +
     '<td>' + (p.totalDamage || 0).toLocaleString() + '</td>' +
     '<td>' + ((p.inventory || []).length + Object.values(p.equipped || {}).filter(Boolean).length) + '🗡️ ' + (p.cosmetics || []).length + '✨</td>' +
     '<td>' + (p.achievements || []).length + '🏆</td>' +
@@ -893,6 +895,7 @@ function editPlayer(name) {
   document.getElementById('editXP').value = p.xp;
   document.getElementById('editGold').value = p.gold;
   document.getElementById('editDamage').value = p.totalDamage;
+  document.getElementById('editTrust').value = (p.rpg && p.rpg.trust) || 0;
   document.getElementById('editModal').classList.add('active');
 }
 function closeModal() {
@@ -909,6 +912,7 @@ function savePlayer() {
       xp: parseInt(document.getElementById('editXP').value) || 0,
       gold: parseInt(document.getElementById('editGold').value) || 0,
       totalDamage: parseInt(document.getElementById('editDamage').value) || 0,
+      trust: parseInt(document.getElementById('editTrust').value) || 0,
     }
   }));
   closeModal();
@@ -1517,6 +1521,7 @@ function renderInspect(data) {
     stat('Gold', '<span style="color:#fbbf24">' + p.gold.toLocaleString() + 'g</span>') +
     stat('Prestige', p.prestige + (p.prestigeBonus ? ' (+' + (p.prestigeBonus * 100).toFixed(0) + '%)' : '')) +
     stat('Mining Level', (p.miningLevel || 0) + ' (' + (p.miningXp || 0) + ' xp)') +
+    stat('Trust', '<span style="color:#60a5fa">' + (p.trust || 0) + '</span>') +
     stat('Arena Rating', p.arenaRating || 1000);
   // Combat
   document.getElementById('inspectCombat').innerHTML =

@@ -1,3 +1,11 @@
 node_modules/
 .env
 gamedata.json
+
+_check.js
+_temp_check.js
+gamedata.json.bak
+game.js.bak
+rpg_backup.html
+rpg_before_sprites.html
+superpowers-asset-packs/

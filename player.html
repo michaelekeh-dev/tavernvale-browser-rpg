@@ -52,12 +52,13 @@
   .auth-badge { font-size: 10px; padding: 3px 8px; border-radius: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
   .auth-badge.linked { background: rgba(74,222,128,0.15); color: var(--green); }
   .auth-badge.readonly { background: rgba(136,136,136,0.15); color: var(--dim); }
-  .rank-badge-display { font-size: 14px; padding: 2px 8px; border-radius: 8px; background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.2); display: inline-flex; align-items: center; gap: 4px; }
-  .rank-badge-display .rank-emoji { font-size: 16px; }
+  .rank-badge-display { font-size: 14px; padding: 4px 12px; border-radius: 10px; background: linear-gradient(135deg, rgba(251,191,36,0.08), rgba(251,191,36,0.02)); border: 1px solid rgba(251,191,36,0.2); display: inline-flex; align-items: center; gap: 6px; }
+  .rank-badge-display .rank-emoji { font-size: 18px; }
   .rank-badge-display .rank-label { font-size: 10px; color: var(--gold); font-weight: 700; letter-spacing: 0.5px; }
-  .cosmetic-filter { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
-  .cosmetic-filter-btn { padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg3); color: var(--dim); font-size: 11px; cursor: pointer; transition: all 0.2s; }
-  .cosmetic-filter-btn:hover, .cosmetic-filter-btn.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+  .cosmetic-filter { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+  .cosmetic-filter-btn { padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border); background: var(--bg); color: var(--dim); font-size: 11px; cursor: pointer; transition: all 0.2s; font-weight: 600; }
+  .cosmetic-filter-btn:hover { background: var(--bg3); color: var(--text); border-color: rgba(255,255,255,0.12); }
+  .cosmetic-filter-btn.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
 
   /* Tabs */
   .tabs { display: flex; gap: 2px; background: var(--bg2); border-bottom: 1px solid var(--border); overflow-x: auto; padding: 4px 12px 0; }
@@ -68,6 +69,9 @@
   .sub-tab { padding: 10px 18px; cursor: pointer; color: var(--dim); font-size: 12px; font-weight: 600; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
   .sub-tab:hover { color: var(--text); }
   .sub-tab.active { color: var(--gold); border-bottom-color: var(--gold); }
+  .char-inner-tab { color: var(--dim); background: transparent; }
+  .char-inner-tab.active { background: var(--accent); color: #fff; }
+  .char-inner-tab:hover:not(.active) { background: rgba(255,255,255,0.05); color: var(--text); }
   @keyframes slideDown { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
   .panel.active { animation: fadeIn .15s ease; }
@@ -109,16 +113,54 @@
   .inv-item .item-actions { display: flex; gap: 6px; margin-top: 6px; }
 
   /* Cosmetics */
-  .cosmetic-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
-  .cosmetic-card { background: var(--bg3); border-radius: 8px; padding: 14px; position: relative; }
-  .cosmetic-card.owned { border: 1px solid var(--green); }
-  .cosmetic-card.active { border: 1px solid var(--gold); box-shadow: 0 0 12px rgba(251,191,36,0.15); }
+  .cosmetic-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+  .cosmetic-card { background: var(--bg3); border-radius: 10px; padding: 16px; position: relative; border: 1px solid var(--border); transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s; }
+  .cosmetic-card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,0.3); border-color: rgba(255,255,255,0.08); }
+  .cosmetic-card.owned { border-color: rgba(74,222,128,0.35); background: linear-gradient(135deg, var(--bg3), rgba(74,222,128,0.04)); }
+  .cosmetic-card.active { border-color: rgba(251,191,36,0.5); box-shadow: 0 0 16px rgba(251,191,36,0.12), inset 0 0 20px rgba(251,191,36,0.03); background: linear-gradient(135deg, var(--bg3), rgba(251,191,36,0.05)); }
   .cosmetic-name { font-weight: 700; font-size: 14px; margin-bottom: 4px; }
-  .cosmetic-desc { font-size: 12px; color: var(--dim); margin-bottom: 8px; }
-  .cosmetic-cost { color: var(--gold); font-weight: 700; font-size: 13px; }
-  .cosmetic-badge { position: absolute; top: 8px; right: 8px; font-size: 9px; padding: 2px 6px; border-radius: 6px; font-weight: 700; text-transform: uppercase; }
+  .cosmetic-desc { font-size: 12px; color: var(--dim); margin-bottom: 8px; line-height: 1.4; }
+  .cosmetic-cost { color: var(--gold); font-weight: 700; font-size: 14px; display: flex; align-items: center; gap: 4px; }
+  .cosmetic-badge { position: absolute; top: 10px; right: 10px; font-size: 9px; padding: 3px 8px; border-radius: 20px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
   .cosmetic-badge.owned-badge { background: rgba(74,222,128,0.15); color: var(--green); }
-  .cosmetic-badge.active-badge { background: rgba(251,191,36,0.15); color: var(--gold); }
+  .cosmetic-badge.active-badge { background: rgba(251,191,36,0.2); color: var(--gold); }
+  .cosmetic-type-tag { font-size: 9px; color: var(--dim); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; opacity: 0.7; }
+  .cosmetic-preview { margin: 8px 0; display: flex; align-items: center; gap: 8px; }
+  .cosmetic-preview-border { width: 48px; height: 48px; border-radius: 8px; border-width: 3px; border-style: solid; background: var(--bg); display: flex; align-items: center; justify-content: center; font-size: 11px; color: var(--dim); }
+  .cosmetic-preview-border.rainbow { border-image: linear-gradient(135deg, #ff0000, #ff8800, #ffff00, #00ff00, #0088ff, #8800ff) 1; animation: rainbowBorder 3s linear infinite; }
+  .cosmetic-preview-border.fire { border-image: linear-gradient(135deg, #ff4400, #ff8800, #ffcc00) 1; }
+  .cosmetic-preview-border.ice { border-image: linear-gradient(135deg, #88ccff, #44aaff, #aaeeff) 1; }
+  @keyframes rainbowBorder { 0% { filter: hue-rotate(0deg); } 100% { filter: hue-rotate(360deg); } }
+  .cosmetic-preview-emoji { font-size: 28px; line-height: 1; }
+  .cosmetic-preview-effect { width: 48px; height: 48px; border-radius: 8px; background: var(--bg); display: flex; align-items: center; justify-content: center; font-size: 24px; border: 1px solid var(--border); }
+
+  /* Active Loadout */
+  .loadout-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+  .loadout-slot { background: var(--bg3); border: 2px dashed var(--border); border-radius: 10px; padding: 12px 6px; text-align: center; transition: all 0.2s; min-height: 90px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .loadout-slot.filled { border-style: solid; border-color: rgba(251,191,36,0.35); background: linear-gradient(180deg, var(--bg3), rgba(251,191,36,0.04)); }
+  .loadout-slot-label { font-size: 9px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .loadout-slot-preview { font-size: 28px; line-height: 1; margin-bottom: 4px; }
+  .loadout-slot-name { font-size: 10px; font-weight: 700; color: var(--text); line-height: 1.2; }
+  .loadout-slot-empty { font-size: 10px; color: var(--dim); }
+  .loadout-slot .border-preview-box { width: 36px; height: 36px; border-radius: 6px; border-width: 3px; border-style: solid; margin-bottom: 4px; background: var(--bg); }
+  .loadout-slot .border-preview-box.rainbow { border-image: linear-gradient(135deg, #ff0000, #ff8800, #ffff00, #00ff00, #0088ff, #8800ff) 1; animation: rainbowBorder 3s linear infinite; }
+  .loadout-slot .border-preview-box.fire { border-image: linear-gradient(135deg, #ff4400, #ff8800, #ffcc00) 1; }
+  .loadout-slot .border-preview-box.ice { border-image: linear-gradient(135deg, #88ccff, #44aaff, #aaeeff) 1; }
+
+  /* Cosmetics panel section headers */
+  .cosmetics-section { margin-bottom: 8px; }
+  .cosmetics-section-title { font-size: 13px; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 8px; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+  .cosmetics-section-title .section-icon { font-size: 16px; }
+  .cosmetics-section-title .section-count { font-size: 10px; color: var(--dim); font-weight: 600; background: var(--bg3); padding: 2px 8px; border-radius: 10px; }
+
+  /* Wearable equip slots in character panel */
+  .wearable-slots-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 14px; }
+  .wearable-slot-card { background: var(--bg3); border: 2px dashed var(--border); border-radius: 10px; padding: 12px 8px; text-align: center; transition: border-color 0.2s, background 0.2s; }
+  .wearable-slot-card.filled { border-style: solid; }
+  .wearable-slot-label { font-size: 9px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .wearable-slot-emoji { font-size: 18px; display: block; margin-bottom: 4px; }
+  .wearable-slot-name { font-size: 11px; font-weight: 700; line-height: 1.3; }
+  .wearable-slot-empty { font-size: 11px; color: var(--dim); }
 
   /* Market */
   .market-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
@@ -285,7 +327,7 @@
     .sub-tabs { padding: 0 4px; }
     .sub-tab { padding: 8px 10px; font-size: 10px; }
     .main { padding: 12px; }
-    .card { padding: 14px; }
+    .card { padding: 14px; margin-bottom: 12px; }
     .gamble-tab-content { max-width: 100%; }
     .gamble-card { padding: 16px 12px; }
     .gamble-result { font-size: 32px; min-height: 44px; margin: 12px 0; }
@@ -295,11 +337,26 @@
     h1 { font-size: 18px; }
     .login-box { padding: 20px; }
     .login-box input { font-size: 14px; padding: 10px 12px; }
-    .cosmetic-grid { grid-template-columns: 1fr; }
+    .cosmetic-grid { grid-template-columns: 1fr; gap: 10px; }
+    .cosmetic-card { padding: 14px; }
+    .cosmetic-filter { gap: 4px; margin-bottom: 10px; }
+    .cosmetic-filter-btn { padding: 4px 10px; font-size: 10px; }
+    .wearable-slots-grid { grid-template-columns: repeat(2, 1fr); gap: 6px; margin-bottom: 12px; }
+    .wearable-slot-card { padding: 10px 6px; }
+    .wearable-slot-emoji { font-size: 16px; }
+    .wearable-slot-name { font-size: 10px; }
+    .loadout-grid { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .loadout-slot { padding: 10px 4px; min-height: 80px; }
+    .loadout-slot-preview { font-size: 22px; }
+    .loadout-slot-name { font-size: 9px; }
+    .loadout-slot .border-preview-box { width: 28px; height: 28px; }
+    .cosmetic-preview-border { width: 40px; height: 40px; }
+    .cosmetic-preview-emoji { font-size: 22px; }
+    .cosmetic-preview-effect { width: 40px; height: 40px; font-size: 20px; }
     .inv-grid { grid-template-columns: 1fr; }
     .ach-grid { grid-template-columns: 1fr; }
     .customize-grid { grid-template-columns: 1fr; }
-    .char-preview canvas { width: 120px; height: 180px; }
+    .char-preview canvas { width: 120px; height: 195px; }
     .modal { padding: 20px; max-width: 95%; }
     .toast-container { bottom: 12px; right: 12px; left: 12px; }
     .toast { font-size: 12px; padding: 10px 14px; }
@@ -371,7 +428,7 @@
       <div class="card">
         <div class="card-header">🧑 Your Character</div>
         <div class="char-preview">
-          <canvas id="char-canvas" width="160" height="240"></canvas>
+          <canvas id="char-canvas" width="160" height="260"></canvas>
         </div>
         <div class="char-equip-display" id="char-equip-tags"></div>
         <div style="text-align:center;margin-top:8px;">
@@ -379,6 +436,12 @@
           <button class="btn btn-sm btn-gold" id="save-appearance-btn" onclick="saveAppearance()" style="display:none;">💾 Save</button>
         </div>
       </div>
+      <!-- Inner tabs: Customize | Wearables -->
+      <div style="display:flex;gap:2px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:3px;margin-bottom:12px;">
+        <div class="char-inner-tab active" data-citab="customize" onclick="switchCharInnerTab('customize')" style="flex:1;text-align:center;padding:8px 0;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;transition:all .2s;">🎨 Customize</div>
+        <div class="char-inner-tab" data-citab="wearables" onclick="switchCharInnerTab('wearables')" style="flex:1;text-align:center;padding:8px 0;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;transition:all .2s;">👒 Wearables</div>
+      </div>
+      <div id="char-inner-customize">
       <div class="card">
         <div class="card-header">Customize</div>
         <div class="customize-grid">
@@ -420,6 +483,22 @@
           </div>
         </div>
       </div>
+      <div class="card">
+        <div class="card-header">✨ Your Cosmetics</div>
+        <div style="font-size:11px;color:var(--dim);margin-bottom:10px;">Your active cosmetic loadout. Manage in the Cosmetics tab!</div>
+        <div class="loadout-grid" id="char-cosmetic-loadout"></div>
+      </div>
+      </div>
+      <div id="char-inner-wearables" style="display:none;">
+      <div class="card wearables-card">
+        <div class="card-header">👒 Your Wearables</div>
+        <div style="font-size:11px;color:var(--dim);margin-bottom:10px;">Earn-only items from mob drops, boss kills &amp; mining. Tradeable on the marketplace!</div>
+        <div class="wearable-slots-grid" id="wearable-equip-slots"></div>
+        <div class="cosmetic-filter" id="wearable-filter-owned"></div>
+        <div class="cosmetic-grid" id="owned-wearables"></div>
+        <div id="owned-wearables-empty" style="text-align:center;color:var(--dim);padding:20px;display:none;">No wearables found yet. Keep fighting!</div>
+      </div>
+      </div>
     </div>
 
     <!-- STATS PANEL -->
@@ -460,41 +539,54 @@
     <!-- COSMETICS PANEL -->
     <div class="panel" id="panel-cosmetics">
       <div class="card">
-        <div class="card-header">🏷️ Rank Badge</div>
-        <div id="rank-badge-info" style="text-align:center;padding:12px;"></div>
+        <div class="card-header">🌟 Active Loadout</div>
+        <div id="cosmetic-loadout" class="loadout-grid"></div>
       </div>
       <div class="card">
-        <div class="card-header">Your Cosmetics</div>
+        <div class="card-header">🏷️ Rank Badge</div>
+        <div id="rank-badge-info" style="text-align:center;padding:16px;"></div>
+      </div>
+      <div class="card">
+        <div class="cosmetics-section-title"><span class="section-icon">✨</span> Your Cosmetics <span class="section-count" id="owned-cos-count"></span></div>
         <div class="cosmetic-filter" id="cosmetic-filter-owned"></div>
         <div class="cosmetic-grid" id="owned-cosmetics"></div>
-        <div id="owned-cosmetics-empty" style="text-align:center;color:var(--dim);padding:20px;display:none;">No cosmetics owned yet.</div>
+        <div id="owned-cosmetics-empty" style="text-align:center;color:var(--dim);padding:24px;display:none;">No cosmetics owned yet. Visit the shop below!</div>
       </div>
       <div class="card">
-        <div class="card-header">Cosmetic Shop</div>
+        <div class="cosmetics-section-title"><span class="section-icon">🛒</span> Cosmetic Shop <span class="section-count" id="shop-cos-count"></span></div>
         <div class="cosmetic-filter" id="cosmetic-filter-shop"></div>
         <div class="cosmetic-grid" id="cosmetic-shop"></div>
-      </div>
-      <div class="card">
-        <div class="card-header">👒 Your Wearables</div>
-        <div style="font-size:11px;color:var(--dim);margin-bottom:10px;">Earn-only items from mob drops, boss kills &amp; mining. Tradeable on the marketplace!</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;" id="wearable-equip-slots"></div>
-        <div class="cosmetic-filter" id="wearable-filter-owned"></div>
-        <div class="cosmetic-grid" id="owned-wearables"></div>
-        <div id="owned-wearables-empty" style="text-align:center;color:var(--dim);padding:20px;display:none;">No wearables found yet. Keep fighting!</div>
       </div>
     </div>
 
     <!-- MARKET PANEL -->
     <div class="panel" id="panel-market">
-      <div class="card">
-        <div class="card-header">Your Listings</div>
-        <div class="market-grid" id="my-listings"></div>
-        <div id="my-listings-empty" style="text-align:center;color:var(--dim);padding:20px;">No active listings.</div>
+      <div style="display:flex;gap:2px;background:var(--bg2);border-bottom:1px solid var(--border);padding:4px 12px 0;margin-bottom:16px;">
+        <div class="tab active" data-mtab="browse" onclick="switchMarketTab('browse')">🏪 Browse</div>
+        <div class="tab" data-mtab="listings" onclick="switchMarketTab('listings')">📋 My Listings</div>
+        <div class="tab" data-mtab="sell" onclick="switchMarketTab('sell')">💰 Sell</div>
       </div>
-      <div class="card">
-        <div class="card-header">Marketplace</div>
-        <div class="market-grid" id="market-grid"></div>
-        <div id="market-empty" style="text-align:center;color:var(--dim);padding:20px;display:none;">Marketplace is empty.</div>
+      <div id="mtab-browse">
+        <div class="card">
+          <div class="card-header">Marketplace</div>
+          <div class="market-grid" id="market-grid"></div>
+          <div id="market-empty" style="text-align:center;color:var(--dim);padding:20px;">Marketplace is empty.</div>
+        </div>
+      </div>
+      <div id="mtab-listings" style="display:none">
+        <div class="card">
+          <div class="card-header">Your Listings</div>
+          <div class="market-grid" id="my-listings"></div>
+          <div id="my-listings-empty" style="text-align:center;color:var(--dim);padding:20px;">No active listings.</div>
+        </div>
+      </div>
+      <div id="mtab-sell" style="display:none">
+        <div class="card">
+          <div class="card-header">💰 Sell Your Items</div>
+          <div style="font-size:11px;color:var(--dim);margin-bottom:10px;padding:0 4px;">List equipment &amp; materials on the marketplace. 2% listing fee.</div>
+          <div id="sell-inv-grid" class="market-grid"></div>
+          <div id="sell-inv-empty" style="text-align:center;color:var(--dim);padding:16px;">No sellable items in your inventory.</div>
+        </div>
       </div>
     </div>
 
@@ -723,6 +815,13 @@
       <div class="card">
         <div class="card-header">🏆 Arena Leaderboard</div>
         <div id="arena-lb"></div>
+      </div>
+
+      <!-- PvP Token Shop -->
+      <div class="card">
+        <div class="card-header">🛒 PvP Token Shop</div>
+        <div style="color:var(--dim);font-size:12px;margin-bottom:8px;">Spend Arena Tokens earned from RPG Colosseum duels</div>
+        <div id="pvp-shop-items" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;"></div>
       </div>
     </div>
 
@@ -1029,6 +1128,18 @@ function switchMainTab(tabId) {
   }
 }
 
+function switchCharInnerTab(tab) {
+  document.querySelectorAll('.char-inner-tab').forEach(t => {
+    const isActive = t.dataset.citab === tab;
+    t.classList.toggle('active', isActive);
+    t.style.background = isActive ? 'var(--accent)' : 'transparent';
+    t.style.color = isActive ? '#fff' : 'var(--dim)';
+  });
+  document.getElementById('char-inner-customize').style.display = tab === 'customize' ? '' : 'none';
+  document.getElementById('char-inner-wearables').style.display = tab === 'wearables' ? '' : 'none';
+  if (tab === 'wearables') renderWearables();
+}
+
 function switchSubTab(subId) {
   currentSubTab = subId;
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
@@ -1037,7 +1148,8 @@ function switchSubTab(subId) {
   if (panel) panel.classList.add('active');
   if (['market', 'boss', 'leaderboard', 'arena', 'prestige'].includes(subId)) refreshTab(subId);
   if (subId === 'gambling') { updateGambleGold(); checkGamblingStatus(); }
-  if (subId === 'character') drawCharacter();
+  if (subId === 'character') { drawCharacter(); renderCharacterCosmetics(); renderWearables(); }
+  if (subId === 'cosmetics') { renderCosmetics(); }
 }
 
 document.querySelectorAll('#main-tabs .tab').forEach(tab => {
@@ -1075,6 +1187,8 @@ function renderAll() {
   renderStats();
   renderEquipment();
   renderCosmetics();
+  renderWearables();
+  renderCharacterCosmetics();
   renderAchievements();
   renderCharacter();
   updateGambleGold();
@@ -1172,10 +1286,101 @@ function renderEquipment() {
   }
 }
 
+function cosmeticPreviewHTML(cos, size) {
+  if (!cos) return '';
+  const sz = size || 'normal';
+  if (cos.type === 'border') {
+    const special = ['rainbow','fire','ice'].includes(cos.cssVal) ? cos.cssVal : '';
+    const style = special ? '' : `border-color:${cos.cssVal};`;
+    if (sz === 'slot') return `<div class="border-preview-box${special ? ' '+special : ''}" style="${style}"></div>`;
+    return `<div class="cosmetic-preview"><div class="cosmetic-preview-border${special ? ' '+special : ''}" style="${style}">Aa</div></div>`;
+  }
+  if (cos.type === 'title') {
+    if (sz === 'slot') return `<div class="loadout-slot-preview">${cos.titleText || '?'}</div>`;
+    return `<div class="cosmetic-preview"><span class="cosmetic-preview-emoji">${cos.titleText || '?'}</span></div>`;
+  }
+  if (cos.type === 'badge') {
+    if (sz === 'slot') return `<div class="loadout-slot-preview">${cos.badgeEmoji || '?'}</div>`;
+    return `<div class="cosmetic-preview"><span class="cosmetic-preview-emoji">${cos.badgeEmoji || '?'}</span></div>`;
+  }
+  if (cos.type === 'hitEffect') {
+    const eIcons = {fire:'🔥',ice:'❄️',lightning:'⚡',shadow:'🌑',blood:'🩸',holy:'✨'};
+    const icon = eIcons[cos.effectId] || '💥';
+    if (sz === 'slot') return `<div class="loadout-slot-preview">${icon}</div>`;
+    return `<div class="cosmetic-preview"><div class="cosmetic-preview-effect">${icon}</div></div>`;
+  }
+  if (cos.type === 'killEffect') {
+    const kIcons = {explode:'💥',disintegrate:'✨',smite:'⚡'};
+    const icon = kIcons[cos.effectId] || '☠️';
+    if (sz === 'slot') return `<div class="loadout-slot-preview">${icon}</div>`;
+    return `<div class="cosmetic-preview"><div class="cosmetic-preview-effect">${icon}</div></div>`;
+  }
+  return '';
+}
+
+function renderCharacterCosmetics() {
+  const p = profile;
+  if (!p) return;
+  const active = p.activeCosmetics || {};
+  const el = document.getElementById('char-cosmetic-loadout');
+  if (!el) return;
+  const slotDefs = [
+    { key: 'border', label: 'Border', emptyIcon: '🖼️' },
+    { key: 'title', label: 'Title', emptyIcon: '🏷️' },
+    { key: 'badge', label: 'Badge', emptyIcon: '📛' },
+    { key: 'hitEffect', label: 'Hit Effect', emptyIcon: '💥' },
+    { key: 'killEffect', label: 'Kill Effect', emptyIcon: '☠️' },
+  ];
+  el.innerHTML = slotDefs.map(sd => {
+    const cosKey = active[sd.key];
+    const cos = cosKey ? allCosmetics[cosKey] : null;
+    if (cos) {
+      return `<div class="loadout-slot filled">
+        <div class="loadout-slot-label">${sd.label}</div>
+        ${cosmeticPreviewHTML(cos, 'slot')}
+        <div class="loadout-slot-name">${cos.name}</div>
+      </div>`;
+    }
+    return `<div class="loadout-slot">
+      <div class="loadout-slot-label">${sd.label}</div>
+      <div class="loadout-slot-preview" style="opacity:0.3">${sd.emptyIcon}</div>
+      <div class="loadout-slot-empty">None</div>
+    </div>`;
+  }).join('');
+}
+
 function renderCosmetics() {
   const p = profile;
   const ownedSet = new Set(p.cosmetics || []);
   const active = p.activeCosmetics || {};
+
+  // Active Loadout showcase
+  const loadoutEl = document.getElementById('cosmetic-loadout');
+  if (loadoutEl) {
+    const slotDefs = [
+      { key: 'border', label: 'Border', emptyIcon: '🖼️' },
+      { key: 'title', label: 'Title', emptyIcon: '🏷️' },
+      { key: 'badge', label: 'Badge', emptyIcon: '📛' },
+      { key: 'hitEffect', label: 'Hit Effect', emptyIcon: '💥' },
+      { key: 'killEffect', label: 'Kill Effect', emptyIcon: '☠️' },
+    ];
+    loadoutEl.innerHTML = slotDefs.map(sd => {
+      const cosKey = active[sd.key];
+      const cos = cosKey ? allCosmetics[cosKey] : null;
+      if (cos) {
+        return `<div class="loadout-slot filled">
+          <div class="loadout-slot-label">${sd.label}</div>
+          ${cosmeticPreviewHTML(cos, 'slot')}
+          <div class="loadout-slot-name">${cos.name}</div>
+        </div>`;
+      }
+      return `<div class="loadout-slot">
+        <div class="loadout-slot-label">${sd.label}</div>
+        <div class="loadout-slot-preview" style="opacity:0.3">${sd.emptyIcon}</div>
+        <div class="loadout-slot-empty">None</div>
+      </div>`;
+    }).join('');
+  }
 
   // Rank badge info card
   const rbInfo = document.getElementById('rank-badge-info');
@@ -1217,6 +1422,9 @@ function renderCosmetics() {
   const owned = Object.entries(allCosmetics).filter(([k]) => ownedSet.has(k));
   const ownedFiltered = cosmeticFilterOwned === 'all' ? owned : owned.filter(([k]) => getType(k) === cosmeticFilterOwned);
 
+  const ownedCountEl = document.getElementById('owned-cos-count');
+  if (ownedCountEl) ownedCountEl.textContent = owned.length + ' owned';
+
   renderFilterBar('cosmetic-filter-owned', owned, { get current() { return cosmeticFilterOwned; }, set current(v) { cosmeticFilterOwned = v; } });
 
   if (ownedFiltered.length === 0) {
@@ -1230,10 +1438,11 @@ function renderCosmetics() {
       const typeTag = typeLabels[cos.type] || cos.type;
       return `<div class="cosmetic-card owned${isActive ? ' active' : ''}">
         ${isActive ? '<span class="cosmetic-badge active-badge">ACTIVE</span>' : '<span class="cosmetic-badge owned-badge">OWNED</span>'}
-        <div style="font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px;">${typeTag}</div>
+        <div class="cosmetic-type-tag">${typeTag}</div>
+        ${cosmeticPreviewHTML(cos)}
         <div class="cosmetic-name">${cos.name}</div>
         <div class="cosmetic-desc">${cos.desc}</div>
-        ${authToken ? `<div style="display:flex;gap:6px;margin-top:8px;">
+        ${authToken ? `<div style="display:flex;gap:6px;margin-top:10px;">
           ${!isActive ? `<button class="btn btn-sm btn-primary" onclick="doEquipCosmetic('${key}')">Equip</button>` : ''}
           <button class="btn btn-sm btn-outline" onclick="showSellModal('${key}', '${esc(cos.name)}', 'cosmetic')">Sell</button>
         </div>` : ''}
@@ -1246,6 +1455,9 @@ function renderCosmetics() {
   const allShopItems = Object.entries(allCosmetics);
   const shopFiltered = cosmeticFilterShop === 'all' ? allShopItems : allShopItems.filter(([k]) => getType(k) === cosmeticFilterShop);
 
+  const shopCountEl = document.getElementById('shop-cos-count');
+  if (shopCountEl) shopCountEl.textContent = allShopItems.length + ' items';
+
   renderFilterBar('cosmetic-filter-shop', allShopItems, { get current() { return cosmeticFilterShop; }, set current(v) { cosmeticFilterShop = v; } });
 
   shopEl.innerHTML = shopFiltered.map(([key, cos]) => {
@@ -1253,16 +1465,14 @@ function renderCosmetics() {
     const typeTag = typeLabels[cos.type] || cos.type;
     return `<div class="cosmetic-card${isOwned ? ' owned' : ''}">
       ${isOwned ? '<span class="cosmetic-badge owned-badge">OWNED</span>' : ''}
-      <div style="font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px;">${typeTag}</div>
+      <div class="cosmetic-type-tag">${typeTag}</div>
+      ${cosmeticPreviewHTML(cos)}
       <div class="cosmetic-name">${cos.name}</div>
       <div class="cosmetic-desc">${cos.desc}</div>
       <div class="cosmetic-cost">🪙 ${cos.cost}</div>
-      ${authToken && !isOwned ? `<button class="btn btn-sm btn-gold" style="margin-top:8px" onclick="doBuyCosmetic('${key}')">Buy</button>` : ''}
+      ${authToken && !isOwned ? `<button class="btn btn-sm btn-gold" style="margin-top:10px" onclick="doBuyCosmetic('${key}')">Buy</button>` : ''}
     </div>`;
   }).join('');
-
-  // Render wearables section
-  renderWearables();
 }
 
 function renderWearables() {
@@ -1280,11 +1490,12 @@ function renderWearables() {
       const key = activeW[slot];
       const w = key ? allWearables[key] : null;
       const rc = w ? (rColors[w.rarity] || '#aaa') : 'var(--border)';
-      return `<div style="flex:1;min-width:100px;background:var(--bg3);border:2px solid ${rc};border-radius:8px;padding:10px;text-align:center;">
-        <div style="font-size:10px;color:var(--dim);text-transform:uppercase;">${slotEmoji[slot]} ${slotLabels[slot]}</div>
-        ${w ? `<div style="font-size:13px;font-weight:700;color:${rc};margin:4px 0;">${w.icon || ''} ${w.name}</div>
-          ${authToken ? `<button class="btn btn-sm btn-outline" style="margin-top:4px" onclick="doUnequipWearable('${slot}')">Remove</button>` : ''}` :
-          `<div style="font-size:12px;color:var(--dim);margin:4px 0;">Empty</div>`}
+      return `<div class="wearable-slot-card${w ? ' filled' : ''}" style="border-color:${rc};">
+        <div class="wearable-slot-emoji">${slotEmoji[slot]}</div>
+        <div class="wearable-slot-label">${slotLabels[slot]}</div>
+        ${w ? `<div class="wearable-slot-name" style="color:${rc}">${w.icon || ''} ${w.name}</div>
+          ${authToken ? `<button class="btn btn-sm btn-outline" style="margin-top:6px;font-size:10px;padding:3px 8px;" onclick="doUnequipWearable('${slot}')">Remove</button>` : ''}` :
+          `<div class="wearable-slot-empty">Empty</div>`}
       </div>`;
     }).join('');
   }
@@ -1314,12 +1525,12 @@ function renderWearables() {
       const isActive = Object.values(activeW).includes(key);
       return `<div class="cosmetic-card${isActive ? ' active' : ''}" style="border-left:3px solid ${rc}">
         ${isActive ? '<span class="cosmetic-badge active-badge">EQUIPPED</span>' : ''}
-        <div style="font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px;">${slotEmoji[w.slot]||''} ${slotLabels[w.slot]||w.slot}</div>
+        <div class="cosmetic-type-tag">${slotEmoji[w.slot]||''} ${slotLabels[w.slot]||w.slot}</div>
         <div class="cosmetic-name" style="color:${rc}">${w.icon || ''} ${w.name}</div>
-        <div style="font-size:10px;color:${rc};margin-bottom:2px;font-weight:600">${w.rarity.toUpperCase()}</div>
+        <div style="font-size:10px;color:${rc};margin-bottom:3px;font-weight:600">${w.rarity.toUpperCase()}</div>
         <div class="cosmetic-desc">${w.desc}</div>
         <div style="font-size:10px;color:var(--dim);margin-top:4px;">Source: ${w.source || 'Drop'}</div>
-        ${authToken ? `<div style="display:flex;gap:6px;margin-top:8px;">
+        ${authToken ? `<div style="display:flex;gap:6px;margin-top:10px;">
           ${!isActive ? `<button class="btn btn-sm btn-primary" onclick="doEquipWearable('${key}')">Equip</button>` : ''}
           <button class="btn btn-sm btn-outline" onclick="showSellModal('${key}', '${esc(w.name)}', 'wearable')">Sell</button>
         </div>` : ''}
@@ -1328,12 +1539,21 @@ function renderWearables() {
   }
 }
 
+function switchMarketTab(tab) {
+  ['browse','listings','sell'].forEach(t => {
+    const el = document.getElementById('mtab-' + t);
+    if (el) el.style.display = t === tab ? '' : 'none';
+  });
+  document.querySelectorAll('[data-mtab]').forEach(t => t.classList.toggle('active', t.dataset.mtab === tab));
+}
+
 function renderMarket(listings) {
+  // Also render sell section
+  renderMarketSell();
   const myListings = listings.filter(l => l.seller === username);
-  const otherListings = listings.filter(l => l.seller !== username);
   const rarityColors = {common:'#888',uncommon:'#4ade80',rare:'#60a5fa',epic:'#c084fc',legendary:'#fbbf24',mythic:'#ff4444'};
 
-  // My listings
+  // My listings tab
   const myEl = document.getElementById('my-listings');
   const myEmpty = document.getElementById('my-listings-empty');
   if (myListings.length === 0) {
@@ -1353,23 +1573,25 @@ function renderMarket(listings) {
     }).join('');
   }
 
-  // Other listings
+  // Browse tab — all listings
   const marketEl = document.getElementById('market-grid');
   const marketEmpty = document.getElementById('market-empty');
-  if (otherListings.length === 0) {
+  if (listings.length === 0) {
     marketEl.innerHTML = '';
     marketEmpty.style.display = 'block';
   } else {
     marketEmpty.style.display = 'none';
-    marketEl.innerHTML = otherListings.map(l => {
+    marketEl.innerHTML = listings.map(l => {
       const rColor = rarityColors[l.rarity] || '#aaa';
       const name = l.name || 'Unknown';
-      return `<div class="market-item">
-        <div class="seller">Sold by ${l.seller}</div>
+      const isMine = l.seller === username;
+      return `<div class="market-item"${isMine?' style="border-left:3px solid var(--gold)"':''}>
+        <div class="seller">${isMine?'<span style="color:var(--gold)">Your listing</span>':'Sold by '+l.seller}</div>
         <div class="item-name" style="color:${rColor}">${l.icon||''} ${name}${l.qty?' x'+l.qty:''}</div>
-        <div style="font-size:10px;color:var(--dim)">${l.type}</div>
+        <div style="font-size:10px;color:var(--dim)">${l.type}${l.desc?' — '+l.desc:''}</div>
         <div class="price">🪙 ${l.price}</div>
-        ${authToken ? `<button class="btn btn-sm btn-gold" style="margin-top:8px" onclick="doBuyMarket('${l.id}')">Buy</button>` : ''}
+        ${authToken && !isMine ? `<button class="btn btn-sm btn-gold" style="margin-top:8px" onclick="doBuyMarket('${l.id}')">Buy</button>` : ''}
+        ${authToken && isMine ? `<button class="btn btn-sm btn-danger" style="margin-top:8px" onclick="doCancel('${l.id}')">Cancel</button>` : ''}
       </div>`;
     }).join('');
   }
@@ -1492,6 +1714,65 @@ function doCancel(lid) {
   if (!requireLink()) return;
   fetch('/api/cancel', { method: 'POST', headers: authHeaders(), body: authBody({ listingId: lid }) })
     .then(r => r.json()).then(r => { if (r.error) toast(r.error, 'error'); else { toast('Listing cancelled', 'success'); refreshProfile(); refreshTab('market'); }});
+}
+
+function renderMarketSell() {
+  if (!profile) return;
+  const grid = document.getElementById('sell-inv-grid');
+  const empty = document.getElementById('sell-inv-empty');
+  if (!grid) return;
+  const rarityColors = {common:'#888',uncommon:'#4ade80',rare:'#60a5fa',epic:'#c084fc',legendary:'#fbbf24',mythic:'#ff4444'};
+  const inv = profile.inventory || [];
+  // Equipment items (non-stackable)
+  const equipment = inv.filter(i => !i.stackable && i.id !== 'goblin_key');
+  // Materials (stackable) — group by id
+  const matMap = {};
+  inv.filter(i => i.stackable && i.id !== 'goblin_key').forEach(i => {
+    if (!matMap[i.id]) matMap[i.id] = { ...i, qty: 0 };
+    matMap[i.id].qty += (i.qty || 1);
+  });
+  const materials = Object.values(matMap);
+  const items = [...equipment, ...materials];
+  if (items.length === 0) {
+    grid.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  grid.innerHTML = items.map(item => {
+    const rColor = rarityColors[item.rarity] || '#aaa';
+    const isStack = item.stackable;
+    const uid = 'sell_' + (item.uid || item.id);
+    return `<div class="market-item" style="border-left:3px solid ${rColor}">
+      <div class="item-name" style="color:${rColor}">${item.icon||''} ${item.name||item.id}${isStack ? ' x'+item.qty : ''}</div>
+      <div style="font-size:10px;color:var(--dim)">${item.rarity || ''} ${item.type || ''}</div>
+      ${item.desc ? '<div style="font-size:10px;color:var(--dim);margin:2px 0">'+item.desc+'</div>' : ''}
+      ${authToken ? `<div style="display:flex;gap:6px;align-items:center;margin-top:8px">
+        <input type="number" id="${uid}" placeholder="Price" min="1" style="width:80px;padding:6px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:12px;text-align:center">
+        <button class="btn btn-sm btn-gold" onclick="doSellFromPortal('${item.uid||''}','${item.id}',${isStack?item.qty:0},'${uid}')">List</button>
+      </div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function doSellFromPortal(uid, itemId, qty, inputId) {
+  const priceEl = document.getElementById(inputId);
+  const price = parseInt(priceEl && priceEl.value);
+  if (!price || price < 1) { toast('Enter a valid price', 'error'); return; }
+  if (!requireLink()) return;
+  let endpoint, bodyData;
+  if (uid) {
+    endpoint = '/api/sell';
+    bodyData = { itemUid: uid, price: String(price) };
+  } else {
+    endpoint = '/api/sellmaterial';
+    bodyData = { itemId, qty: String(qty), price: String(price) };
+  }
+  fetch(endpoint, { method: 'POST', headers: authHeaders(), body: authBody(bodyData) })
+    .then(r => r.json()).then(r => {
+      if (r.error) toast(r.message || r.error, 'error');
+      else { toast('Listed on market!', 'success'); refreshProfile(); refreshTab('market'); }
+    });
 }
 
 let gambleHistory = [];
@@ -1734,6 +2015,7 @@ function renderArena() {
   renderArenaStats();
   loadPendingDuels();
   loadArenaLeaderboard();
+  loadPvpShop();
 }
 
 function renderArenaStats() {
@@ -1743,11 +2025,11 @@ function renderArenaStats() {
   const ratingColor = (p.arenaRating || 1000) >= 1500 ? 'var(--gold)' : (p.arenaRating || 1000) >= 1200 ? 'var(--green)' : 'var(--text)';
   const stats = [
     { val: p.arenaRating || 1000, label: 'Arena Rating', color: ratingColor },
+    { val: p.arenaTokens || 0, label: 'Arena Tokens', color: 'var(--accent)' },
     { val: p.duelsWon || 0, label: 'Wins', color: 'var(--green)' },
     { val: p.duelsLost || 0, label: 'Losses', color: 'var(--red)' },
     { val: p.duelWinStreak || 0, label: 'Win Streak', color: 'var(--gold)' },
     { val: p.bestDuelStreak || 0, label: 'Best Streak', color: 'var(--purple)' },
-    { val: p.prestige || 0, label: 'Prestige', color: 'var(--gold)' },
   ];
   grid.innerHTML = stats.map(s => `<div class="stat-item"><div class="stat-value" style="color:${s.color}">${s.val}</div><div class="stat-label">${s.label}</div></div>`).join('');
 }
@@ -1918,6 +2200,9 @@ function playDuelAnimation(result) {
     else if(hs==='long'){px(hx,hy-1,10,2,hair);px(hx-1,hy+1,2,7,hair);px(hx+9,hy+1,2,7,hair);}
     else if(hs==='curly'){px(hx-1,hy-1,12,2,hair);px(hx-1,hy+1,2,4,hair);px(hx+9,hy+1,2,4,hair);}
     else if(hs==='messy'){px(hx-1,hy-2,12,3,hair);px(hx+1,hy-3,2,1,hair);px(hx+6,hy-3,3,1,hair);}
+    else if(hs==='ponytail'){px(hx,hy-1,10,2,hair);px(hx+9,hy+1,2,3,hair);px(hx+10,hy+4,1,3,hair);}
+    else if(hs==='buzz'){px(hx,hy-1,10,2,hair);px(hx,hy+1,1,1,hair);px(hx+9,hy+1,1,1,hair);}
+    else if(hs==='afro'){px(hx-2,hy-3,14,5,hair);px(hx-2,hy+2,2,3,hair);px(hx+10,hy+2,2,3,hair);}
     // Eyes
     const lex=hx+2, rex=hx+6, eey=hy+3;
     px(lex,eey,2,1,'#fff');px(lex+1,eey,1,1,eye);
@@ -2145,6 +2430,40 @@ function loadArenaLeaderboard() {
         <td>${p.prestige > 0 ? '⭐'.repeat(Math.min(p.prestige, 5)) + (p.prestige > 5 ? '+' : '') : '-'}</td>
       </tr>`).join('') + `</tbody></table>`;
   });
+}
+
+function loadPvpShop() {
+  fetch('/api/pvp-shop/' + username).then(r => r.json()).then(data => {
+    const el = document.getElementById('pvp-shop-items');
+    if (!el) return;
+    if (!data.items || data.items.length === 0) { el.innerHTML = '<div style="color:var(--dim);text-align:center;padding:12px;">No items available</div>'; return; }
+    el.innerHTML = data.items.map(item => {
+      const owned = data.owned && data.owned.includes(item.id);
+      return `<div style="background:var(--bg3);border:1px solid ${owned ? 'var(--green)' : 'var(--border)'};border-radius:10px;padding:12px;text-align:center;">
+        <div style="font-size:20px;margin-bottom:4px;">${item.slot === 'cape' ? '🧥' : item.slot === 'aura' ? '✨' : item.slot === 'wrist' ? '💎' : '🎭'}</div>
+        <div style="font-weight:700;color:var(--text);font-size:13px;">${esc(item.name)}</div>
+        <div style="color:var(--dim);font-size:11px;margin:4px 0;">${item.slot}</div>
+        <div style="color:var(--gold);font-weight:700;font-size:14px;margin:6px 0;">${item.cost} 🪙</div>
+        ${owned ? '<div style="color:var(--green);font-weight:700;font-size:12px;">✅ Owned</div>' :
+          `<button class="btn btn-sm btn-gold" onclick="buyPvpItem('${item.id}')">Buy</button>`}
+      </div>`;
+    }).join('');
+  }).catch(() => {});
+}
+
+function buyPvpItem(itemId) {
+  if (!requireLink()) return;
+  fetch('/api/pvp-shop/buy', { method: 'POST', headers: authHeaders(), body: authBody({ itemId }) })
+    .then(r => r.json()).then(r => {
+      if (r.error) {
+        const msgs = { not_enough_tokens: 'Not enough Arena Tokens!', already_owned: 'Already owned!', invalid_item: 'Invalid item' };
+        toast(msgs[r.error] || r.error, 'error');
+      } else {
+        toast(`🎉 Purchased ${r.item.name}!`, 'success');
+        refreshProfile();
+        loadPvpShop();
+      }
+    });
 }
 
 // ═══════════════════════════════════════════
@@ -2398,7 +2717,17 @@ function buildCustomizeUI() {
   const a = currentAppearance;
 
   // Gender picker
-  buildOptionPicker('pick-gender', GENDERS, a.gender || 'male', v => { setAppearance('gender', v); });
+  buildOptionPicker('pick-gender', GENDERS, a.gender || 'male', v => {
+    setAppearance('gender', v);
+    // Auto-select feminine hairstyle when switching to female (one-time default)
+    if (v === 'female') {
+      const masculineDefaults = ['spiky', 'flat', 'mohawk', 'buzz'];
+      if (masculineDefaults.includes(currentAppearance.hairStyle || 'spiky')) {
+        setAppearance('hairStyle', 'long');
+        buildOptionPicker('pick-hairStyle', HAIR_STYLES, 'long', hv => { setAppearance('hairStyle', hv); });
+      }
+    }
+  });
 
   // Color swatches
   buildColorPicker('pick-skinColor', SKIN_COLORS, a.skinColor, c => { setAppearance('skinColor', c); });
@@ -2485,14 +2814,1049 @@ function updateEquipTags() {
   }).join('');
 }
 
+// ═══ Wearable animation state ═══
+let _wearAnimT=0;setInterval(()=>{_wearAnimT=((_wearAnimT+1)%360)},50);
+let _capeWave=[0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+let _capeVel=[0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+let _lastWf=0;
+function updateCapePhysics(wf){
+  const isMoving=wf%4!==0;
+  const windBase=isMoving?2.5:0.4;
+  const changeDir=wf!==_lastWf;_lastWf=wf;
+  for(let i=0;i<_capeWave.length;i++){
+    const target=Math.sin(_wearAnimT*0.06+i*0.7)*windBase+(isMoving?1.8+i*0.3:Math.sin(_wearAnimT*0.03+i)*0.5);
+    const spring=0.12,damp=0.8;
+    _capeVel[i]+=((target-_capeWave[i])*spring);
+    if(changeDir)_capeVel[i]+=(isMoving?1.5:-0.3)*Math.sin(i*1.2);
+    _capeVel[i]*=damp;
+    _capeWave[i]+=_capeVel[i];
+  }
+}
+
+function drawWearables(c,sx,sy,S,wf,wear,dir){
+  if(!wear)return;
+  dir=dir||'down';
+  const bob=Math.sin(wf*Math.PI/2)*((wf%4!==0)?1.5:0);
+  const offy=-24+bob;
+  const t=_wearAnimT;
+  updateCapePhysics(wf);
+  function p(x,y,w,h,col){c.fillStyle=col;c.fillRect(sx+x*S,sy+y*S,w*S,h*S)}
+  function glow(x,y,w,h,col,r){c.shadowColor=col;c.shadowBlur=r*S;p(x,y,w,h,col);c.shadowBlur=0;c.shadowColor='transparent'}
+  const hx=5,hy=offy+0,bx=2,by=hy+15;
+
+  // ── Hat ──
+  if(wear.hat){
+    c.save(); c.translate(S, 0); // center hats on head
+    const id=wear.hat;
+    if(id==='straw_hat'){
+      p(hx-4,hy-3,20,2,'#daa520');p(hx-3,hy-3,18,1,'#e6b422');
+      for(let i=0;i<18;i+=2){p(hx-3+i,hy-3,1,1,i%4===0?'#c8961e':'#daa520')}
+      p(hx-4,hy-2,1,1,'#b8860b');p(hx+15,hy-2,1,1,'#b8860b');
+      p(hx,hy-7,12,4,'#c8961e');p(hx+1,hy-8,10,1,'#d4a520');p(hx+2,hy-9,8,1,'#b8860b');
+      p(hx+1,hy-6,10,1,'#daa520');
+      p(hx,hy-4,12,1,'#8b1a1a');p(hx+1,hy-4,10,1,'#a02020');
+      p(hx+8,hy-4,2,1,'#c02828');
+      p(hx-3,hy-1,18,1,'rgba(0,0,0,0.12)');
+    }
+    else if(id==='party_hat'){
+      p(hx+2,hy-4,8,3,'#ff69b4');p(hx+3,hy-7,6,3,'#ff1493');p(hx+4,hy-9,4,2,'#ff69b4');p(hx+5,hy-11,2,2,'#e91e8b');
+      p(hx+3,hy-3,1,1,'#fff');p(hx+7,hy-5,1,1,'#ffd700');p(hx+5,hy-7,1,1,'#00bfff');p(hx+4,hy-9,1,1,'#fff');
+      p(hx+2,hy-3,8,1,'#ffd700');p(hx+4,hy-7,4,1,'#00bfff');
+      const pomBob=Math.sin(t*0.15)*0.5;
+      glow(hx+4,hy-13+pomBob,4,2,'#ffd700',4);p(hx+5,hy-14+pomBob,2,1,'#ffe44d');
+      p(hx,hy-1,2,1,'#ddd');p(hx+10,hy-1,2,1,'#ddd');
+    }
+    else if(id==='wizard_hat'){
+      p(hx-2,hy-1,16,1,'#5a0dbd');
+      p(hx-1,hy-2,14,1,'#6a0dad');
+      p(hx+1,hy-4,10,2,'#4b0082');p(hx+2,hy-6,8,2,'#3c006e');p(hx+3,hy-8,6,2,'#2e0054');
+      p(hx+4,hy-10,4,2,'#1f003a');p(hx+5,hy-12,3,2,'#1f003a');p(hx+6,hy-13,2,1,'#4b0082');
+      p(hx+7,hy-14,2,1,'#4b0082');p(hx+8,hy-13,2,1,'#3c006e');
+      p(hx+1,hy-3,10,1,'#9b59b6');
+      const tw1=Math.sin(t*0.12)>0.3,tw2=Math.sin(t*0.15+2)>0.2;
+      if(tw1)glow(hx+3,hy-5,1,1,'#ffd700',3);
+      if(tw2)glow(hx+7,hy-9,1,1,'#ffd700',3);
+      p(hx+4,hy-8,2,2,'#ffd700');p(hx+5,hy-8,1,1,'#3c006e');
+      p(hx-2,hy-1,16,1,'rgba(180,130,255,0.2)');
+    }
+    else if(id==='pirate_hat'){
+      p(hx-1,hy-5,14,4,'#1a1a1a');p(hx,hy-6,12,1,'#222');
+      p(hx-3,hy-3,4,2,'#2a2a2a');p(hx+11,hy-3,4,2,'#2a2a2a');
+      p(hx-3,hy-4,3,1,'#333');p(hx+12,hy-4,3,1,'#333');
+      p(hx-3,hy-2,18,1,'#b8860b');p(hx-1,hy-6,14,1,'#8b6914');
+      p(hx+4,hy-5,4,3,'#e8e0d0');p(hx+5,hy-5,2,1,'#fff');
+      p(hx+4,hy-4,1,1,'#111');p(hx+7,hy-4,1,1,'#111');
+      p(hx+5,hy-3,2,1,'#ccc');
+      p(hx+3,hy-3,1,1,'#ddd');p(hx+8,hy-3,1,1,'#ddd');
+      p(hx+3,hy-5,1,1,'#ddd');p(hx+8,hy-5,1,1,'#ddd');
+      p(hx+10,hy-7,1,3,'#cc2200');p(hx+11,hy-8,1,2,'#dd3311');p(hx+11,hy-9,1,1,'#ee4422');
+      // Gold trim shimmer
+      const goldShimmer=Math.sin(t*0.1)*0.3;
+      if(goldShimmer>0)glow(hx-3+Math.floor(t*0.05%16),hy-2,2,1,`rgba(255,215,0,${goldShimmer})`,3);
+    }
+    else if(id==='top_hat'){
+      p(hx+2,hy-12,8,9,'#0a0a0a');p(hx+3,hy-13,6,1,'#111');
+      p(hx+3,hy-12,2,8,'#1a1a1a');p(hx+5,hy-12,1,8,'#222');
+      p(hx+8,hy-12,1,8,'#050505');
+      p(hx-1,hy-3,14,2,'#0a0a0a');p(hx,hy-3,12,1,'#1a1a1a');
+      p(hx+2,hy-4,8,1,'#6a0dad');p(hx+3,hy-4,2,1,'#8020c0');
+      p(hx+6,hy-4,2,1,'#ffd700');p(hx+6,hy-4,1,1,'#ffe44d');
+      // Satin sheen sweep
+      const sheenX=Math.floor((t*0.03)%8);
+      p(hx+2+sheenX,hy-12,1,9,'rgba(255,255,255,0.08)');
+      p(hx+3+sheenX,hy-12,1,9,'rgba(255,255,255,0.12)');
+    }
+    else if(id==='santa_hat'){
+      p(hx+1,hy-3,10,3,'#cc0000');p(hx+2,hy-6,8,3,'#dd1111');
+      p(hx+3,hy-8,6,2,'#cc0000');p(hx+5,hy-10,5,2,'#cc0000');
+      p(hx+8,hy-11,4,1,'#cc0000');p(hx+10,hy-12,3,1,'#cc0000');p(hx+11,hy-11,2,1,'#dd1111');
+      p(hx+2,hy-5,3,1,'#aa0000');p(hx+6,hy-7,2,1,'#aa0000');
+      p(hx-1,hy,14,2,'#fff');p(hx,hy,12,1,'#f5f5f5');p(hx,hy+1,12,1,'#eee');
+      p(hx-1,hy,1,2,'#ddd');p(hx+12,hy,1,2,'#ddd');
+      p(hx+1,hy,1,1,'#eaeaea');p(hx+4,hy+1,1,1,'#e0e0e0');p(hx+8,hy,1,1,'#eaeaea');p(hx+10,hy+1,1,1,'#e0e0e0');
+      // === EPIC MAGICAL CHRISTMAS EFFECT ===
+      // Pompom with glow
+      const pomB=Math.sin(t*0.1)*0.5;
+      glow(hx+11,hy-13+pomB,3,3,'rgba(255,255,255,0.7)',6);
+      p(hx+11,hy-13+pomB,3,3,'#fff');p(hx+12,hy-14+pomB,2,1,'#fff');p(hx+12,hy-13+pomB,1,1,'#eee');
+      // Magical frost aura around hat
+      const santaAura=0.1+Math.sin(t*0.05)*0.05;
+      c.save();c.shadowColor='#88ccff';c.shadowBlur=10*S;
+      c.fillStyle=`rgba(150,200,255,${santaAura})`;
+      c.fillRect(sx+(hx-2)*S,sy+(hy-8)*S,18*S,10*S);
+      c.restore();
+      // Blizzard snow particles (6 particles, bigger)
+      for(let i=0;i<6;i++){
+        const snx=hx-2+i*3+Math.sin(t*0.04+i*1.2)*3;
+        const sny=hy-4+((t*0.06+i*5)%18);
+        const snA=0.6-((t*0.06+i*5)%18)*0.03;
+        glow(Math.round(snx),Math.round(sny),1,1,`rgba(255,255,255,${Math.max(0,snA)})`,2);
+      }
+      // Twinkling stars around hat
+      for(let si=0;si<3;si++){
+        const sTwinkle=Math.sin(t*0.12+si*2.1);
+        if(sTwinkle>0.3){
+          const stx=hx-1+si*5+Math.sin(t*0.03+si)*2;
+          const sty=hy-6+Math.cos(t*0.04+si)*3;
+          glow(Math.round(stx),Math.round(sty),1,1,`rgba(255,255,200,${sTwinkle*0.5})`,4);
+        }
+      }
+      // Frost shimmer on fur trim
+      const frostShim=Math.floor(t*0.08)%12;
+      glow(hx+frostShim,hy,2,2,'rgba(200,230,255,0.4)',3);
+    }
+    else if(id==='void_crown'){
+      // === MYTHIC VOID CROWN — pure effects only, no solid shapes ===
+      const mythicColors=['#ff4444','#ffa500','#ffff00','#00ff00','#0096ff','#8250ff','#ff0c7e'];
+      const mIdx=Math.floor(t*0.05)%mythicColors.length;
+
+      // Void energy wisps (6 orbiting rainbow particles)
+      for(let wi=0;wi<6;wi++){
+        const wAng=(t*0.005+wi*Math.PI/3)%(Math.PI*2);
+        const wDist=4+Math.sin(t*0.004+wi*1.2)*2;
+        const wx=hx+6+Math.cos(wAng)*wDist;
+        const wy=hy-6+Math.sin(wAng)*wDist;
+        const wa=0.4+Math.sin(t*0.008+wi)*0.2;
+        const wCol=mythicColors[(mIdx+wi)%mythicColors.length];
+        const wr=parseInt(wCol.slice(1,3),16),wg=parseInt(wCol.slice(3,5),16),wb=parseInt(wCol.slice(5,7),16);
+        glow(Math.round(wx),Math.round(wy),1,1,`rgba(${wr},${wg},${wb},${wa})`,3);
+        const twx=hx+6+Math.cos(wAng-0.3)*wDist*0.8;
+        const twy=hy-6+Math.sin(wAng-0.3)*wDist*0.8;
+        p(Math.round(twx),Math.round(twy),1,1,`rgba(128,0,255,${wa*0.4})`);
+      }
+
+      // Void tendrils (5, reaching upward with glow)
+      for(let i=0;i<5;i++){
+        const tx=hx+1+i*3+Math.sin(t*0.04+i)*1.5;
+        const ty=hy-12-Math.abs(Math.sin(t*0.06+i*1.3))*5;
+        const ta=0.4+Math.sin(t*0.08+i)*0.2;
+        glow(Math.round(tx),Math.round(ty),1,1,`rgba(128,0,255,${ta})`,4);
+        p(Math.round(tx),Math.round(ty)+1,1,1,`rgba(80,0,180,${ta*0.6})`);
+        p(Math.round(tx),Math.round(ty)+2,1,1,`rgba(50,0,120,${ta*0.3})`);
+      }
+
+      // Void eye glow (pure shadowBlur, no visible fill)
+      const voidEye=0.5+Math.sin(t*0.04)*0.35;
+      c.save();c.shadowColor=`rgba(255,0,80,${voidEye})`;c.shadowBlur=14*S;
+      c.fillStyle='rgba(0,0,0,0)';
+      c.fillRect(sx+(hx+5)*S,sy+(hy-8)*S,2*S,2*S);c.restore();
+
+      // Dark matter rain (particles falling around head)
+      for(let ri=0;ri<4;ri++){
+        const rPhase=(t*0.002+ri*0.5)%2;
+        const rx=hx-4+ri*6+Math.sin(t*0.003+ri*1.5)*2;
+        const ry=hy-14+rPhase*12;
+        const ra=Math.max(0,(1-rPhase/2)*0.3);
+        const rCol=mythicColors[(mIdx+ri)%mythicColors.length];
+        glow(Math.round(rx),Math.round(ry),1,1,`rgba(${parseInt(rCol.slice(1,3),16)},${parseInt(rCol.slice(3,5),16)},${parseInt(rCol.slice(5,7),16)},${ra})`,2);
+      }
+    }
+    else if(id==='miner_helmet'){
+      // Yellow safety helmet with headlamp
+      p(hx,hy-7,12,4,'#e6a817');p(hx+1,hy-8,10,1,'#f0c030');p(hx+2,hy-9,8,1,'#d49a10');
+      p(hx+5,hy-9,2,6,'#f0c830');
+      p(hx-2,hy-3,16,2,'#d49a10');p(hx-1,hy-2,14,1,'#c08a08');
+      p(hx,hy-4,12,1,'#5a3a1a');p(hx+1,hy-4,10,1,'#6b4a2a');
+      p(hx+4,hy-7,4,3,'#777');p(hx+5,hy-8,2,1,'#888');
+      const lampPulse=0.5+Math.sin(t*0.1)*0.3;
+      glow(hx+5,hy-9,2,1,`rgba(255,255,150,${lampPulse})`,6);
+      p(hx+4,hy-10,4,1,`rgba(255,255,200,${lampPulse*0.3})`);
+      p(hx+3,hy-11,6,1,`rgba(255,255,200,${lampPulse*0.15})`);
+    }
+    else if(id==='ninja_hood'){
+      // Dark ninja hood covering head with eye slit
+      p(hx-1,hy-6,14,8,'#1a1a2e');p(hx,hy-7,12,1,'#222240');p(hx+1,hy-8,10,1,'#1a1a2e');
+      // Fabric folds
+      p(hx,hy-5,2,3,'#12121f');p(hx+10,hy-5,2,3,'#12121f');
+      p(hx+4,hy-6,4,1,'#252545');
+      // Eye slit
+      p(hx+1,hy-1,10,2,'#0a0a15');p(hx+2,hy,8,1,'#111');
+      // Eyes visible through slit
+      p(hx+3,hy-1,2,1,'#ddd');p(hx+7,hy-1,2,1,'#ddd');
+      p(hx+3,hy,1,1,'#333');p(hx+8,hy,1,1,'#333');
+      // Subtle purple shadow energy
+      const ninjaPulse=0.15+Math.sin(t*0.07)*0.1;
+      glow(hx,hy-3,12,1,`rgba(100,50,200,${ninjaPulse})`,3);
+      // Trailing cloth
+      p(hx+11,hy-4,2,4,'#1a1a2e');p(hx+12,hy-2,2,3,'#12121f');
+    }
+    else if(id==='inferno_horns'){
+      p(hx-1,hy-6,2,4,'#4a1010');p(hx-2,hy-8,2,3,'#6b1a1a');p(hx-3,hy-10,2,2,'#8b2020');p(hx-4,hy-11,1,2,'#a03030');
+      p(hx-1,hy-5,1,2,'#3a0808');p(hx-2,hy-7,1,1,'#5a1212');
+      p(hx+11,hy-6,2,4,'#4a1010');p(hx+12,hy-8,2,3,'#6b1a1a');p(hx+13,hy-10,2,2,'#8b2020');p(hx+14,hy-11,1,2,'#a03030');
+      p(hx+12,hy-5,1,2,'#3a0808');p(hx+13,hy-7,1,1,'#5a1212');
+      p(hx-2,hy-9,1,1,'#c04040');p(hx+13,hy-9,1,1,'#c04040');
+      const hornFlicker=t*0.12;
+      for(let fi=0;fi<3;fi++){
+        const fa=0.5+Math.sin(hornFlicker+fi*2)*0.3;
+        const fy=hy-12-fi-Math.sin(hornFlicker+fi)*1.5;
+        glow(hx-4+Math.round(Math.sin(hornFlicker+fi)*0.8),Math.round(fy),1,1,`rgba(255,${100+fi*40},0,${fa})`,4);
+        glow(hx+14+Math.round(Math.sin(hornFlicker+fi+1)*0.8),Math.round(fy),1,1,`rgba(255,${100+fi*40},0,${fa})`,4);
+      }
+      for(let ei=0;ei<4;ei++){
+        const ePhase=(t*0.003+ei*0.6)%2;
+        const ex=hx+(ei<2?-3+ei:11+ei-2)+Math.sin(t*0.006+ei)*1.5;
+        const ey=hy-12-ePhase*6;
+        const ea=Math.max(0,(1-ePhase/2)*0.5);
+        glow(Math.round(ex),Math.round(ey),1,1,`rgba(255,${60+ei*30},0,${ea})`,2);
+      }
+      c.save();c.shadowColor='#ff4400';c.shadowBlur=10*S;
+      c.fillStyle='rgba(0,0,0,0)';
+      c.fillRect(sx+(hx-4)*S,sy+(hy-12)*S,20*S,8*S);c.restore();
+    }
+    else if(id==='celestial_halo'){
+      const haloY=hy-12;
+      const haloBob=Math.sin(t*0.05)*1.5;
+      c.save();
+      const hcx=sx+(hx+6)*S, hcy=sy+(haloY+haloBob)*S;
+      c.shadowColor='#ffd700';c.shadowBlur=12*S;
+      c.fillStyle='rgba(0,0,0,0)';
+      c.fillRect(hcx-6*S,hcy-1*S,12*S,3*S);
+      c.restore();
+      const hy2=Math.round(haloY+haloBob);
+      p(hx+1,hy2,10,1,'#ffd700');p(hx,hy2+1,12,1,'#e6c200');p(hx+1,hy2+2,10,1,'#ffd700');
+      p(hx+2,hy2,8,1,'#ffe44d');
+      p(hx,hy2+1,1,1,'#b8960b');p(hx+11,hy2+1,1,1,'#b8960b');
+      p(hx+3,hy2+1,6,1,'rgba(0,0,0,0)');
+      for(let si=0;si<5;si++){
+        const sAng=(t*0.006+si*Math.PI*2/5)%(Math.PI*2);
+        const sd=6+Math.sin(t*0.004+si)*1.5;
+        const sparkX=hx+6+Math.cos(sAng)*sd;
+        const sparkY=haloY+1+haloBob+Math.sin(sAng)*2;
+        const sa=0.4+Math.sin(t*0.01+si*1.5)*0.3;
+        glow(Math.round(sparkX),Math.round(sparkY),1,1,`rgba(255,255,200,${sa})`,3);
+      }
+      for(let ri=0;ri<3;ri++){
+        const ra=0.15+Math.sin(t*0.06+ri*1.2)*0.1;
+        const rx=hx+2+ri*4;
+        const rl=3+Math.sin(t*0.04+ri)*2;
+        for(let ry=0;ry<Math.round(rl);ry++){
+          p(rx,hy2+3+ry,1,1,`rgba(255,255,180,${ra*(1-ry/6)})`);
+        }
+      }
+    }
+    c.restore(); // end hat centering
+  }
+
+  // ── Cape (direction-aware with physics!) ──
+  if(wear.cape){
+    const id=wear.cape;
+    const capeY=by+1;
+    const cw=_capeWave;
+    // 3-shade fabric palettes: highlight, base, shadow, outline + accent/clasp
+    const CS={
+      tattered_cape:{hi:[125,100,72],bs:[92,72,52],sh:[68,52,36],ol:[48,36,24]},
+      woodland_cloak:{hi:[68,175,82],bs:[42,132,58],sh:[28,98,40],ol:[18,76,30],clasp:[182,152,82]},
+      shadow_cape:{hi:[55,18,95],bs:[28,6,58],sh:[14,0,34],ol:[8,0,22],acc:[145,35,255]},
+      fire_cape:{hi:[255,175,55],bs:[215,85,18],sh:[165,48,8],ol:[115,32,0],acc:[255,235,65]},
+      royal_mantle:{hi:[118,28,188],bs:[78,8,135],sh:[50,0,88],ol:[34,0,60],acc:[255,218,5]},
+      frost_cloak:{hi:[180,220,255],bs:[100,160,220],sh:[60,110,180],ol:[30,70,140],acc:[200,240,255],clasp:[180,210,240]},
+      venom_shroud:{hi:[80,220,50],bs:[40,140,20],sh:[20,90,8],ol:[10,60,0],acc:[120,255,60]},
+      astral_wings:{hi:[180,160,255],bs:[100,60,200],sh:[60,20,150],ol:[30,5,100],acc:[220,200,255],clasp:[180,150,240]}
+    };
+    const cs=CS[id]||CS.tattered_cape;
+    const R=(c,a)=>`rgba(${c[0]},${c[1]},${c[2]},${Math.max(0,Math.min(1,a))})`;
+
+    if(dir==='down'){
+      const clc=cs.clasp||cs.bs;
+      p(bx+1,capeY-1,2,1,R(clc,0.75));
+      p(bx+17,capeY-1,2,1,R(clc,0.75));
+      p(bx+3,capeY-1,14,1,R(cs.sh,0.18));
+      for(let row=0;row<12;row++){
+        const w=Math.round(cw[Math.min(13,row)]*0.1);
+        const a=0.55-row*0.04;
+        if(a<=0)break;
+        p(bx-2+w,capeY+row,1,1,R(cs.ol,a));
+        p(bx-1+w,capeY+row,1,1,R(cs.sh,a*0.85));
+        p(bx+20+w,capeY+row,1,1,R(cs.sh,a*0.85));
+        p(bx+21+w,capeY+row,1,1,R(cs.ol,a));
+      }
+      const hW=Math.round(cw[12]*0.1);
+      p(bx+2+hW,capeY+16,16,1,R(cs.bs,0.35));
+      p(bx+2+hW,capeY+16,1,1,R(cs.ol,0.4));
+      p(bx+17+hW,capeY+16,1,1,R(cs.ol,0.4));
+      p(bx+4+hW,capeY+17,12,1,R(cs.sh,0.28));
+      p(bx+7+hW,capeY+18,6,1,R(cs.ol,0.15));
+      if(id==='fire_cape'){
+        c.save();c.shadowColor='#ff6600';c.shadowBlur=12*S;
+        c.fillStyle='rgba(0,0,0,0)';
+        c.fillRect(sx+(bx+3)*S,sy+(capeY+8)*S,14*S,8*S);c.restore();
+        for(let fi=0;fi<3;fi++){const fPhase=(t*0.003+fi*0.9)%2;const fx=bx+5+fi*4+Math.sin(t*0.005+fi)*2;const fy=capeY+16-fPhase*5;const fa=Math.max(0,(1-fPhase/2)*0.5);glow(Math.round(fx),Math.round(fy),1,1,`rgba(255,${80+fi*30},0,${fa})`,3);}
+      } else if(id==='shadow_cape'){
+        glow(bx+6,capeY+11,8,4,`rgba(100,0,200,${0.08+Math.sin(t*0.05)*0.04})`,3);
+      } else if(id==='royal_mantle'){
+        c.save();c.shadowColor='#ffd700';c.shadowBlur=10*S;
+        c.fillStyle='rgba(0,0,0,0)';
+        c.fillRect(sx+(bx+4)*S,sy+(capeY+8)*S,12*S,8*S);c.restore();
+        for(let gi=0;gi<3;gi++){const gPhase=(t*0.002+gi*1.1)%3;const gx=bx+4+gi*5;const gy=capeY+gPhase*5;const ga=Math.max(0,(1-gPhase/3)*0.35);glow(Math.round(gx),Math.round(gy),1,1,`rgba(255,215,0,${ga})`,2);}
+      } else if(id==='frost_cloak'){
+        c.save();c.shadowColor='#88ccff';c.shadowBlur=12*S;
+        c.fillStyle='rgba(0,0,0,0)';
+        c.fillRect(sx+(bx+3)*S,sy+(capeY+8)*S,14*S,8*S);c.restore();
+        for(let ii=0;ii<3;ii++){const iPhase=(t*0.002+ii*0.8)%2.5;const ix=bx+4+ii*4+Math.sin(t*0.004+ii)*2;const iy=capeY+14+iPhase*3;const ia=Math.max(0,(1-iPhase/2.5)*0.45);glow(Math.round(ix),Math.round(iy),1,1,`rgba(180,220,255,${ia})`,2);}
+      } else if(id==='venom_shroud'){
+        c.save();c.shadowColor='#40cc20';c.shadowBlur=10*S;
+        c.fillStyle='rgba(0,0,0,0)';
+        c.fillRect(sx+(bx+3)*S,sy+(capeY+8)*S,14*S,8*S);c.restore();
+      } else if(id==='astral_wings'){
+        c.save();c.shadowColor='#8040ff';c.shadowBlur=10*S;
+        c.fillStyle='rgba(0,0,0,0)';
+        c.fillRect(sx+(bx+3)*S,sy+(capeY+8)*S,14*S,8*S);c.restore();
+      }
+    }
+    else if(dir==='up'){
+      const walkSway=wf?Math.sin(wf*Math.PI/2)*1.0:0;
+      const W=22;
+      if(id==='fire_cape'){
+        c.save();c.shadowColor='#ff6600';c.shadowBlur=14*S;
+        c.fillStyle='rgba(0,0,0,0)';
+        c.fillRect(sx+(bx)*S,sy+(capeY+1)*S,20*S,14*S);c.restore();
+      } else if(id==='shadow_cape'){
+        glow(bx+2,capeY+3,16,12,`rgba(100,0,200,${0.08+Math.sin(t*0.05)*0.04})`,3);
+      } else if(id==='royal_mantle'){
+        c.save();c.shadowColor='#ffd700';c.shadowBlur=12*S;
+        c.fillStyle='rgba(0,0,0,0)';
+        c.fillRect(sx+(bx+1)*S,sy+(capeY+1)*S,18*S,14*S);c.restore();
+      } else if(id==='frost_cloak'){
+        c.save();c.shadowColor='#88ccff';c.shadowBlur=14*S;
+        c.fillStyle='rgba(0,0,0,0)';
+        c.fillRect(sx+(bx)*S,sy+(capeY+1)*S,20*S,14*S);c.restore();
+      } else if(id==='venom_shroud'){
+        c.save();c.shadowColor='#40cc20';c.shadowBlur=12*S;
+        c.fillStyle='rgba(0,0,0,0)';
+        c.fillRect(sx+(bx)*S,sy+(capeY+1)*S,20*S,14*S);c.restore();
+      } else if(id==='astral_wings'){
+        c.save();c.shadowColor='#8040ff';c.shadowBlur=12*S;
+        c.fillStyle='rgba(0,0,0,0)';
+        c.fillRect(sx+(bx)*S,sy+(capeY+1)*S,20*S,14*S);c.restore();
+      }
+      const sW=Math.round(cw[0]*0.08);
+      p(bx-1+sW,capeY-1,W,1,R(cs.bs,0.88));
+      p(bx-1+sW,capeY-1,1,1,R(cs.ol,0.9));
+      p(bx-1+sW+W-1,capeY-1,1,1,R(cs.ol,0.9));
+      if(cs.clasp) p(bx+9+sW,capeY-2,2,1,R(cs.clasp,0.9));
+      for(let row=0;row<14;row++){
+        const wave=Math.round(cw[Math.min(13,row)]*0.35+walkSway*(row/18));
+        const ox=-1+wave;
+        const a=0.9-row*0.006;
+        p(bx+ox,capeY+row,1,1,R(cs.ol,a));
+        p(bx+ox+W-1,capeY+row,1,1,R(cs.ol,a));
+        p(bx+ox+1,capeY+row,1,1,R(cs.sh,a));
+        p(bx+ox+W-2,capeY+row,1,1,R(cs.sh,a));
+        p(bx+ox+2,capeY+row,W-4,1,R(cs.bs,a));
+        p(bx+ox+9,capeY+row,4,1,R(cs.hi,a*0.4));
+        p(bx+ox+6,capeY+row,1,1,R(cs.sh,a*0.6));
+        p(bx+ox+15,capeY+row,1,1,R(cs.sh,a*0.6));
+        p(bx+ox+7,capeY+row,1,1,R(cs.hi,a*0.3));
+        p(bx+ox+16,capeY+row,1,1,R(cs.hi,a*0.3));
+      }
+      // Cape flowing to floor — narrows then pools wider on ground
+      const hemW=[20,16,12,10,12,16,20];
+      for(let h=0;h<7;h++){
+        const row=14+h;
+        const w=hemW[h];
+        const wave=Math.round(cw[Math.min(13,Math.min(row,13))]*0.25);
+        const ox=Math.round((20-w)/2)+wave;
+        const a=h<3?(0.5-h*0.08):(0.28-(h-3)*0.04);
+        if(a<=0)break;
+        p(bx+ox,capeY+row,1,1,R(cs.ol,a));
+        p(bx+ox+w-1,capeY+row,1,1,R(cs.ol,a));
+        if(w>2) p(bx+ox+1,capeY+row,w-2,1,R(h<3?cs.bs:cs.sh,a));
+      }
+      // Floor shadow beneath pooling cape
+      c.save();c.fillStyle='rgba(0,0,0,0.2)';
+      c.fillRect(sx+(bx)*S,sy+(capeY+21)*S,20*S,2*S);c.restore();
+      if(id==='tattered_cape'){
+        p(bx+5+Math.round(cw[5]*0.15),capeY+5,2,2,R([38,28,18],0.3));
+        p(bx+14+Math.round(cw[8]*0.15),capeY+9,1,2,R([38,28,18],0.25));
+        for(let i=0;i<3;i++){
+          const sw=Math.round(cw[Math.min(13,2+i*4)]*0.1);
+          p(bx+4+sw,capeY+2+i*4,1,1,R([135,105,75],0.5));
+          p(bx+15+sw,capeY+3+i*4,1,1,R([135,105,75],0.5));
+        }
+        p(bx+6+Math.round(cw[6]*0.1),capeY+7,3,2,R([115,95,68],0.4));
+      }
+      else if(id==='woodland_cloak'){
+        const lvs=[[4,3],[12,4],[7,7],[15,8],[5,11],[13,13]];
+        lvs.forEach(([lx,ly])=>{
+          const lw=Math.round(cw[Math.min(13,ly)]*0.12);
+          p(bx+lx+lw,capeY+ly,2,1,R([82,195,95],0.4));
+          p(bx+lx+1+lw,capeY+ly-1,1,1,R([105,215,115],0.25));
+        });
+      }
+      else if(id==='shadow_cape'){
+        const ra=0.3+Math.sin(t*0.07)*0.12;
+        p(bx+7+Math.round(cw[4]*0.12),capeY+5,2,2,R(cs.acc,ra*0.3));
+        p(bx+13+Math.round(cw[7]*0.12),capeY+9,2,2,R(cs.acc,ra*0.25));
+        p(bx+10+Math.round(cw[10]*0.12),capeY+12,2,1,R(cs.acc,ra*0.2));
+      }
+      else if(id==='fire_cape'){
+        for(let i=0;i<2;i++){
+          const cw2=Math.round(cw[Math.min(13,4+i*5)]*0.12);
+          for(let x=0;x<8;x+=3){
+            p(bx+5+x+cw2,capeY+4+i*5,2,1,R(cs.acc,0.35+Math.sin(t*0.1+x*0.5+i)*0.12));
+          }
+        }
+        // Flame licks along hem
+        for(let i=0;i<4;i++){
+          const fl=Math.sin(t*0.12+i*1.5)*1.5;
+          const fa=0.5+Math.sin(t*0.08+i)*0.2;
+          p(bx+3+i*4+Math.round(cw[12]*0.15),capeY+15+Math.round(fl),2,1,R(cs.acc,fa));
+          p(bx+3+i*4+Math.round(cw[12]*0.15),capeY+16+Math.round(fl),1,1,R(cs.hi,fa*0.5));
+          p(bx+4+i*4+Math.round(cw[12]*0.15),capeY+14+Math.round(fl),1,1,R([255,60,0],fa*0.3));
+        }
+        // Ember particles floating off cape
+        for(let ei=0;ei<3;ei++){
+          const ePhase=(t*0.003+ei*0.7)%2;
+          const ex=bx+4+ei*6+Math.sin(t*0.005+ei)*2+Math.round(cw[8]*0.1);
+          const ey=capeY+8-ePhase*4;
+          const ea=Math.max(0,(1-ePhase/2)*0.35);
+          glow(Math.round(ex),Math.round(ey),1,1,`rgba(255,${120-ePhase*40},0,${ea})`,2);
+        }
+      }
+      else if(id==='royal_mantle'){
+        // Gold edge highlights (both sides)
+        for(let row=1;row<12;row++){
+          const w2=Math.round(cw[Math.min(13,row)]*0.2);
+          glow(bx-1+w2,capeY+row,1,1,R(cs.acc,0.5),2);
+          glow(bx+20+w2,capeY+row,1,1,R(cs.acc,0.5),2);
+        }
+        const ew=Math.round(cw[5]*0.1);
+        p(bx+7+ew,capeY+6,5,3,R(cs.acc,0.4));
+        p(bx+9+ew,capeY+5,3,1,R(cs.acc,0.35));
+        p(bx+10+ew,capeY+4,1,1,R(cs.acc,0.3));
+        glow(bx+9+ew,capeY+6,2,2,`rgba(255,215,0,${0.2+Math.sin(t*0.08)*0.1})`,4);
+        for(let i=0;i<16;i++){
+          p(bx+2+i+Math.round(cw[12]*0.12),capeY+14,1,1,(i%4<2)?R([12,12,12],0.45):R([242,242,242],0.5));
+        }
+        // Royal gold sparkle cascade
+        for(let gi=0;gi<4;gi++){
+          const gPhase=(t*0.0025+gi*0.6)%3;
+          const gx=bx+4+gi*4+Math.sin(t*0.004+gi)*1.5+Math.round(cw[Math.min(13,Math.floor(gPhase*4))]*0.1);
+          const gy=capeY+2+gPhase*4;
+          const ga=Math.max(0,(1-gPhase/3)*0.4);
+          glow(Math.round(gx),Math.round(gy),1,1,`rgba(255,215,0,${ga})`,2);
+        }
+      }
+      else if(id==='frost_cloak'){
+        // Ice crystal patterns on fabric
+        const frostAlpha=0.35+Math.sin(t*0.06)*0.15;
+        const snowflakes=[[5,4],[12,6],[8,9],[15,10],[4,12],[10,3],[16,7]];
+        snowflakes.forEach(([fx,fy])=>{
+          const fw=Math.round(cw[Math.min(13,fy)]*0.12);
+          glow(bx+fx+fw,capeY+fy,1,1,R(cs.acc,frostAlpha),2);
+          p(bx+fx+1+fw,capeY+fy-1,1,1,R(cs.acc,frostAlpha*0.6));
+          p(bx+fx-1+fw,capeY+fy+1,1,1,R(cs.acc,frostAlpha*0.5));
+          p(bx+fx+fw,capeY+fy-1,1,1,R(cs.acc,frostAlpha*0.4));
+          p(bx+fx+fw,capeY+fy+1,1,1,R(cs.acc,frostAlpha*0.3));
+        });
+        // Frost particles drifting off hem
+        for(let i=0;i<4;i++){
+          const ffl=Math.sin(t*0.08+i*1.5)*1.5;
+          const ffa=0.45+Math.sin(t*0.06+i)*0.15;
+          glow(bx+3+i*4+Math.round(cw[12]*0.15),capeY+16+Math.round(ffl),1,1,R(cs.acc,ffa),2);
+        }
+        // Cold mist at base
+        const cmA=0.08+Math.sin(t*0.04)*0.04;
+        c.save();c.shadowColor='#aaddff';c.shadowBlur=6*S;
+        c.fillStyle='rgba(0,0,0,0)';
+        c.fillRect(sx+(bx)*S,sy+(capeY+14)*S,20*S,4*S);c.restore();
+      }
+    }
+    else if(dir==='left'||dir==='right'){
+      // Side view — long cape dragging on the ground behind character
+      const isLeft=(dir==='left');
+      const capeX=isLeft?bx+17:bx-1;
+      const driftDir=isLeft?1:-1;
+      const walkSway=wf?Math.sin(wf*Math.PI/2)*1.5:0;
+      const clc=cs.clasp||cs.bs;
+      p(capeX+(isLeft?-1:0),capeY-1,2,1,R(clc,0.75));
+      // Rare glow behind fabric
+      if(id==='fire_cape'){
+        c.save();c.shadowColor='#ff6600';c.shadowBlur=10*S;
+        c.fillStyle='rgba(0,0,0,0)';
+        c.fillRect(sx+(capeX+(isLeft?0:-8))*S,sy+(capeY+1)*S,9*S,20*S);c.restore();
+      } else if(id==='shadow_cape'){
+        glow(capeX+(isLeft?1:-7),capeY+3,7,18,`rgba(100,0,200,${0.05+Math.sin(t*0.05)*0.03})`,2);
+      } else if(id==='royal_mantle'){
+        c.save();c.shadowColor='#ffd700';c.shadowBlur=8*S;
+        c.fillStyle='rgba(0,0,0,0)';
+        c.fillRect(sx+(capeX+(isLeft?0:-7))*S,sy+(capeY+1)*S,8*S,20*S);c.restore();
+      } else if(id==='frost_cloak'){
+        c.save();c.shadowColor='#88ccff';c.shadowBlur=10*S;
+        c.fillStyle='rgba(0,0,0,0)';
+        c.fillRect(sx+(capeX+(isLeft?0:-7))*S,sy+(capeY+1)*S,8*S,20*S);c.restore();
+      } else if(id==='venom_shroud'){
+        c.save();c.shadowColor='#40cc20';c.shadowBlur=10*S;
+        c.fillStyle='rgba(0,0,0,0)';
+        c.fillRect(sx+(capeX+(isLeft?0:-7))*S,sy+(capeY+1)*S,8*S,20*S);c.restore();
+      } else if(id==='astral_wings'){
+        c.save();c.shadowColor='#8040ff';c.shadowBlur=10*S;
+        c.fillStyle='rgba(0,0,0,0)';
+        c.fillRect(sx+(capeX+(isLeft?0:-7))*S,sy+(capeY+1)*S,8*S,20*S);c.restore();
+      }
+      // Main cape — shoulder to ground (22 rows)
+      for(let row=0;row<22;row++){
+        const wave=Math.round((cw[Math.min(13,row)]*0.5+walkSway*(row/14))*driftDir);
+        let w;
+        if(row<2) w=4;
+        else if(row<8) w=6;
+        else if(row<15) w=7;
+        else if(row<19) w=6;
+        else w=Math.max(3,6-Math.round((row-18)*0.8));
+        const a=0.85-row*0.012;
+        if(a<=0)break;
+        const ox=wave+(isLeft?0:-w+1);
+        if(w>=4){
+          p(capeX+ox+(isLeft?0:w-1),capeY+row,1,1,R(cs.ol,a));
+          p(capeX+ox+(isLeft?w-1:0),capeY+row,1,1,R(cs.ol,a));
+          p(capeX+ox+(isLeft?1:w-2),capeY+row,1,1,R(cs.sh,a));
+          p(capeX+ox+(isLeft?2:1),capeY+row,w-3,1,R(cs.bs,a));
+          if(w>=6) p(capeX+ox+(isLeft?w-3:2),capeY+row,1,1,R(cs.hi,a*0.35));
+          if(w>=5) p(capeX+ox+Math.floor(w/2),capeY+row,1,1,R(cs.sh,a*0.5));
+        } else if(w>=2){
+          p(capeX+ox,capeY+row,1,1,R(cs.ol,a));
+          p(capeX+ox+w-1,capeY+row,1,1,R(cs.ol,a));
+          if(w>2) p(capeX+ox+1,capeY+row,w-2,1,R(cs.bs,a));
+        }
+      }
+      // Ground trail — cape drags behind on the floor
+      const trailY=capeY+22;
+      const endWave=Math.round((cw[13]*0.4+walkSway*1.3)*driftDir);
+      const trailLen=10+Math.round(Math.abs(walkSway)*2);
+      // Ground shadow under trail
+      c.save();c.fillStyle='rgba(0,0,0,0.15)';
+      const shX=isLeft?capeX+endWave:capeX+endWave-trailLen-1;
+      c.fillRect(sx+shX*S,sy+(trailY+1)*S,(trailLen+3)*S,2*S);c.restore();
+      // Trail fabric
+      for(let col=0;col<trailLen;col++){
+        const colW=Math.round(Math.sin(t*0.005+col*0.3)*0.4);
+        const ta=0.4-col*0.03;
+        if(ta<=0)break;
+        const th=col<3?3:col<6?2:1;
+        const tx=capeX+endWave+(col+1)*driftDir;
+        p(tx,trailY+colW,1,th,R(cs.bs,ta));
+        p(tx,trailY+colW,1,1,R(cs.ol,ta));
+        if(th>1)p(tx,trailY+colW+th-1,1,1,R(cs.sh,ta*0.7));
+      }
+      // Per-cape trail effects
+      if(id==='fire_cape'){
+        for(let fi=0;fi<3;fi++){
+          const fPhase=(t*0.003+fi*0.7)%2;
+          const fx=capeX+endWave+(fi*3+2)*driftDir;
+          const fy=trailY-1-fPhase*3;
+          const fa=Math.max(0,(1-fPhase/2)*0.4);
+          glow(Math.round(fx),Math.round(fy),1,1,`rgba(255,${80+fi*30},0,${fa})`,3);
+        }
+      }
+      if(id==='royal_mantle'){
+        for(let row=2;row<16;row++){
+          const ew=Math.round((cw[Math.min(13,row)]*0.4+walkSway*(row/14))*driftDir);
+          const w2=row<2?4:row<8?6:row<15?7:row<19?6:5;
+          glow(capeX+ew+(isLeft?w2-1:1-w2),capeY+row,1,1,R(cs.acc,0.4),2);
+        }
+        for(let gi=0;gi<2;gi++){
+          const gPhase=(t*0.003+gi*0.8)%2;
+          const gx=capeX+(isLeft?3:-3)+Math.sin(t*0.005+gi)*1.5*driftDir;
+          const gy=capeY+4+gPhase*8;
+          const ga=Math.max(0,(1-gPhase/2)*0.35);
+          glow(Math.round(gx),Math.round(gy),1,1,`rgba(255,215,0,${ga})`,2);
+        }
+      }
+    }
+    else if(dir==='menu'){
+      // Lobby view — cape peeks from behind, NOT covering front
+      for(let row=0;row<14;row++){
+        const wave=Math.round(cw[Math.min(13,row)]*0.1);
+        const a=0.5-row*0.025;
+        if(a<=0)break;
+        p(bx-2+wave,capeY+row,1,1,R(cs.ol,a));
+        p(bx-1+wave,capeY+row,1,1,R(cs.sh,a));
+        p(bx+wave,capeY+row,1,1,R(cs.bs,a*0.45));
+        p(bx+19+wave,capeY+row,1,1,R(cs.bs,a*0.45));
+        p(bx+20+wave,capeY+row,1,1,R(cs.sh,a));
+        p(bx+21+wave,capeY+row,1,1,R(cs.ol,a));
+      }
+      const clc=cs.clasp||cs.bs;
+      p(bx+1,capeY-1,2,1,R(clc,0.65));
+      p(bx+17,capeY-1,2,1,R(clc,0.65));
+      const hW=Math.round(cw[12]*0.08);
+      p(bx+2+hW,capeY+15,16,1,R(cs.bs,0.3));
+      p(bx+2+hW,capeY+15,1,1,R(cs.ol,0.35));
+      p(bx+17+hW,capeY+15,1,1,R(cs.ol,0.35));
+      p(bx+4+hW,capeY+16,12,1,R(cs.sh,0.22));
+      p(bx+7+hW,capeY+17,6,1,R(cs.ol,0.12));
+      if(id==='fire_cape'){
+        c.save();c.shadowColor='#ff6600';c.shadowBlur=8*S;
+        c.fillStyle='rgba(0,0,0,0)';
+        c.fillRect(sx+(bx+3)*S,sy+(capeY+8)*S,14*S,6*S);c.restore();
+      }
+      else if(id==='shadow_cape') glow(bx+5,capeY+12,10,3,'rgba(100,0,200,0.04)',2);
+      else if(id==='royal_mantle'){
+        c.save();c.shadowColor='#ffd700';c.shadowBlur=6*S;
+        c.fillStyle='rgba(0,0,0,0)';
+        c.fillRect(sx+(bx+3)*S,sy+(capeY+8)*S,14*S,6*S);c.restore();
+      }
+      else if(id==='frost_cloak'){
+        c.save();c.shadowColor='#88ccff';c.shadowBlur=8*S;
+        c.fillStyle='rgba(0,0,0,0)';
+        c.fillRect(sx+(bx+3)*S,sy+(capeY+8)*S,14*S,6*S);c.restore();
+      }
+      else if(id==='venom_shroud'){
+        c.save();c.shadowColor='#40cc20';c.shadowBlur=8*S;
+        c.fillStyle='rgba(0,0,0,0)';
+        c.fillRect(sx+(bx+3)*S,sy+(capeY+8)*S,14*S,6*S);c.restore();
+      }
+      else if(id==='astral_wings'){
+        c.save();c.shadowColor='#8040ff';c.shadowBlur=8*S;
+        c.fillStyle='rgba(0,0,0,0)';
+        c.fillRect(sx+(bx+3)*S,sy+(capeY+8)*S,14*S,6*S);c.restore();
+      }
+    }
+  }
+
+  // ── Wrist ──
+  if(wear.wrist){
+    const id=wear.wrist;
+    const wristY=by+15;
+    if(id==='leather_band'){
+      p(bx-4,wristY,4,2,'#8b4513');p(bx-4,wristY+1,4,1,'#6b3500');
+      p(bx-3,wristY,2,1,'#a0622d');
+      p(bx-2,wristY,1,1,'#c8a060');p(bx-4,wristY,1,1,'#5a2a00');
+      p(bx+20,wristY,4,2,'#8b4513');p(bx+20,wristY+1,4,1,'#6b3500');
+      p(bx+21,wristY,2,1,'#a0622d');
+    }
+    else if(id==='bone_bracelet'){
+      // Carved bone bead bracelet
+      for(let i=0;i<4;i++){
+        p(bx-5+i,wristY,1,2,i%2===0?'#e8dcc8':'#d0c4a8');
+      }
+      p(bx-4,wristY,1,1,'#f0e8d8');
+      p(bx-5,wristY+1,1,1,'#b8a888');
+      for(let i=0;i<4;i++){
+        p(bx+20+i,wristY,1,2,i%2===0?'#e8dcc8':'#d0c4a8');
+      }
+      p(bx+21,wristY,1,1,'#f0e8d8');
+    }
+    else if(id==='gold_watch'){
+      p(bx-5,wristY-1,5,4,'#4a3018');
+      p(bx-4,wristY,3,2,'#ffd700');
+      p(bx-3,wristY,1,2,'#334');
+      p(bx-3,wristY,1,1,'#fff');
+      p(bx-4,wristY+1,1,1,'#b8860b');
+      p(bx+20,wristY-1,5,4,'#4a3018');
+      p(bx+21,wristY,3,2,'#ffd700');
+      p(bx+22,wristY,1,2,'#334');
+      p(bx+22,wristY,1,1,'#fff');
+    }
+    else if(id==='chain_bracelet'){
+      for(let i=0;i<4;i++){
+        p(bx-5+i,wristY,1,1,i%2===0?'#ccc':'#999');
+        p(bx-5+i,wristY+1,1,1,i%2===0?'#aaa':'#777');
+      }
+      p(bx-5,wristY,1,1,'#eee');
+      for(let i=0;i<4;i++){
+        p(bx+20+i,wristY,1,1,i%2===0?'#ccc':'#999');
+        p(bx+20+i,wristY+1,1,1,i%2===0?'#aaa':'#777');
+      }
+      p(bx+23,wristY,1,1,'#eee');
+      // Chain link shimmer
+      const chainGlint=Math.floor(t*0.06)%4;
+      p(bx-5+chainGlint,wristY,1,1,'rgba(255,255,255,0.5)');
+      p(bx+20+chainGlint,wristY,1,1,'rgba(255,255,255,0.5)');
+    }
+    else if(id==='crystal_cuff'){
+      // === EPIC PRISMATIC CRYSTAL EFFECT ===
+      const cg=0.6+Math.sin(t*0.08)*0.4;
+      // Strong crystal aura glow (both wrists)
+      c.save();c.shadowColor='#60a5fa';c.shadowBlur=10*S;
+      c.fillStyle='rgba(0,0,0,0)';
+      c.fillRect(sx+(bx-6)*S,sy+(wristY-2)*S,6*S,5*S);
+      c.fillRect(sx+(bx+19)*S,sy+(wristY-2)*S,6*S,5*S);
+      c.restore();
+      // Crystal gem base
+      p(bx-4,wristY,3,1,'#a0c8ff');p(bx-3,wristY,1,1,'#d0e8ff');
+      p(bx+21,wristY,3,1,'#a0c8ff');p(bx+22,wristY,1,1,'#d0e8ff');
+      // Orbiting crystal shards (3 per wrist)
+      for(let ci=0;ci<3;ci++){
+        const cAng=(t*0.007+ci*Math.PI*2/3)%(Math.PI*2);
+        const cDist=3+Math.sin(t*0.005+ci)*1;
+        // Left wrist shards
+        const clx=bx-3+Math.cos(cAng)*cDist;
+        const cly=wristY+Math.sin(cAng)*cDist;
+        const ca=0.5+Math.sin(t*0.01+ci*2)*0.3;
+        glow(Math.round(clx),Math.round(cly),1,1,`rgba(150,${180+ci*20},255,${ca})`,3);
+        // Right wrist shards
+        const crx=bx+22+Math.cos(cAng+Math.PI)*cDist;
+        glow(Math.round(crx),Math.round(cly),1,1,`rgba(150,${180+ci*20},255,${ca})`,3);
+      }
+      // Prismatic color flash
+      const prismHue=Math.floor(t*0.15)%360;
+      const prismA=0.15+Math.sin(t*0.1)*0.1;
+      c.save();c.fillStyle='rgba(0,0,0,0)';c.shadowColor=`hsla(${prismHue},80%,70%,1)`;c.shadowBlur=8*S;
+      c.fillRect(sx+(bx-5)*S,sy+(wristY-1)*S,4*S,3*S);
+      c.fillRect(sx+(bx+20)*S,sy+(wristY-1)*S,4*S,3*S);
+      c.restore();
+    }
+    else if(id==='dragon_bangle'){
+      // === LEGENDARY DRAGON BANGLE ===
+      p(bx-5,wristY-1,5,3,'#fbbf24');p(bx-5,wristY,5,1,'#d4a017');
+      p(bx-3,wristY+1,2,1,'#e0a000');
+      p(bx-5,wristY-1,1,1,'#ffe44d');
+      p(bx+20,wristY-1,5,3,'#fbbf24');p(bx+20,wristY,5,1,'#d4a017');
+      p(bx+21,wristY+1,2,1,'#e0a000');
+      // Dragon eye gems (intense glow)
+      const deyePulse=0.6+Math.sin(t*0.1)*0.4;
+      glow(bx-4,wristY-1,2,1,`rgba(255,0,0,${deyePulse})`,6);
+      glow(bx+22,wristY-1,2,1,`rgba(255,0,0,${deyePulse})`,6);
+      // Dragon scale shimmer
+      const scalePos=Math.floor(t*0.08)%5;
+      p(bx-5+scalePos,wristY,1,1,'rgba(255,230,100,0.5)');
+      p(bx+20+scalePos,wristY,1,1,'rgba(255,230,100,0.5)');
+      // Gold aura glow
+      c.save();c.shadowColor='#fbbf24';c.shadowBlur=8*S;
+      c.fillStyle='rgba(0,0,0,0)';
+      c.fillRect(sx+(bx-6)*S,sy+(wristY-2)*S,6*S,5*S);
+      c.fillRect(sx+(bx+19)*S,sy+(wristY-2)*S,6*S,5*S);
+      c.restore();
+      // Flame jet particles (4 per wrist, rising)
+      for(let fi=0;fi<4;fi++){
+        const fPhase=(t*0.004+fi*0.5)%1.5;
+        const fy=wristY-2-fPhase*4;
+        const fa=Math.max(0,(1-fPhase/1.5)*0.5);
+        const fx1=bx-5+fi+Math.sin(t*0.008+fi)*0.8;
+        const fx2=bx+20+fi+Math.sin(t*0.008+fi+1)*0.8;
+        glow(Math.round(fx1),Math.round(fy),1,1,`rgba(255,${60+fi*30},0,${fa})`,3);
+        glow(Math.round(fx2),Math.round(fy),1,1,`rgba(255,${60+fi*30},0,${fa})`,3);
+      }
+      // Orbiting fire motes
+      for(let oi=0;oi<2;oi++){
+        const oAng=(t*0.006+oi*Math.PI)%(Math.PI*2);
+        const od=3+Math.sin(t*0.004+oi)*1;
+        const olx=bx-3+Math.cos(oAng)*od;
+        const oly=wristY+Math.sin(oAng)*od;
+        const oa=0.4+Math.sin(t*0.01+oi)*0.2;
+        glow(Math.round(olx),Math.round(oly),1,1,`rgba(255,150,0,${oa})`,2);
+        const orx=bx+22+Math.cos(oAng+Math.PI)*od;
+        glow(Math.round(orx),Math.round(oly),1,1,`rgba(255,150,0,${oa})`,2);
+      }
+    }
+    else if(id==='ember_gauntlet'){
+      p(bx-5,wristY-1,5,4,'#5a2a0a');p(bx-5,wristY,5,1,'#4a1a00');
+      p(bx-4,wristY-1,3,1,'#6b3a1a');
+      p(bx+20,wristY-1,5,4,'#5a2a0a');p(bx+20,wristY,5,1,'#4a1a00');
+      p(bx+21,wristY-1,3,1,'#6b3a1a');
+      const emberPulse=0.5+Math.sin(t*0.1)*0.3;
+      glow(bx-4,wristY,1,1,`rgba(255,100,0,${emberPulse})`,4);
+      glow(bx-3,wristY+1,1,1,`rgba(255,60,0,${emberPulse*0.8})`,3);
+      glow(bx+22,wristY,1,1,`rgba(255,100,0,${emberPulse})`,4);
+      glow(bx+21,wristY+1,1,1,`rgba(255,60,0,${emberPulse*0.8})`,3);
+      for(let si=0;si<2;si++){
+        const sPhase=(t*0.003+si*0.8)%2;
+        const smx1=bx-4+si*2+Math.sin(t*0.006+si)*0.8;
+        const smy=wristY-2-sPhase*4;
+        const sa=Math.max(0,(1-sPhase/2)*0.3);
+        p(Math.round(smx1),Math.round(smy),1,1,`rgba(80,40,10,${sa})`);
+        const smx2=bx+21+si*2+Math.sin(t*0.006+si+1)*0.8;
+        p(Math.round(smx2),Math.round(smy),1,1,`rgba(80,40,10,${sa})`);
+      }
+      c.save();c.shadowColor='#ff4400';c.shadowBlur=6*S;
+      c.fillStyle='rgba(0,0,0,0)';
+      c.fillRect(sx+(bx-6)*S,sy+(wristY-2)*S,6*S,5*S);
+      c.fillRect(sx+(bx+19)*S,sy+(wristY-2)*S,6*S,5*S);
+      c.restore();
+    }
+    else if(id==='void_shackle'){
+      for(let i=0;i<5;i++){
+        p(bx-6+i,wristY-1+((i%2)*2),1,2,i%2===0?'#3a0060':'#2a0040');
+      }
+      for(let i=0;i<5;i++){
+        p(bx+20+i,wristY-1+((i%2)*2),1,2,i%2===0?'#3a0060':'#2a0040');
+      }
+      const voidPulse=0.5+Math.sin(t*0.08)*0.35;
+      glow(bx-5,wristY,1,1,`rgba(128,0,255,${voidPulse})`,5);
+      glow(bx-3,wristY,1,1,`rgba(128,0,255,${voidPulse*0.7})`,4);
+      glow(bx+21,wristY,1,1,`rgba(128,0,255,${voidPulse})`,5);
+      glow(bx+23,wristY,1,1,`rgba(128,0,255,${voidPulse*0.7})`,4);
+      for(let ti=0;ti<3;ti++){
+        const tPhase=(t*0.003+ti*0.6)%2.5;
+        const tx1=bx-4+Math.sin(t*0.005+ti)*1.5;
+        const ty=wristY-1-tPhase*5;
+        const ta=Math.max(0,(1-tPhase/2.5)*0.4);
+        glow(Math.round(tx1),Math.round(ty),1,1,`rgba(100,0,200,${ta})`,3);
+        const tx2=bx+22+Math.sin(t*0.005+ti+1)*1.5;
+        glow(Math.round(tx2),Math.round(ty),1,1,`rgba(100,0,200,${ta})`,3);
+      }
+      c.save();c.shadowColor='#6600cc';c.shadowBlur=10*S;
+      c.fillStyle='rgba(0,0,0,0)';
+      c.fillRect(sx+(bx-6)*S,sy+(wristY-2)*S,6*S,5*S);
+      c.fillRect(sx+(bx+19)*S,sy+(wristY-2)*S,6*S,5*S);
+      c.restore();
+    }
+  }
+
+  // ── Face ──
+  if(wear.face){
+    const id=wear.face;
+    const eey=hy+5;
+    if(id==='bandana'){
+      p(hx,hy+7,14,3,'#cc2200');p(hx+1,hy+7,12,1,'#dd3311');
+      p(hx+2,hy+8,10,1,'#bb1100');
+      p(hx+5,hy+7,1,1,'#e8e8e8');p(hx+9,hy+7,1,1,'#e8e8e8');
+      p(hx+6,hy+8,2,1,'#e0e0e0');
+      p(hx+14,hy+7,2,1,'#cc2200');p(hx+15,hy+8,2,2,'#bb1100');p(hx+16,hy+9,2,1,'#aa0000');
+      p(hx+14,hy+8,1,2,'#cc2200');p(hx+15,hy+10,1,1,'#990000');
+      p(hx,hy+8,12,1,'rgba(80,15,0,0.3)');
+    }
+    else if(id==='eye_patch'){
+      // Pirate eye patch over LEFT eye
+      p(hx+2,eey-1,4,3,'#111');p(hx+3,eey,2,1,'#222');
+      p(hx+3,eey-1,2,1,'#777');p(hx+3,eey,2,1,'#555');
+      p(hx-1,eey-1,3,1,'#3a2010');p(hx+6,eey-1,8,1,'#3a2010');
+      p(hx+0,eey-1,1,1,'#4a3020');p(hx+8,eey-1,1,1,'#4a3020');p(hx+12,eey-1,1,1,'#4a3020');
+      p(hx+13,eey-1,1,1,'#b8860b');
+    }
+    else if(id==='monocle'){
+      c.save();
+      const mx=hx+10.5, my=eey+0.5;
+      c.strokeStyle='#ffd700';c.lineWidth=1.2*S;
+      c.beginPath();c.arc(sx+mx*S,sy+my*S,2.2*S,0,Math.PI*2);c.stroke();
+      c.fillStyle='rgba(200,220,255,0.15)';
+      c.beginPath();c.arc(sx+mx*S,sy+my*S,1.6*S,0,Math.PI*2);c.fill();
+      c.fillStyle='rgba(255,255,255,0.45)';c.fillRect(sx+(mx-1)*S,sy+(my-1)*S,S*0.8,S*0.8);
+      c.strokeStyle='#b8860b';c.lineWidth=0.4*S;
+      c.beginPath();
+      c.moveTo(sx+(mx-1.5)*S,sy+(my+2)*S);
+      const chainSway=Math.sin(t*0.04)*0.4;
+      c.quadraticCurveTo(sx+(mx-2.5+chainSway)*S,sy+(my+4.5)*S,sx+(mx-3)*S,sy+(my+6.5)*S);
+      c.stroke();
+      c.restore();
+    }
+    else if(id==='skull_mask'){
+      // Full skull mask with glowing eyes + detailed teeth + cracks
+      // Skull shape (covers face)
+      p(hx+1,hy+1,10,8,'#e8e0d0');p(hx,hy+2,1,5,'#d8d0c0');p(hx+11,hy+2,1,5,'#d8d0c0');
+      p(hx+2,hy,8,1,'#f0e8d8'); // forehead
+      // Cheekbone highlights
+      p(hx+1,hy+3,2,2,'#f0e8d8');p(hx+9,hy+3,2,2,'#f0e8d8');
+      // Deep eye sockets (larger)
+      p(hx+2,eey-1,3,3,'#0a0a0a');p(hx+7,eey-1,3,3,'#0a0a0a');
+      // === EPIC DEATH SKULL EFFECT ===
+      // Intense glowing red eyes (bigger blur, brighter)
+      const eyePulse=0.6+Math.sin(t*0.1)*0.4;
+      glow(hx+3,eey,1,1,`rgba(255,0,0,${eyePulse})`,6);
+      glow(hx+8,eey,1,1,`rgba(255,0,0,${eyePulse})`,6);
+      // Eye trail glow bleeding down
+      p(hx+3,eey+1,1,1,`rgba(255,0,0,${eyePulse*0.3})`);
+      p(hx+8,eey+1,1,1,`rgba(255,0,0,${eyePulse*0.3})`);
+      // Nose cavity (triangle)
+      p(hx+5,hy+6,2,2,'#222');p(hx+5,hy+7,1,1,'#333');
+      // Teeth (detailed row)
+      p(hx+2,hy+8,8,1,'#111');
+      for(let i=0;i<8;i++)p(hx+2+i,hy+8,1,1,i%2===0?'#ddd':'#111');
+      // Cracks with eerie glow
+      p(hx+3,hy+1,1,2,'rgba(80,70,60,0.4)');p(hx+9,hy+2,1,3,'rgba(80,70,60,0.3)');
+      glow(hx+3,hy+1,1,1,`rgba(255,0,0,${eyePulse*0.1})`,2);
+      // Jaw shadow
+      p(hx+1,hy+8,2,1,'#c8c0b0');p(hx+9,hy+8,2,1,'#c8c0b0');
+      // Death fog aura (large, dark)
+      const mistA=0.18+Math.sin(t*0.05)*0.1;
+      c.save();c.shadowColor=`rgba(80,0,120,${mistA})`;c.shadowBlur=14*S;
+      c.fillStyle='rgba(0,0,0,0)';
+      c.fillRect(sx+(hx-2)*S,sy+(hy-1)*S,16*S,12*S);
+      c.restore();
+      // Soul wisps rising from mask
+      for(let wi=0;wi<3;wi++){
+        const wPhase=(t*0.003+wi*0.8)%2.5;
+        const wx=hx+2+wi*4+Math.sin(t*0.005+wi*2)*2;
+        const wy=hy-2-wPhase*5;
+        const wa=Math.max(0,(1-wPhase/2.5)*0.4);
+        glow(Math.round(wx),Math.round(wy),1,1,`rgba(180,0,255,${wa})`,3);
+      }
+      // Dark smoke from jaw
+      for(let si=0;si<2;si++){
+        const sPhase=(t*0.002+si*1.3)%3;
+        const smx=hx+3+si*5+Math.sin(t*0.004+si)*1.5;
+        const smy=hy+9+sPhase*3;
+        const sa=Math.max(0,(1-sPhase/3)*0.25);
+        p(Math.round(smx),Math.round(smy),2,1,`rgba(30,0,50,${sa})`);
+      }
+    }
+    else if(id==='phantom_mask'){
+      // === LEGENDARY PHANTOM MASK ===
+      // White porcelain half (left side)
+      p(hx,hy+1,6,8,'#fff');p(hx+1,hy,5,1,'#fff');p(hx,hy+1,1,7,'#f0f0f0');
+      // Contour shading
+      p(hx+5,hy+2,1,6,'#e0e0e0');
+      p(hx,hy+8,6,1,'rgba(255,255,255,0.4)');
+      // Eye hole (dramatic almond shape)
+      p(hx+1,eey-1,3,3,'#111');p(hx+2,eey,1,1,'#222');
+      // Nose contour
+      p(hx+4,hy+5,1,2,'#eee');p(hx+3,hy+6,1,1,'#ddd');
+      // Gold filigree accents (more intricate)
+      p(hx+1,hy+1,4,1,'rgba(255,215,0,0.45)');
+      p(hx,hy+3,1,2,'rgba(255,215,0,0.35)');
+      p(hx+2,hy+2,1,1,'rgba(255,215,0,0.4)');p(hx+4,hy+3,1,1,'rgba(255,215,0,0.35)');
+      p(hx+1,hy+5,1,1,'rgba(255,215,0,0.25)');p(hx+3,hy+7,1,1,'rgba(255,215,0,0.2)');
+      // Porcelain gleam
+      p(hx+2,hy+2,1,1,'rgba(255,255,255,0.8)');
+      // Strong ethereal glow aura
+      c.save();c.shadowColor=`rgba(255,255,255,${0.15+Math.sin(t*0.06)*0.1})`;c.shadowBlur=12*S;
+      c.fillStyle='rgba(0,0,0,0)';
+      c.fillRect(sx+(hx-2)*S,sy+(hy-1)*S,10*S,12*S);c.restore();
+      // Spectral wisps drifting from mask
+      for(let wi=0;wi<3;wi++){
+        const wPhase=(t*0.003+wi*0.7)%2.5;
+        const wx=hx+wi*2+Math.sin(t*0.005+wi*1.8)*2;
+        const wy=hy+1-wPhase*4;
+        const wa=Math.max(0,(1-wPhase/2.5)*0.35);
+        glow(Math.round(wx),Math.round(wy),1,1,`rgba(220,220,255,${wa})`,4);
+      }
+      // Gold filigree sparkle pulses
+      const filigreeT=Math.sin(t*0.1);
+      if(filigreeT>0.2)glow(hx+1,hy+1,1,1,`rgba(255,215,0,${filigreeT*0.4})`,3);
+      if(Math.sin(t*0.1+1.5)>0.2)glow(hx+4,hy+3,1,1,`rgba(255,215,0,${Math.sin(t*0.1+1.5)*0.3})`,2);
+      // Phantom eye glow (eerie blue-white in socket)
+      const phantomEye=0.3+Math.sin(t*0.08)*0.2;
+      glow(hx+2,eey,1,1,`rgba(180,200,255,${phantomEye})`,4);
+      // Mysterious energy particles orbiting
+      for(let pi=0;pi<2;pi++){
+        const pAng=(t*0.006+pi*Math.PI)%(Math.PI*2);
+        const pd=4+Math.sin(t*0.004+pi)*1.5;
+        const px=hx+3+Math.cos(pAng)*pd;
+        const py=hy+4+Math.sin(pAng)*pd;
+        const pa=0.25+Math.sin(t*0.01+pi)*0.15;
+        glow(Math.round(px),Math.round(py),1,1,`rgba(255,255,255,${pa})`,2);
+      }
+    }
+    else if(id==='war_paint'){
+      // Tribal war paint - red/black stripes across face
+      p(hx+1,hy+3,4,1,'#cc2200');p(hx+7,hy+3,4,1,'#cc2200');
+      p(hx+2,hy+4,3,1,'#8b0000');p(hx+7,hy+4,3,1,'#8b0000');
+      p(hx+1,hy+2,1,3,'#1a1a1a');p(hx+10,hy+2,1,3,'#1a1a1a');
+      p(hx+5,hy+8,2,1,'#cc2200');p(hx+5,hy+9,2,1,'#8b0000');
+      p(hx+6,hy+10,1,1,'#660000');
+      const wpGlow=0.1+Math.sin(t*0.04)*0.06;
+      glow(hx+1,hy+3,10,2,`rgba(200,30,0,${wpGlow})`,2);
+    }
+    else if(id==='frost_visor'){
+      // Ice visor band across eyes
+      p(hx,hy+2,12,3,'rgba(100,180,255,0.5)');
+      p(hx+1,hy+2,10,1,'rgba(150,210,255,0.6)');
+      p(hx+1,hy+4,10,1,'rgba(80,150,230,0.5)');
+      // Ice frame edges
+      p(hx,hy+2,1,3,'#a0d8ff');p(hx+11,hy+2,1,3,'#a0d8ff');
+      p(hx+1,hy+1,10,1,'rgba(180,220,255,0.3)');
+      // Eye glow through visor
+      const frostEyePulse=0.5+Math.sin(t*0.09)*0.3;
+      glow(hx+3,eey,1,1,`rgba(100,200,255,${frostEyePulse})`,5);
+      glow(hx+8,eey,1,1,`rgba(100,200,255,${frostEyePulse})`,5);
+      // Ice crystal reflections
+      p(hx+2,hy+3,1,1,'rgba(255,255,255,0.7)');
+      p(hx+5,hy+2,1,1,'rgba(255,255,255,0.5)');
+      p(hx+9,hy+3,1,1,'rgba(255,255,255,0.6)');
+      // Cold aura
+      c.save();c.shadowColor='#66ccff';c.shadowBlur=8*S;
+      c.fillStyle='rgba(0,0,0,0)';
+      c.fillRect(sx+(hx-1)*S,sy+(hy+1)*S,14*S,5*S);c.restore();
+      // Frost particles
+      for(let fi=0;fi<3;fi++){
+        const fPhase=(t*0.003+fi*0.9)%2;
+        const fx=hx+fi*4+Math.sin(t*0.006+fi)*1.5;
+        const fy=hy+1-fPhase*4;
+        const fa=Math.max(0,(1-fPhase/2)*0.4);
+        p(Math.round(fx),Math.round(fy),1,1,`rgba(180,220,255,${fa})`);
+      }
+    }
+    else if(id==='demon_gaze'){
+      // Burning demon eyes
+      p(hx+2,eey-1,3,3,'#1a0000');p(hx+7,eey-1,3,3,'#1a0000');
+      const demonPulse=0.7+Math.sin(t*0.12)*0.3;
+      glow(hx+3,eey,1,1,`rgba(255,60,0,${demonPulse})`,7);
+      glow(hx+8,eey,1,1,`rgba(255,60,0,${demonPulse})`,7);
+      // Inner eye bright core
+      p(hx+3,eey,1,1,`rgba(255,200,0,${demonPulse*0.8})`);
+      p(hx+8,eey,1,1,`rgba(255,200,0,${demonPulse*0.8})`);
+      // Fire trails from eyes
+      for(let fi=0;fi<3;fi++){
+        const fPhase=(t*0.004+fi*0.5)%2;
+        const flx1=hx+3+Math.sin(t*0.007+fi)*0.8;
+        const fly=eey+1+fPhase*4;
+        const fa=Math.max(0,(1-fPhase/2)*0.5);
+        glow(Math.round(flx1),Math.round(fly),1,1,`rgba(255,80,0,${fa})`,3);
+        const flx2=hx+8+Math.sin(t*0.007+fi+1)*0.8;
+        glow(Math.round(flx2),Math.round(fly),1,1,`rgba(255,80,0,${fa})`,3);
+      }
+      // Brow ridge markings
+      p(hx+1,hy+1,4,1,'#330000');p(hx+7,hy+1,4,1,'#330000');
+      p(hx+2,hy,2,1,'#220000');p(hx+8,hy,2,1,'#220000');
+      // Hellfire under-aura
+      c.save();c.shadowColor='#ff2200';c.shadowBlur=10*S;
+      c.fillStyle='rgba(0,0,0,0)';
+      c.fillRect(sx+(hx+1)*S,sy+(eey-1)*S,10*S,4*S);c.restore();
+      // Dark smoke wisps
+      for(let si=0;si<2;si++){
+        const sPhase=(t*0.003+si*1.1)%2.5;
+        const smx=hx+2+si*5+Math.sin(t*0.005+si)*1.2;
+        const smy=hy-1-sPhase*4;
+        const sa=Math.max(0,(1-sPhase/2.5)*0.3);
+        p(Math.round(smx),Math.round(smy),1,1,`rgba(40,0,0,${sa})`);
+      }
+    }
+  }
+}
+
 function drawCharacter() {
   const canvas = document.getElementById('char-canvas');
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
-  const W = 160, H = 240;
-  const S = 4; // pixel scale
+  const W = 160, H = 260;
+  const S = 4;
+  const yOff = 32; // headroom for tall hats
   ctx.clearRect(0, 0, W, H);
   ctx.imageSmoothingEnabled = false;
+  ctx.save();
+  ctx.translate(0, yOff);
 
   const a = currentAppearance || {};
   const eq = (profile && profile.equipped) || {};
@@ -2503,228 +3867,425 @@ function drawCharacter() {
   }
 
   function darker(hex, amt) {
-    const num = parseInt(hex.replace('#',''), 16);
+    const num = parseInt((hex || '#888888').replace('#', ''), 16);
     const r = Math.max(0, Math.min(255, (num >> 16) - amt));
     const g = Math.max(0, Math.min(255, ((num >> 8) & 0xff) - amt));
     const b = Math.max(0, Math.min(255, (num & 0xff) - amt));
     return `rgb(${r},${g},${b})`;
   }
 
+  // ── COLOR PALETTE (5-shade system) ──
   const skin = a.skinColor || '#f5d0a9';
-  const skinShade = darker(skin, 30);
   const skinHi = darker(skin, -20);
+  const skinShade = darker(skin, 30);
+  const skinDark = darker(skin, 50);
+  const skinDeep = darker(skin, 65);
   const hair = a.hairColor || '#2c1b0e';
   const hairHi = darker(hair, -25);
+  const hairMid = darker(hair, -10);
   const hairSh = darker(hair, 30);
+  const hairDeep = darker(hair, 50);
   const eye = a.eyeColor || '#3498db';
+  const eyeHi = darker(eye, -30);
+  const eyeSh = darker(eye, 40);
   const outfitC = a.outfitColor || '#3498db';
-  const outfitShade = darker(outfitC, 40);
   const outfitHi = darker(outfitC, -25);
-
-  // HEAD (12x11 rounded, centered at x=14)
-  const hx = 14, hy = 8;
-  // Head shape with rounded corners
-  px(hx+1, hy, 10, 11, skin); px(hx, hy+1, 12, 9, skin);
-  // Chin roundness
-  px(hx, hy+10, 1, 1, skin); px(hx+11, hy+10, 1, 1, skin);
-  // Cheek shade + highlights
-  px(hx+1, hy+9, 2, 1, skinShade); px(hx+9, hy+9, 2, 1, skinShade);
-  px(hx+1, hy+1, 3, 1, skinHi); px(hx+5, hy+1, 3, 1, skinHi);
-
-  // Ears with inner detail
-  px(hx-1, hy+3, 1, 4, skin); px(hx-1, hy+4, 1, 2, skinShade);
-  px(hx+12, hy+3, 1, 4, skin); px(hx+12, hy+4, 1, 2, skinShade);
-
-  // ── HAIR (8 styles, detailed) ──
-  const hs = a.hairStyle || 'spiky';
-  if (hs === 'spiky') {
-    px(hx, hy-2, 12, 3, hair);
-    px(hx+1, hy-4, 2, 2, hair); px(hx+5, hy-5, 2, 3, hair); px(hx+9, hy-4, 2, 2, hair);
-    px(hx, hy+1, 1, 3, hair); px(hx+11, hy+1, 1, 3, hair);
-    px(hx+2, hy-2, 3, 1, hairHi); px(hx+6, hy-3, 2, 1, hairHi);
-  } else if (hs === 'flat') {
-    px(hx, hy-1, 12, 2, hair);
-    px(hx, hy+1, 1, 3, hair); px(hx+11, hy+1, 1, 3, hair);
-    px(hx+2, hy-1, 4, 1, hairHi);
-  } else if (hs === 'mohawk') {
-    px(hx+4, hy-5, 4, 6, hair); px(hx+5, hy-6, 2, 1, hair);
-    px(hx+5, hy-5, 2, 1, hairHi);
-  } else if (hs === 'long') {
-    px(hx, hy-1, 12, 3, hair);
-    px(hx-1, hy+2, 2, 8, hair); px(hx+11, hy+2, 2, 8, hair);
-    px(hx, hy+1, 1, 5, hair); px(hx+11, hy+1, 1, 5, hair);
-    px(hx+2, hy-1, 4, 1, hairHi); px(hx-1, hy+3, 1, 2, hairHi);
-  } else if (hs === 'curly') {
-    px(hx-1, hy-1, 14, 3, hair);
-    px(hx-1, hy+2, 2, 4, hair); px(hx+11, hy+2, 2, 4, hair);
-    px(hx+1, hy-2, 3, 1, hair); px(hx+8, hy-2, 3, 1, hair);
-    px(hx+2, hy-1, 3, 1, hairHi);
-  } else if (hs === 'ponytail') {
-    px(hx, hy-1, 12, 3, hair);
-    px(hx+11, hy+2, 2, 3, hair); px(hx+12, hy+5, 2, 4, hair); px(hx+12, hy+8, 1, 2, hair);
-    px(hx+2, hy-1, 4, 1, hairHi);
-  } else if (hs === 'messy') {
-    px(hx-1, hy-2, 14, 3, hair);
-    px(hx+1, hy-3, 2, 1, hair); px(hx+6, hy-3, 3, 1, hair);
-    px(hx-1, hy+1, 1, 3, hair); px(hx+12, hy+1, 1, 3, hair);
-    px(hx+2, hy-2, 3, 1, hairHi);
-  } else if (hs === 'buzz') {
-    px(hx, hy-1, 12, 2, hair);
-    px(hx, hy+1, 1, 1, hair); px(hx+11, hy+1, 1, 1, hair);
-    px(hx+3, hy-1, 3, 1, hairHi);
-  }
-  // bald = no hair
-
-  // Eyebrows
-  px(hx+2, hy+3, 3, 1, darker(hair, 20)); px(hx+7, hy+3, 3, 1, darker(hair, 20));
-
-  // ── EYES (3px wide) ──
-  const es = a.eyeStyle || 'normal';
-  const lex = hx+2, rex = hx+7, ey = hy+4;
-  px(lex, ey, 3, 2, '#fff'); px(rex, ey, 3, 2, '#fff');
-  if (es === 'normal') {
-    px(lex+1, ey, 1, 2, eye); px(lex+1, ey, 1, 1, '#111');
-    px(rex+1, ey, 1, 2, eye); px(rex+1, ey, 1, 1, '#111');
-  } else if (es === 'angry') {
-    px(lex+1, ey+1, 1, 1, eye); px(lex, ey, 2, 1, '#111');
-    px(rex+1, ey+1, 1, 1, eye); px(rex+1, ey, 2, 1, '#111');
-  } else if (es === 'happy') {
-    px(lex, ey+1, 3, 1, eye); px(lex, ey, 3, 1, skinHi);
-    px(rex, ey+1, 3, 1, eye); px(rex, ey, 3, 1, skinHi);
-  } else if (es === 'cool') {
-    px(lex-1, ey, 4, 2, '#1a1a2e'); px(lex, ey, 2, 1, '#333');
-    px(rex-1, ey, 4, 2, '#1a1a2e'); px(rex, ey, 2, 1, '#333');
-  } else if (es === 'sleepy') {
-    px(lex, ey, 3, 1, skin); px(lex, ey+1, 3, 1, eye);
-    px(rex, ey, 3, 1, skin); px(rex, ey+1, 3, 1, eye);
-  } else if (es === 'wide') {
-    px(lex, ey-1, 3, 3, '#fff'); px(lex+1, ey, 1, 1, eye); px(lex+1, ey, 1, 1, '#111');
-    px(rex, ey-1, 3, 3, '#fff'); px(rex+1, ey, 1, 1, eye); px(rex+1, ey, 1, 1, '#111');
-  } else if (es === 'dot') {
-    px(lex+1, ey, 1, 1, eye); px(rex+1, ey, 1, 1, eye);
-  } else if (es === 'wink') {
-    px(lex+1, ey, 1, 2, eye); px(lex+1, ey, 1, 1, '#111');
-    px(rex, ey+1, 3, 1, eye);
-  }
-
-  // Nose
-  px(hx+5, hy+7, 2, 1, skinShade);
-
-  // ── MOUTH ──
-  const ms = a.mouthStyle || 'smile';
-  const mx = hx+4, my = hy+8;
-  if (ms === 'smile') { px(mx, my, 4, 1, darker(skin, 50)); px(mx+1, my+1, 2, 1, darker(skin, 60)); }
-  else if (ms === 'neutral') { px(mx, my, 4, 1, darker(skin, 50)); }
-  else if (ms === 'open') { px(mx+1, my, 2, 2, '#2c1b0e'); px(mx+1, my+1, 2, 1, '#c0392b'); }
-  else if (ms === 'smirk') { px(mx+1, my, 3, 1, darker(skin, 50)); px(mx+3, my-1, 1, 1, darker(skin, 60)); }
-  else if (ms === 'frown') { px(mx+1, my+1, 2, 1, darker(skin, 60)); px(mx, my, 4, 1, darker(skin, 40)); }
-  else if (ms === 'teeth') { px(mx, my, 4, 1, darker(skin, 60)); px(mx+1, my, 2, 1, '#fff'); }
-  else if (ms === 'tiny') { px(mx+1, my, 2, 1, darker(skin, 50)); }
-
-  // ── NECK (wider, with shading) ──
-  px(hx+4, hy+11, 4, 2, skin); px(hx+5, hy+11, 2, 1, skinShade);
-
-  // ── BODY / OUTFIT ──
-  const bx = 12, by = hy + 13;
+  const outfitShade = darker(outfitC, 40);
+  const outfitDark = darker(outfitC, 60);
+  const outfitDeep = darker(outfitC, 75);
   const outfit = a.outfit || 'tshirt';
   const isFemale = (a.gender === 'female');
 
-  // Body base
+  // ═══ HEAD (14x13, gender-aware jawline) ═══
+  const hx = 13, hy = 8;
   if (isFemale) {
-    // Female shape: narrower waist, wider hips
-    px(bx+1, by, 14, 5, outfitC);       // upper torso (narrower)
-    px(bx, by+5, 16, 3, outfitC);       // chest area
-    px(bx+2, by+8, 12, 2, outfitC);     // waist (narrow)
-    px(bx, by+10, 16, 4, outfitC);      // hips (wider)
-    // Bra / top detail
-    px(bx+3, by+4, 4, 3, outfitShade);  // left cup
-    px(bx+9, by+4, 4, 3, outfitShade);  // right cup
-    px(bx+4, by+4, 2, 2, outfitHi);     // left highlight
-    px(bx+10, by+4, 2, 2, outfitHi);    // right highlight
-    px(bx+7, by+5, 2, 1, outfitShade);  // center
-    // Waist curve shading
-    px(bx+2, by+8, 1, 2, outfitShade);  px(bx+13, by+8, 1, 2, outfitShade);
-    px(bx+1, by+9, 1, 1, outfitShade);  px(bx+14, by+9, 1, 1, outfitShade);
+    // Female: softer jawline, rounder chin
+    px(hx+3, hy, 8, 1, skin); px(hx+2, hy+1, 10, 1, skin); px(hx+1, hy+2, 12, 1, skin);
+    px(hx, hy+3, 14, 6, skin); px(hx+1, hy+9, 12, 1, skin); px(hx+2, hy+10, 10, 1, skin);
+    px(hx+4, hy+11, 6, 1, skin); px(hx+5, hy+12, 4, 1, skin);
+    px(hx+3, hy+1, 4, 1, skinHi); px(hx+3, hy+2, 4, 1, skinHi);
+    px(hx, hy+6, 1, 2, skinShade); px(hx+13, hy+6, 1, 3, skinShade);
+    px(hx+1, hy+7, 2, 2, darker(skin, -8)); px(hx+11, hy+7, 2, 2, darker(skin, -8));
+    px(hx+2, hy+10, 1, 1, skinShade); px(hx+11, hy+10, 1, 1, skinShade);
+    px(hx+5, hy+11, 4, 1, skinHi); px(hx+6, hy+12, 2, 1, skinShade);
   } else {
-    px(bx, by, 16, 14, outfitC);
+    // Male: angular jawline
+    px(hx+3, hy, 8, 1, skin); px(hx+2, hy+1, 10, 1, skin); px(hx+1, hy+2, 12, 1, skin);
+    px(hx, hy+3, 14, 6, skin); px(hx+1, hy+9, 12, 1, skin); px(hx+2, hy+10, 10, 1, skin);
+    px(hx+3, hy+11, 8, 1, skin); px(hx+4, hy+12, 6, 1, skin);
+    px(hx+3, hy+1, 4, 1, skinHi); px(hx+3, hy+2, 4, 1, skinHi);
+    px(hx, hy+6, 1, 2, skinShade); px(hx+13, hy+6, 1, 3, skinShade);
+    px(hx+1, hy+7, 2, 1, darker(skin, -5)); px(hx+11, hy+7, 2, 1, darker(skin, -5));
+    px(hx+2, hy+10, 2, 1, skinShade); px(hx+10, hy+10, 2, 1, skinShade);
+    px(hx+3, hy+11, 2, 1, skinShade); px(hx+9, hy+11, 2, 1, skinShade);
+    px(hx+5, hy+12, 4, 1, skinShade); px(hx+6, hy+11, 2, 1, skinHi);
+    px(hx+4, hy+12, 1, 1, skinDark); px(hx+9, hy+12, 1, 1, skinDark);
   }
+
+  // ── Ears ──
+  px(hx-1, hy+4, 1, 5, skin); px(hx-2, hy+5, 1, 3, skin);
+  px(hx+14, hy+4, 1, 5, skin); px(hx+15, hy+5, 1, 3, skin);
+  px(hx-1, hy+5, 1, 2, skinShade); px(hx-2, hy+6, 1, 1, skinShade);
+  px(hx+14, hy+5, 1, 2, skinShade); px(hx+15, hy+6, 1, 1, skinShade);
+  px(hx-1, hy+8, 1, 1, skinShade); px(hx+14, hy+8, 1, 1, skinShade);
+
+  // ═══ HAIR (10 styles — female gets +1px volume on flowing styles) ═══
+  const hs = a.hairStyle || 'spiky';
+  if (hs === 'spiky') {
+    px(hx+1, hy-2, 12, 3, hair); px(hx, hy+1, 1, 3, hair); px(hx+13, hy+1, 1, 3, hair);
+    px(hx+1, hy-4, 3, 2, hair); px(hx+5, hy-5, 3, 2, hair); px(hx+9, hy-4, 3, 2, hair);
+    px(hx+3, hy-5, 2, 1, hair); px(hx+7, hy-6, 2, 1, hair); px(hx+10, hy-5, 2, 1, hair);
+    px(hx+1, hy-4, 1, 1, hairHi); px(hx+5, hy-6, 1, 1, hairHi); px(hx+9, hy-5, 1, 1, hairHi);
+    px(hx+3, hy-3, 3, 1, hairHi); px(hx+8, hy-2, 2, 1, hairMid);
+    px(hx+1, hy, 12, 1, hairSh); px(hx+8, hy-1, 3, 1, hairSh);
+    px(hx+13, hy+2, 1, 2, hairDeep); px(hx, hy+2, 1, 1, hairSh);
+    if (isFemale) { px(hx, hy+1, 1, 3, hair); px(hx+13, hy+1, 1, 4, hair); px(hx-1, hy+2, 1, 2, hair); px(hx+14, hy+2, 1, 2, hair); px(hx-1, hy+2, 1, 1, hairHi); }
+  } else if (hs === 'flat') {
+    px(hx+1, hy-2, 12, 3, hair); px(hx, hy+1, 1, 3, hair); px(hx+13, hy+1, 1, 3, hair);
+    px(hx+2, hy-3, 10, 1, hair);
+    px(hx+2, hy-3, 4, 1, hairHi); px(hx+8, hy-3, 3, 1, hairMid);
+    px(hx+2, hy-2, 4, 1, hairHi); px(hx+9, hy-2, 3, 1, hairMid);
+    px(hx+7, hy-2, 1, 2, hairSh);
+    px(hx+13, hy+2, 1, 2, hairDeep); px(hx, hy+2, 1, 1, hairSh);
+    px(hx+10, hy, 3, 1, hairSh);
+    if (isFemale) { px(hx-1, hy+1, 1, 3, hair); px(hx+14, hy+1, 1, 3, hair); px(hx-1, hy+1, 1, 2, hairHi); }
+  } else if (hs === 'mohawk') {
+    px(hx+4, hy-5, 6, 6, hair); px(hx+5, hy-7, 4, 2, hair); px(hx+6, hy-8, 2, 1, hair);
+    px(hx+5, hy-7, 2, 1, hairHi); px(hx+5, hy-5, 4, 1, hairHi); px(hx+6, hy-6, 2, 1, hairMid);
+    px(hx+9, hy-3, 1, 2, hairSh); px(hx+4, hy-3, 1, 1, hairHi);
+    px(hx+4, hy, 6, 1, hairDeep);
+    px(hx+1, hy-1, 3, 2, skinShade); px(hx+10, hy-1, 3, 2, skinShade);
+  } else if (hs === 'long') {
+    if (isFemale) {
+      px(hx, hy-3, 14, 4, hair); px(hx-1, hy-2, 1, 2, hair); px(hx+14, hy-2, 1, 2, hair);
+      px(hx-2, hy+1, 3, 12, hair); px(hx+13, hy+1, 3, 12, hair);
+      px(hx-2, hy+12, 2, 2, hairSh); px(hx+14, hy+12, 2, 2, hairSh);
+      px(hx-2, hy+13, 1, 1, hairDeep); px(hx+15, hy+13, 1, 1, hairDeep);
+      px(hx+2, hy-3, 4, 1, hairHi); px(hx-2, hy+2, 1, 4, hairHi); px(hx-1, hy+1, 1, 3, hairHi);
+      px(hx+15, hy+3, 1, 6, hairSh); px(hx+14, hy+8, 1, 4, hairSh);
+      px(hx-2, hy+7, 1, 3, hairMid); px(hx+15, hy+7, 1, 3, hairDeep);
+    } else {
+      px(hx+1, hy-2, 12, 3, hair);
+      px(hx-1, hy+1, 2, 11, hair); px(hx+13, hy+1, 2, 11, hair);
+      px(hx, hy+1, 1, 6, hair); px(hx+13, hy+1, 1, 6, hair);
+      px(hx-1, hy+11, 2, 2, hairSh); px(hx+13, hy+11, 2, 2, hairSh);
+      px(hx-1, hy+12, 1, 1, hairDeep); px(hx+14, hy+12, 1, 1, hairDeep);
+      px(hx+3, hy-2, 3, 1, hairHi); px(hx-1, hy+3, 1, 2, hairHi);
+      px(hx+14, hy+7, 1, 3, hairSh);
+    }
+  } else if (hs === 'curly') {
+    if (isFemale) {
+      px(hx-2, hy-4, 18, 5, hair); px(hx-3, hy+1, 3, 8, hair); px(hx+14, hy+1, 3, 8, hair);
+      px(hx-1, hy-5, 5, 1, hair); px(hx+5, hy-5, 6, 1, hair); px(hx+12, hy-5, 3, 1, hair);
+      px(hx+1, hy-4, 2, 1, hairHi); px(hx+5, hy-5, 2, 1, hairHi); px(hx+10, hy-4, 2, 1, hairHi);
+      px(hx-3, hy+2, 1, 3, hairHi); px(hx+16, hy+2, 1, 3, hairSh);
+      px(hx+3, hy-3, 1, 1, hairSh); px(hx+8, hy-4, 1, 1, hairSh); px(hx+13, hy-3, 1, 1, hairSh);
+      px(hx-3, hy+7, 1, 2, hairDeep); px(hx+16, hy+7, 1, 2, hairDeep);
+    } else {
+      px(hx-1, hy-3, 16, 4, hair); px(hx-2, hy+1, 2, 7, hair); px(hx+14, hy+1, 2, 7, hair);
+      px(hx, hy-4, 4, 1, hair); px(hx+6, hy-4, 5, 1, hair); px(hx+11, hy-4, 3, 1, hair);
+      px(hx+1, hy-3, 2, 1, hairHi); px(hx+5, hy-4, 2, 1, hairHi); px(hx+10, hy-3, 2, 1, hairHi);
+      px(hx-2, hy+2, 1, 2, hairHi); px(hx+15, hy+2, 1, 2, hairSh);
+      px(hx+3, hy-2, 1, 1, hairSh); px(hx+8, hy-3, 1, 1, hairSh); px(hx+12, hy-2, 1, 1, hairSh);
+      px(hx-2, hy+6, 1, 2, hairDeep); px(hx+15, hy+6, 1, 2, hairDeep);
+      px(hx-1, hy+4, 1, 1, hairSh); px(hx+14, hy+4, 1, 1, hairSh);
+    }
+  } else if (hs === 'ponytail') {
+    px(hx+1, hy-2, 12, 3, hair); px(hx+13, hy+1, 1, 4, hair);
+    px(hx+14, hy+2, 1, 8, hair); px(hx+15, hy+5, 1, 6, hair); px(hx+16, hy+8, 1, 4, hair);
+    px(hx+14, hy+8, 1, 2, hairSh); px(hx+15, hy+9, 1, 2, hairSh);
+    px(hx+14, hy+3, 1, 2, hairHi); px(hx+15, hy+6, 1, 1, hairHi);
+    px(hx+13, hy+2, 2, 1, darker(hair, 60));
+    px(hx+3, hy-2, 4, 1, hairHi); px(hx+9, hy-2, 2, 1, hairMid);
+    px(hx+2, hy-1, 2, 1, hairSh);
+    if (isFemale) { px(hx, hy-3, 14, 1, hair); px(hx-1, hy+1, 1, 4, hair); px(hx-1, hy+1, 1, 2, hairHi); px(hx+16, hy+10, 1, 3, hair); px(hx+16, hy+11, 1, 2, hairSh); px(hx+3, hy-3, 3, 1, hairHi); }
+  } else if (hs === 'messy') {
+    px(hx, hy-3, 14, 4, hair); px(hx+1, hy-4, 4, 1, hair); px(hx+7, hy-5, 3, 1, hair); px(hx+11, hy-4, 3, 1, hair);
+    px(hx-1, hy+1, 1, 5, hair); px(hx+14, hy+1, 1, 5, hair);
+    px(hx-2, hy+2, 1, 2, hair); px(hx+15, hy+1, 1, 3, hair);
+    px(hx+2, hy-5, 1, 1, hair); px(hx+9, hy-6, 1, 1, hair);
+    px(hx+2, hy-4, 2, 1, hairHi); px(hx+7, hy-5, 2, 1, hairHi); px(hx+5, hy-3, 2, 1, hairMid);
+    px(hx+11, hy-1, 2, 1, hairSh); px(hx+14, hy+4, 1, 2, hairDeep); px(hx-1, hy+4, 1, 1, hairSh);
+    if (isFemale) { px(hx-2, hy+1, 1, 5, hair); px(hx+15, hy+1, 1, 5, hair); px(hx-2, hy+1, 1, 2, hairHi); px(hx+15, hy+4, 1, 2, hairDeep); }
+  } else if (hs === 'buzz') {
+    px(hx+1, hy-1, 12, 2, hair); px(hx+2, hy-2, 10, 1, hair);
+    px(hx, hy+1, 1, 2, hair); px(hx+13, hy+1, 1, 2, hair);
+    px(hx+2, hy-2, 3, 1, hairHi); px(hx+8, hy-1, 3, 1, hairMid);
+    px(hx+5, hy-1, 1, 1, skinShade); px(hx+9, hy-1, 1, 1, skinShade);
+    px(hx+9, hy, 2, 1, hairSh);
+  } else if (hs === 'afro') {
+    if (isFemale) {
+      px(hx-3, hy-6, 20, 8, hair); px(hx-4, hy-3, 2, 6, hair); px(hx+16, hy-3, 2, 6, hair);
+      px(hx-3, hy+2, 3, 5, hair); px(hx+14, hy+2, 3, 5, hair);
+      px(hx+1, hy-7, 4, 1, hair); px(hx+6, hy-7, 5, 1, hair); px(hx+12, hy-7, 2, 1, hair);
+      px(hx+2, hy-6, 2, 1, hairHi); px(hx+7, hy-7, 2, 1, hairHi); px(hx+11, hy-6, 2, 1, hairHi);
+      px(hx-4, hy-1, 1, 3, hairHi); px(hx+17, hy-1, 1, 3, hairSh);
+      px(hx-3, hy+5, 2, 2, hairDeep); px(hx+15, hy+5, 2, 2, hairDeep);
+    } else {
+      px(hx-2, hy-5, 18, 7, hair); px(hx-3, hy-3, 2, 5, hair); px(hx+15, hy-3, 2, 5, hair);
+      px(hx-2, hy+2, 3, 4, hair); px(hx+13, hy+2, 3, 4, hair);
+      px(hx, hy-6, 4, 1, hair); px(hx+6, hy-6, 5, 1, hair); px(hx+12, hy-6, 2, 1, hair);
+      px(hx+2, hy-5, 2, 1, hairHi); px(hx+7, hy-6, 2, 1, hairHi); px(hx+11, hy-5, 2, 1, hairHi);
+      px(hx-3, hy-1, 1, 2, hairHi); px(hx+16, hy-1, 1, 2, hairSh);
+      px(hx+4, hy-4, 1, 1, hairMid); px(hx+9, hy-3, 1, 1, hairMid);
+      px(hx-2, hy+4, 2, 2, hairDeep); px(hx+14, hy+4, 2, 2, hairDeep);
+    }
+  }
+  // bald = clean scalp shine
+  if (hs === 'bald') { px(hx+5, hy+1, 4, 1, skinHi); px(hx+3, hy+2, 2, 1, skinHi); }
+
+  // ═══ EYEBROWS ═══
+  const lex = hx+2, rex = hx+9, eey = hy+5;
+  const es = a.eyeStyle || 'normal';
+  if (es === 'angry') {
+    px(lex, eey-2, 3, 1, darker(hair, 10)); px(lex, eey-3, 1, 1, darker(hair, 10));
+    px(rex, eey-2, 3, 1, darker(hair, 10)); px(rex+2, eey-3, 1, 1, darker(hair, 10));
+  } else if (es !== 'cool') {
+    px(lex, eey-2, 4, 1, darker(hair, 10)); px(lex+1, eey-3, 2, 1, darker(hair, 10));
+    px(rex, eey-2, 4, 1, darker(hair, 10)); px(rex+1, eey-3, 2, 1, darker(hair, 10));
+    px(lex+1, eey-2, 1, 1, darker(hair, -5)); px(rex+1, eey-2, 1, 1, darker(hair, -5));
+  }
+
+  // ═══ EYES (4px wide — female gets larger eyes with lash line) ═══
+  if (es === 'normal') {
+    if (isFemale) {
+      px(lex, eey-1, 4, 3, '#fff'); px(rex, eey-1, 4, 3, '#fff');
+      px(lex, eey-1, 4, 1, darker(hair, 20)); px(rex, eey-1, 4, 1, darker(hair, 20));
+      px(lex, eey, 4, 2, '#fff'); px(rex, eey, 4, 2, '#fff');
+      px(lex+1, eey, 2, 2, eye); px(rex+1, eey, 2, 2, eye);
+      px(lex+2, eey+1, 1, 1, '#111'); px(rex+2, eey+1, 1, 1, '#111');
+      px(lex+1, eey, 1, 1, '#fff'); px(rex+1, eey, 1, 1, '#fff');
+    } else {
+      px(lex, eey, 4, 2, '#fff'); px(rex, eey, 4, 2, '#fff');
+      px(lex, eey+1, 1, 1, '#eee'); px(lex+3, eey+1, 1, 1, '#eee');
+      px(rex, eey+1, 1, 1, '#eee'); px(rex+3, eey+1, 1, 1, '#eee');
+      px(lex+1, eey, 2, 2, eye); px(rex+1, eey, 2, 2, eye);
+      px(lex+2, eey+1, 1, 1, '#111'); px(rex+2, eey+1, 1, 1, '#111');
+      px(lex+1, eey, 1, 1, eyeHi); px(rex+1, eey, 1, 1, eyeHi);
+      px(lex+1, eey, 1, 1, '#fff'); px(rex+1, eey, 1, 1, '#fff');
+    }
+  } else if (es === 'angry') {
+    px(lex, eey, 4, 2, '#fff'); px(rex, eey, 4, 2, '#fff');
+    px(lex+1, eey, 2, 2, eye); px(rex+1, eey, 2, 2, eye);
+    px(lex+2, eey, 1, 1, '#111'); px(rex+2, eey, 1, 1, '#111');
+  } else if (es === 'happy') {
+    px(lex, eey, 4, 1, eye); px(lex+1, eey-1, 2, 1, eye);
+    px(rex, eey, 4, 1, eye); px(rex+1, eey-1, 2, 1, eye);
+    px(lex, eey+1, 4, 1, skin); px(rex, eey+1, 4, 1, skin);
+  } else if (es === 'cool') {
+    px(lex-1, eey-1, 6, 3, '#1a1a2e'); px(rex-1, eey-1, 6, 3, '#1a1a2e');
+    px(lex+4, eey-1, rex-lex-4, 1, '#1a1a2e');
+    px(lex, eey-1, 2, 1, '#333'); px(rex, eey-1, 2, 1, '#333');
+    px(lex+1, eey, 1, 1, '#444'); px(rex+1, eey, 1, 1, '#444');
+  } else if (es === 'sleepy') {
+    px(lex, eey, 4, 1, skin); px(lex+1, eey, 2, 1, skinShade); px(lex, eey+1, 4, 1, eye);
+    px(rex, eey, 4, 1, skin); px(rex+1, eey, 2, 1, skinShade); px(rex, eey+1, 4, 1, eye);
+  } else if (es === 'wide') {
+    px(lex, eey-1, 4, 3, '#fff'); px(rex, eey-1, 4, 3, '#fff');
+    px(lex+1, eey, 2, 2, eye); px(rex+1, eey, 2, 2, eye);
+    px(lex+1, eey-1, 1, 1, eyeHi); px(rex+1, eey-1, 1, 1, eyeHi);
+    px(lex+2, eey+1, 1, 1, '#111'); px(rex+2, eey+1, 1, 1, '#111');
+  } else if (es === 'dot') {
+    px(lex+2, eey+1, 1, 1, eye); px(rex+2, eey+1, 1, 1, eye);
+  } else if (es === 'wink') {
+    px(lex, eey, 4, 2, '#fff'); px(lex+1, eey, 2, 2, eye); px(lex+1, eey, 1, 1, '#fff');
+    px(rex, eey+1, 4, 1, eye); px(rex+1, eey, 1, 1, eyeSh);
+  }
+
+  // ═══ NOSE ═══
+  px(hx+6, hy+6, 2, 1, skinShade);
+  px(hx+6, hy+8, 3, 1, skinShade); px(hx+7, hy+8, 1, 1, skin);
+  px(hx+6, hy+9, 1, 1, skinDark); px(hx+8, hy+9, 1, 1, skinDark);
+  px(hx+7, hy+6, 1, 2, skinHi);
+
+  // ═══ MOUTH ═══
+  const ms = a.mouthStyle || 'smile';
+  const mx = hx+4, my = hy+10;
+  const lipDark = darker(skin, 55), lipMid = darker(skin, 40), lipHi2 = darker(skin, 15);
+  if (ms === 'smile') {
+    px(mx, my, 6, 1, lipDark); px(mx+1, my+1, 4, 1, lipMid);
+    px(mx+2, my+1, 2, 1, lipHi2); px(mx, my, 1, 1, lipMid); px(mx+5, my, 1, 1, lipMid);
+  } else if (ms === 'neutral') {
+    px(mx+1, my, 5, 1, lipDark); px(mx+2, my, 3, 1, lipMid);
+  } else if (ms === 'open') {
+    px(mx+1, my, 5, 2, '#1a0d06'); px(mx+2, my+1, 3, 1, '#c0392b');
+    px(mx+1, my, 5, 1, '#0d0603'); px(mx+2, my, 3, 1, '#fff');
+  } else if (ms === 'smirk') {
+    px(mx+1, my, 5, 1, lipDark); px(mx+5, my-1, 1, 1, lipDark); px(mx+3, my, 3, 1, lipMid);
+  } else if (ms === 'frown') {
+    px(mx+1, my+1, 5, 1, lipDark); px(mx, my, 1, 1, lipDark); px(mx+6, my, 1, 1, lipDark);
+    px(mx+2, my, 4, 1, lipMid);
+  } else if (ms === 'teeth') {
+    px(mx, my, 7, 1, lipDark);
+    px(mx+1, my, 5, 1, '#fff'); px(mx+3, my, 1, 1, '#eee'); px(mx+5, my, 1, 1, '#eee');
+    px(mx+2, my, 1, 1, '#ddd'); px(mx+4, my, 1, 1, '#ddd');
+  } else if (ms === 'tiny') {
+    px(mx+2, my, 2, 1, lipDark);
+  }
+
+  // ═══ NECK ═══
+  px(hx+4, hy+13, 6, 2, skin); px(hx+5, hy+13, 4, 1, skinShade); px(hx+6, hy+13, 2, 1, skinHi);
+  px(hx+4, hy+13, 6, 1, skinShade); px(hx+5, hy+13, 4, 1, skinDark);
+
+  // ═══ BODY (20 wide, 16 tall — distinct male/female builds) ═══
+  const bx = 10, by = hy + 15;
+  if (isFemale) {
+    // Narrow shoulders, subtle waist taper, wider hips
+    px(bx+2, by, 16, 2, outfitC);
+    px(bx+1, by+2, 18, 3, outfitC);
+    px(bx+3, by+5, 14, 3, outfitC);
+    px(bx+1, by+8, 18, 5, outfitC);
+    px(bx+2, by+13, 16, 3, outfitC);
+    px(bx+2, by, 14, 1, outfitHi);
+    // Bust (left lit, right shadowed)
+    px(bx+3, by+2, 4, 2, outfitHi); px(bx+13, by+2, 4, 2, outfitShade);
+    px(bx+4, by+2, 2, 1, outfitHi); px(bx+14, by+2, 2, 1, outfitShade);
+    px(bx+3, by+4, 5, 1, outfitShade); px(bx+12, by+4, 5, 1, outfitShade);
+    px(bx+9, by+3, 2, 1, outfitDark);
+    // Waist cinch
+    px(bx+3, by+5, 1, 3, outfitShade); px(bx+16, by+5, 1, 3, outfitDark);
+    px(bx+4, by+5, 2, 3, outfitShade); px(bx+14, by+5, 2, 3, outfitShade);
+    // Hip flare highlight
+    px(bx+1, by+8, 3, 1, outfitHi);
+    // Right side shadow
+    px(bx+17, by+2, 1, 3, outfitShade); px(bx+17, by+9, 1, 4, outfitShade);
+    px(bx+1, by+2, 1, 3, outfitHi);
+  } else {
+    px(bx-1, by, 22, 2, outfitC);
+    px(bx, by+2, 20, 6, outfitC);
+    px(bx+1, by+8, 18, 4, outfitC);
+    px(bx+2, by+12, 16, 2, outfitC);
+    px(bx+3, by+14, 14, 2, outfitC);
+    px(bx, by, 18, 1, outfitHi);
+    px(bx+4, by+2, 4, 2, outfitHi); px(bx+12, by+2, 5, 3, outfitShade);
+    px(bx+5, by+2, 2, 1, outfitHi);
+    px(bx+9, by+3, 2, 1, outfitDark);
+    px(bx-1, by, 1, 2, outfitShade); px(bx+20, by, 1, 2, outfitShade);
+    px(bx+19, by+2, 1, 6, outfitShade);
+    px(bx+18, by+8, 1, 4, outfitShade);
+    px(bx, by+2, 1, 4, outfitHi);
+    px(bx+8, by+9, 4, 1, outfitShade);
+  }
+  px(bx+2, by+14, 16, 1, outfitShade);
   // Collar
-  px(bx+5, by, 6, 1, outfitShade);
-  // Side shadows
-  px(bx, by+1, 1, 12, outfitShade); px(bx+15, by+1, 1, 12, outfitShade);
-  // Top highlight
-  px(bx+1, by, 4, 1, outfitHi); px(bx+11, by, 4, 1, outfitHi);
+  px(hx+3, by, 8, 1, outfitShade); px(hx+4, by, 6, 1, outfitDark); px(hx+5, by+1, 4, 1, outfitShade);
 
+  // ── Belt ──
+  const beltY = by + 13;
+  if (outfit !== 'armor_light') {
+    px(bx+2, beltY, 16, 2, '#4a3728'); px(bx+2, beltY, 16, 1, '#5a4738');
+    px(bx+9, beltY, 3, 2, '#b8960e'); px(bx+10, beltY, 1, 2, '#d4b020');
+    px(bx+2, beltY+1, 16, 1, '#3a2718');
+    px(bx+5, beltY, 1, 1, '#8a7040'); px(bx+15, beltY, 1, 1, '#8a7040');
+    px(bx+7, beltY, 1, 1, '#3a2718'); px(bx+13, beltY, 1, 1, '#3a2718');
+  }
+
+  // ═══ OUTFIT DETAILS ═══
+  const slW = isFemale ? 3 : 4;
   if (outfit === 'tshirt') {
-    px(bx-3, by, 3, 6, outfitC); px(bx+16, by, 3, 6, outfitC);
-    px(bx-3, by, 3, 1, outfitHi); px(bx+16, by, 3, 1, outfitHi);
-    px(bx+5, by+10, 6, 1, outfitShade); // fold
-    px(bx+6, by+6, 4, 3, outfitShade); // crease
+    px(bx-slW, by, slW, 8, outfitC); px(bx+20, by, slW, 8, outfitC);
+    px(bx-slW, by, slW, 1, outfitHi); px(bx+20, by, slW, 1, outfitHi);
+    px(bx-slW, by+7, slW, 1, outfitShade); px(bx+20, by+7, slW, 1, outfitShade);
+    px(bx-1, by, 1, 7, outfitShade); px(bx+20, by, 1, 7, outfitShade);
+    px(bx+10, by+4, 1, 8, outfitShade);
   } else if (outfit === 'tank') {
-    px(bx, by, 2, 3, skin); px(bx+14, by, 2, 3, skin);
-    px(bx+2, by, 12, 14, outfitC);
-    px(bx+5, by, 6, 2, outfitShade);
-    px(bx+7, by+6, 2, 4, outfitShade); // center crease
+    px(bx+1, by, 3, 4, skin); px(bx+16, by, 3, 4, skin);
+    px(bx+1, by, 1, 4, skinHi); px(bx+18, by, 1, 4, skinShade);
+    px(bx+3, by, 2, 4, outfitC); px(bx+15, by, 2, 4, outfitC);
+    px(bx+3, by, 2, 1, outfitHi); px(bx+15, by, 2, 1, outfitHi);
+    px(bx+3, by+4, 14, 12, outfitC);
+    px(bx+4, by+4, 12, 1, outfitHi);
+    px(bx+3, by+5, 1, 10, outfitShade); px(bx+16, by+5, 1, 10, outfitShade);
+    px(bx+4, by+5, 2, 1, outfitShade); px(bx+14, by+5, 2, 1, outfitShade);
+    px(bx+3, by+15, 14, 1, outfitDark);
   } else if (outfit === 'hoodie') {
-    px(bx-3, by, 3, 10, outfitC); px(bx+16, by, 3, 10, outfitC);
-    px(bx-3, by, 3, 1, outfitHi); px(bx+16, by, 3, 1, outfitHi);
-    px(bx+5, by, 6, 4, outfitShade); // hood shadow
-    px(bx+4, by+6, 8, 3, outfitShade); // pocket
-    px(bx+5, by+7, 6, 1, outfitC); // pocket opening
-    px(bx+7, by, 2, 3, darker(outfitC, 20)); // drawstrings
+    px(bx-slW, by, slW, 12, outfitC); px(bx+20, by, slW, 12, outfitC);
+    px(bx-slW, by, slW, 1, outfitHi); px(bx+20, by, slW, 1, outfitHi);
+    px(hx+2, by-2, 10, 3, outfitShade); px(hx+3, by-3, 8, 1, outfitC);
+    px(hx+4, by-3, 6, 1, outfitHi);
+    px(hx+3, by-1, 8, 1, outfitDark);
+    px(bx+9, by+1, 1, 5, outfitHi); px(bx+10, by+1, 1, 5, outfitHi);
+    px(bx+9, by+5, 1, 2, '#fff'); px(bx+10, by+5, 1, 2, '#fff');
+    px(bx+4, by+7, 12, 5, outfitShade); px(bx+5, by+8, 10, 3, outfitDark);
+    px(bx+8, by+7, 4, 1, outfitDeep);
+    px(bx+4, by+7, 12, 1, outfitShade); px(bx+4, by+11, 12, 1, outfitShade);
+    px(bx-slW, by+11, slW, 1, outfitDark); px(bx+20, by+11, slW, 1, outfitDark);
+    px(bx+10, by+12, 1, 4, outfitShade);
   } else if (outfit === 'vest') {
-    px(bx-2, by, 2, 5, skin); px(bx+16, by, 2, 5, skin);
-    px(bx+7, by, 2, 14, outfitShade); // center seam
-    px(bx+1, by+1, 2, 10, outfitHi); px(bx+13, by+1, 2, 10, outfitHi); // lapels
-    px(bx+7, by+2, 1, 1, '#c8a060'); // button 1
-    px(bx+7, by+5, 1, 1, '#c8a060'); // button 2
-    px(bx+7, by+8, 1, 1, '#c8a060'); // button 3
+    px(bx, by, 3, 6, skin); px(bx+17, by, 3, 6, skin);
+    px(bx, by, 1, 6, skinHi); px(bx+19, by, 1, 6, skinShade);
+    px(bx+1, by, 8, 14, outfitC); px(bx+11, by, 8, 14, outfitC);
+    px(bx+8, by, 4, 8, outfitShade); px(bx+9, by, 2, 10, outfitDark);
+    px(bx+2, by, 2, 10, outfitHi); px(bx+16, by, 2, 10, outfitHi);
+    px(bx+7, by+3, 1, 1, '#b8960e'); px(bx+7, by+6, 1, 1, '#b8960e'); px(bx+7, by+9, 1, 1, '#b8960e');
+    px(bx+7, by+3, 1, 1, '#d4b020');
+    px(bx+8, by+1, 1, 6, outfitShade); px(bx+11, by+1, 1, 6, outfitShade);
+    px(bx+1, by+13, 8, 1, outfitDark); px(bx+11, by+13, 8, 1, outfitDark);
   } else if (outfit === 'robe') {
-    px(bx-3, by, 3, 14, outfitC); px(bx+16, by, 3, 14, outfitC);
-    px(bx+7, by, 2, 14, outfitShade);
-    px(bx, by+14, 16, 4, outfitC);
-    px(bx+1, by+14, 14, 1, outfitHi);
-    px(bx+5, by+1, 2, 5, outfitHi); // robe trim left
-    px(bx+9, by+1, 2, 5, outfitHi); // robe trim right
+    px(bx-3, by, 3, 16, outfitC); px(bx+20, by, 3, 16, outfitC);
+    px(bx+9, by, 2, 16, outfitShade); px(bx+10, by, 1, 20, outfitDark);
+    px(bx-1, by+16, 22, 5, outfitC); px(bx+9, by+16, 2, 5, outfitShade);
+    px(bx+2, by, 1, 14, outfitHi); px(bx-3, by, 1, 14, outfitShade);
+    px(bx+5, by+4, 2, 2, 'rgba(255,215,0,0.3)'); px(bx+13, by+6, 2, 2, 'rgba(255,215,0,0.3)');
+    px(bx+7, by+10, 1, 1, 'rgba(255,215,0,0.2)');
+    px(bx-2, by+5, 1, 8, outfitShade); px(bx+21, by+5, 1, 8, outfitShade);
+    px(bx+4, by+12, 2, 1, outfitShade); px(bx+14, by+14, 2, 1, outfitShade);
   } else if (outfit === 'armor_light') {
-    px(bx-3, by, 3, 8, '#888'); px(bx+16, by, 3, 8, '#888');
-    px(bx-3, by, 3, 1, '#aaa'); px(bx+16, by, 3, 1, '#aaa');
-    px(bx+5, by+1, 6, 5, '#aaa'); // chest plate
-    px(bx+6, by+2, 4, 3, '#ccc'); // plate highlight
-    px(bx+7, by+3, 2, 1, '#ddd'); // plate gleam
-    px(bx, by+10, 16, 2, '#888'); // belt
-    px(bx+7, by+10, 2, 1, '#b8860b'); // belt buckle
-    // Rivets
-    px(bx+4, by+1, 1, 1, '#666'); px(bx+11, by+1, 1, 1, '#666');
+    px(bx-slW, by, slW, 9, '#777'); px(bx+20, by, slW, 9, '#777');
+    px(bx-slW, by, slW, 1, '#999'); px(bx+20, by, slW, 1, '#999');
+    px(bx+5, by+1, 10, 7, '#aaa'); px(bx+6, by+2, 8, 5, '#bbb');
+    px(bx+7, by+3, 6, 3, '#ccc'); px(bx+9, by+3, 2, 2, '#ddd');
+    px(bx+5, by+1, 10, 1, '#ccc');
+    px(bx+2, by+10, 16, 3, '#888'); px(bx+3, by+10, 14, 1, '#999');
+    px(bx+4, by+11, 2, 1, '#777'); px(bx+8, by+11, 2, 1, '#777'); px(bx+12, by+11, 2, 1, '#777');
+    px(bx+3, by+13, 6, 2, '#999'); px(bx+11, by+13, 6, 2, '#999');
+    px(bx+3, by+13, 6, 1, '#aaa'); px(bx+11, by+13, 6, 1, '#aaa');
+    px(bx+1, by, 18, 1, '#999');
+    px(bx+3, by+2, 1, 1, '#666'); px(bx+16, by+2, 1, 1, '#666');
+    px(bx+3, by+10, 1, 1, '#666'); px(bx+16, by+10, 1, 1, '#666');
+    px(bx+9, by+4, 2, 2, '#ddd');
   }
 
-  // Belt
-  if (outfit !== 'armor_light') {
-    px(bx+1, by+12, 14, 1, '#4a3728');
-    px(bx+7, by+12, 2, 1, '#8b7355'); // buckle
-  }
-
-  // ── ARMS ──
-  const armLen = outfit === 'robe' ? 4 : 8;
-  const armStart = outfit === 'tank' ? by + 3 : by + (outfit === 'hoodie' ? 10 : 6);
-  if (outfit !== 'armor_light') {
-    px(bx-3, armStart, 3, armLen, skin); px(bx+16, armStart, 3, armLen, skin);
-    px(bx-3, armStart, 1, armLen, skinHi); px(bx+18, armStart, 1, armLen, skinShade);
+  // ═══ ARMS ═══
+  const armW = isFemale ? 3 : 4;
+  const armLen = outfit === 'robe' ? 5 : 9;
+  const armStart = outfit === 'tank' ? by+4 : by + (outfit === 'hoodie' ? 12 : 8);
+  if (outfit === 'hoodie') {
+    px(bx-armW, armStart, armW, armLen, outfitC); px(bx+20, armStart, armW, armLen, outfitC);
+    px(bx-armW, armStart, armW, 1, outfitHi); px(bx-armW+1, armStart, 1, armLen, outfitHi);
+    px(bx-armW, armStart+armLen-1, armW, 1, outfitShade);
+  } else if (outfit !== 'armor_light') {
+    px(bx-armW, armStart, armW, armLen, skin); px(bx+20, armStart, armW, armLen, skin);
+    px(bx-armW+1, armStart, 1, armLen, skinHi); px(bx+20, armStart, 1, armLen, skinHi);
+    px(bx-armW, armStart, 1, armLen, skinShade); px(bx+20+armW-1, armStart, 1, armLen, skinShade);
+    px(bx-armW, armStart, armW, 1, skinHi);
+    px(bx-armW, armStart+Math.floor(armLen*0.6), armW, 1, skinShade);
+    px(bx+20, armStart+Math.floor(armLen*0.6), armW, 1, skinShade);
+    px(bx-armW, armStart+armLen-2, armW, 2, darker(skin, 60));
+    px(bx+20, armStart+armLen-2, armW, 2, darker(skin, 60));
+    px(bx-armW, armStart+armLen-2, armW, 1, darker(skin, 40));
+    px(bx+20, armStart+armLen-2, armW, 1, darker(skin, 40));
   } else {
-    px(bx-3, by+8, 3, 6, skin); px(bx+16, by+8, 3, 6, skin);
+    px(bx-armW, by+9, armW, 7, skin); px(bx+20, by+9, armW, 7, skin);
+    px(bx-armW+1, by+9, 1, 7, skinHi);
+    px(bx-armW, by+14, armW, 2, '#999'); px(bx+20, by+14, armW, 2, '#999');
   }
-  // Hands with finger detail
-  const handY = armStart + armLen;
-  px(bx-4, handY, 4, 3, skin); px(bx+16, handY, 4, 3, skin);
-  px(bx-4, handY+2, 1, 1, skinShade); px(bx-2, handY+2, 1, 1, skinShade); // left fingers
-  px(bx+16, handY+2, 1, 1, skinShade); px(bx+18, handY+2, 1, 1, skinShade); // right fingers
 
-  // ── WEAPON (type-specific) ──
+  // ── Hands ──
+  const handY = armStart + armLen;
+  px(bx-armW-1, handY, armW+1, 2, skin); px(bx-armW-1, handY+2, armW, 1, skin);
+  px(bx-armW-1, handY, 1, 1, skinHi);
+  px(bx-armW-1, handY+1, armW+1, 1, skinShade);
+  px(bx+20, handY, armW+1, 2, skin); px(bx+20+1, handY+2, armW, 1, skin);
+  px(bx+20+armW, handY, 1, 1, skinHi);
+  px(bx+20, handY+1, armW+1, 1, skinShade);
+
+  // ═══ WEAPON ═══
   if (eq.weapon) {
     const wy = handY - 2;
-    const wx = bx + 19;
+    const wx = bx + 23;
     const wRarity = eq.weapon.rarity || 'common';
-    const wColor = wRarity === 'legendary' ? '#fbbf24' : wRarity === 'mythic' ? '#ff4500' : wRarity === 'epic' ? '#c084fc' : wRarity === 'rare' ? '#60a5fa' : wRarity === 'uncommon' ? '#4ade80' : '#aaa';
+    const wColor = wRarity === 'mythic' ? '#ff4500' : wRarity === 'legendary' ? '#fbbf24' : wRarity === 'epic' ? '#c084fc' : wRarity === 'rare' ? '#60a5fa' : wRarity === 'uncommon' ? '#4ade80' : '#aaa';
     const wDark = darker(wColor, 40);
     const wn = (eq.weapon.name || eq.weapon.id || '').toLowerCase();
     const isAxe = wn.includes('axe') || wn.includes('cleaver');
@@ -2733,73 +4294,83 @@ function drawCharacter() {
     const isPick = wn.includes('pick');
 
     if (isAxe) {
-      // Axe: wooden handle + wide blade head
-      px(wx, wy-6, 1, 10, '#8b6914'); px(wx+1, wy-5, 1, 8, '#6b4914'); // handle
-      px(wx-2, wy-7, 3, 2, wColor); px(wx-3, wy-6, 4, 3, wColor); px(wx-3, wy-4, 3, 2, wDark); // blade
-      px(wx-3, wy-7, 1, 1, wDark); // blade edge
+      px(wx, wy-6, 1, 10, '#8b6914'); px(wx+1, wy-5, 1, 8, '#6b4914');
+      px(wx-2, wy-7, 3, 2, wColor); px(wx-3, wy-6, 4, 3, wColor); px(wx-3, wy-4, 3, 2, wDark);
+      px(wx-3, wy-7, 1, 1, wDark);
     } else if (isDagger) {
-      // Dagger: short tapered blade
-      px(wx, wy-4, 1, 3, wColor); px(wx, wy-5, 1, 1, wDark); // blade
-      px(wx-1, wy-2, 3, 1, '#8b6914'); // guard
-      px(wx, wy-1, 1, 3, '#654321'); // grip
-      px(wx, wy+2, 1, 1, '#8b6914'); // pommel
+      px(wx, wy-4, 1, 3, wColor); px(wx, wy-5, 1, 1, wDark);
+      px(wx-1, wy-2, 3, 1, '#8b6914');
+      px(wx, wy-1, 1, 3, '#654321');
+      px(wx, wy+2, 1, 1, '#8b6914');
     } else if (isScythe) {
-      // Scythe: long pole + curved blade
-      px(wx, wy-9, 1, 12, '#6b4914'); px(wx+1, wy-8, 1, 10, '#5a3808'); // pole
-      px(wx-3, wy-10, 4, 1, wColor); px(wx-4, wy-9, 3, 1, wColor); px(wx-4, wy-8, 2, 1, wDark); // curved blade
+      px(wx, wy-9, 1, 12, '#6b4914'); px(wx+1, wy-8, 1, 10, '#5a3808');
+      px(wx-3, wy-10, 4, 1, wColor); px(wx-4, wy-9, 3, 1, wColor); px(wx-4, wy-8, 2, 1, wDark);
     } else if (isPick) {
-      // Pickaxe: T-shape
-      px(wx, wy-4, 1, 6, '#8b6914'); // handle
-      px(wx-2, wy-5, 5, 2, '#888'); px(wx-3, wy-5, 1, 1, wColor); px(wx+3, wy-5, 1, 1, wColor); // head
+      px(wx, wy-4, 1, 6, '#8b6914');
+      px(wx-2, wy-5, 5, 2, '#888'); px(wx-3, wy-5, 1, 1, wColor); px(wx+3, wy-5, 1, 1, wColor);
     } else {
-      // Sword (default): detailed with fuller + crossguard + pommel
-      px(wx, wy-8, 1, 7, wColor); // blade
-      px(wx+1, wy-7, 1, 5, wDark); // fuller shadow
-      px(wx, wy-9, 1, 1, '#fff'); // tip gleam
-      px(wx-1, wy-1, 3, 1, '#8b6914'); // crossguard
-      px(wx, wy, 1, 3, '#654321'); // grip
-      px(wx-1, wy, 1, 3, '#5a3a1a'); // grip shadow
-      px(wx, wy+3, 1, 1, '#8b6914'); // pommel
+      px(wx, wy-8, 1, 7, wColor);
+      px(wx+1, wy-7, 1, 5, wDark);
+      px(wx, wy-9, 1, 1, '#fff');
+      px(wx-1, wy-1, 3, 1, '#8b6914');
+      px(wx, wy, 1, 3, '#654321');
+      px(wx-1, wy, 1, 3, '#5a3a1a');
+      px(wx, wy+3, 1, 1, '#8b6914');
     }
   }
 
-  // ── ARMOR OVERLAY ──
+  // ═══ ARMOR OVERLAY ═══
   if (eq.armor && outfit !== 'armor_light') {
-    const aRarity = eq.armor.rarity || 'common';
-    const aColor = aRarity === 'legendary' ? '#fbbf24' : aRarity === 'mythic' ? '#ff4500' : aRarity === 'epic' ? '#c084fc' : aRarity === 'rare' ? '#60a5fa' : '#aaa';
-    // Shoulder pads with rivets
-    px(bx-1, by-1, 4, 2, aColor); px(bx+13, by-1, 4, 2, aColor);
-    px(bx, by-1, 1, 1, darker(aColor, -20)); px(bx+15, by-1, 1, 1, darker(aColor, -20)); // highlight
-    px(bx+1, by, 1, 1, darker(aColor, 30)); px(bx+14, by, 1, 1, darker(aColor, 30)); // rivet
-    // Belt
-    px(bx+2, by+12, 12, 1, aColor);
-    // Chest emblem
-    px(bx+7, by+3, 2, 2, aColor); px(bx+7, by+3, 1, 1, darker(aColor, -20));
+    const aR = eq.armor.rarity || 'common';
+    const aC = aR === 'mythic' ? '#ff4500' : aR === 'legendary' ? '#fbbf24' : aR === 'epic' ? '#c084fc' : aR === 'rare' ? '#60a5fa' : aR === 'uncommon' ? '#4ade80' : '#aaa';
+    const aSh = darker(aC, 40), aHi = darker(aC, -20);
+    px(bx-3, by-1, 6, 3, aC); px(bx-3, by-1, 6, 1, aHi); px(bx-2, by+1, 4, 1, aSh);
+    px(bx+17, by-1, 6, 3, aC); px(bx+17, by-1, 6, 1, aHi); px(bx+18, by+1, 4, 1, aSh);
+    px(bx-1, by, 1, 1, darker(aC, 60)); px(bx+20, by, 1, 1, darker(aC, 60));
+    px(bx+4, by+2, 12, 5, aC); px(bx+5, by+3, 10, 3, aHi); px(bx+6, by+4, 8, 1, aSh);
+    px(bx+9, by+3, 2, 2, darker(aC, -35));
+    px(bx+8, beltY, 4, 1, aC); px(bx+9, beltY, 2, 1, aHi);
   }
 
-  // ── ACCESSORY ──
+  // ═══ ACCESSORY ═══
   if (eq.accessory) {
-    const acRarity = eq.accessory.rarity || 'common';
-    const acColor = acRarity === 'legendary' ? '#fbbf24' : acRarity === 'epic' ? '#c084fc' : acRarity === 'rare' ? '#60a5fa' : '#aaa';
-    px(bx-4, handY, 1, 1, acColor);
-    px(bx-4, handY+1, 1, 1, darker(acColor, 40));
+    const acR = eq.accessory.rarity || 'common';
+    const acC = acR === 'mythic' ? '#ff4500' : acR === 'legendary' ? '#fbbf24' : acR === 'epic' ? '#c084fc' : acR === 'rare' ? '#60a5fa' : acR === 'uncommon' ? '#4ade80' : '#aaa';
+    px(hx+3, hy+13, 2, 1, acC); px(hx+9, hy+13, 2, 1, acC);
+    px(hx+6, by+2, 2, 2, acC); px(hx+6, by+2, 2, 1, darker(acC, -20));
+    px(hx+6, by+3, 2, 1, darker(acC, 30));
+    px(bx-armW-1, handY-2, armW+1, 1, acC);
+    px(bx+20, handY-2, armW+1, 1, acC);
   }
 
-  // ── LEGS (with more detail) ──
-  const ly = by + (outfit === 'robe' ? 18 : 14);
-  const pantC = '#2c3e50', pantSh = '#1e2d3d', pantHi = '#3d5068';
-  px(bx+2, ly, 5, 8, pantC); px(bx+9, ly, 5, 8, pantC);
-  px(bx+3, ly, 1, 6, pantSh); px(bx+10, ly, 1, 6, pantSh); // crease
-  px(bx+5, ly+1, 1, 4, pantHi); px(bx+12, ly+1, 1, 4, pantHi); // highlight
-  // Boots with soles + straps
-  const bootC = '#1a1a2e', bootHi = '#2a2a40', bootSole = '#0a0a16';
-  px(bx+1, ly+8, 6, 2, bootC); px(bx+9, ly+8, 6, 2, bootC);
-  px(bx+2, ly+8, 4, 1, bootHi); px(bx+10, ly+8, 4, 1, bootHi); // highlight
-  px(bx+1, ly+9, 6, 1, bootSole); px(bx+9, ly+9, 6, 1, bootSole); // sole
-  // Boot strap
-  px(bx+2, ly+8, 4, 1, '#3a3a50'); px(bx+10, ly+8, 4, 1, '#3a3a50');
+  // ═══ LEGS (standing pose) ═══
+  const ly = by + (outfit === 'robe' ? 20 : 16);
+  const pantC = '#2c3e50', pantHi2 = '#3a5068', pantSh = '#1e2d3d', pantDeep = '#162230';
+  const bootC = '#1a1a2e', bootHi3 = '#2a2a3e', bootSh = '#111118', bootSole = '#0d0d15';
+  px(bx+2, ly, 7, 9, pantC); px(bx+3, ly, 3, 1, pantHi2); px(bx+2, ly+8, 1, 1, pantSh);
+  px(bx+8, ly+2, 1, 6, pantSh);
+  px(bx+4, ly+4, 3, 1, pantSh);
+  px(bx+11, ly, 7, 9, pantC); px(bx+12, ly, 3, 1, pantHi2); px(bx+11, ly+8, 1, 1, pantSh);
+  px(bx+12, ly+4, 3, 1, pantSh);
+  px(bx+9, ly, 2, 8, pantDeep);
+  // Boots
+  px(bx+1, ly+9, 8, 3, bootC); px(bx+2, ly+9, 6, 1, bootHi3); px(bx+1, ly+11, 8, 1, bootSole);
+  px(bx+11, ly+9, 8, 3, bootC); px(bx+12, ly+9, 6, 1, bootHi3); px(bx+11, ly+11, 8, 1, bootSole);
+  px(bx+1, ly+10, 1, 1, bootSh); px(bx+18, ly+10, 1, 1, bootSh);
+  px(bx+4, ly+9, 3, 1, '#252535'); px(bx+14, ly+9, 3, 1, '#252535');
+  px(bx+3, ly+10, 3, 1, '#353545'); px(bx+13, ly+10, 3, 1, '#353545');
+  px(bx+2, ly+11, 2, 1, '#080810'); px(bx+6, ly+11, 2, 1, '#080810');
+  px(bx+12, ly+11, 2, 1, '#080810'); px(bx+16, ly+11, 2, 1, '#080810');
 
-  // ── NAME TAG with shadow ──
+  // ═══ WEARABLES ═══
+  const wear = (profile && profile.activeWearables) || {};
+  if (wear.hat || wear.cape || wear.wrist || wear.face) {
+    drawWearables(ctx, 8 * S, 32 * S, S, 0, wear, 'menu');
+  }
+
+  ctx.restore(); // remove translate for name tag
+
+  // ═══ NAME TAG ═══
   ctx.font = 'bold 10px Inter, sans-serif';
   ctx.textAlign = 'center';
   ctx.fillStyle = '#000';
@@ -2807,6 +4378,14 @@ function drawCharacter() {
   ctx.fillStyle = '#fff';
   ctx.fillText(username || 'Player', W / 2, H - 4);
 }
+
+// Animate wearables (cape physics, glow effects) when character tab is visible
+setInterval(() => {
+  if (currentSubTab === 'character' && profile && profile.activeWearables) {
+    const w = profile.activeWearables;
+    if (w.hat || w.cape || w.wrist || w.face) drawCharacter();
+  }
+}, 100);
 
 // ═══════════════════════════════════════════
 // Portal Chat (WebSocket)

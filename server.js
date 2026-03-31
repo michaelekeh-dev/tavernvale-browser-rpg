@@ -2,7 +2,8 @@ const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
 const path = require('path');
-const { Game, CONFIG, COSMETICS, WEARABLES, BOSS_LOOT, ITEMS, LOOT_TABLES, RECIPES, NPC_SHOP, ACHIEVEMENTS, RARITY_COLOR, VENDOR_PRICE, RANK_BADGES, getRankBadge, RPG_ZONES, RPG_PICKAXES, TAVERN_QUESTS } = require('./game');
+require('dotenv').config();
+const { Game, CONFIG, COSMETICS, WEARABLES, BOSS_LOOT, ITEMS, LOOT_TABLES, RECIPES, NPC_SHOP, ACHIEVEMENTS, RARITY_COLOR, VENDOR_PRICE, RANK_BADGES, getRankBadge, RPG_ZONES, RPG_PICKAXES, TAVERN_QUESTS, GRIZZLE_QUESTS, ENCHANTMENTS, REFINE_RECIPES, ORE_QUALITY } = require('./game');
 
 // ═══════════════════════════════════════════
 // CONFIGURATION — Edit these values
@@ -22,6 +23,58 @@ const CHATROOM_ID = null; // e.g., 12345678
 // ═══════════════════════════════════════════
 const app = express();
 const server = http.createServer(app);
+
+// ═══════════════════════════════════════════
+// Stripe Gold Shop
+// ═══════════════════════════════════════════
+const STRIPE_SECRET = process.env.STRIPE_SECRET_KEY;
+const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
+const stripe = STRIPE_SECRET ? require('stripe')(STRIPE_SECRET) : null;
+
+const GOLD_PACKAGES = [
+  { id: 'gold_500',   gold: 500,    price: 100,  label: '500 Gold',    emoji: '🪙' },
+  { id: 'gold_2500',  gold: 2500,   price: 400,  label: '2,500 Gold',  emoji: '💰' },
+  { id: 'gold_6000',  gold: 6000,   price: 800,  label: '6,000 Gold',  emoji: '💎' },
+  { id: 'gold_15000', gold: 15000,  price: 1500, label: '15,000 Gold', emoji: '👑' },
+];
+
+// Stripe webhook must use raw body — register BEFORE express.json()
+app.post('/api/stripe-webhook', express.raw({ type: 'application/json' }), (req, res) => {
+  if (!stripe) return res.status(503).json({ error: 'Stripe not configured' });
+  let event;
+  try {
+    if (STRIPE_WEBHOOK_SECRET && STRIPE_WEBHOOK_SECRET !== 'whsec_REPLACE_ME') {
+      event = stripe.webhooks.constructEvent(req.body, req.headers['stripe-signature'], STRIPE_WEBHOOK_SECRET);
+    } else {
+      // Dev/test mode without webhook signing — parse raw body
+      event = JSON.parse(req.body.toString());
+      console.log('⚠️  Stripe webhook signature not verified (no webhook secret set)');
+    }
+  } catch (err) {
+    console.error('❌ Stripe webhook signature failed:', err.message);
+    return res.status(400).send('Webhook signature verification failed');
+  }
+
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object;
+    const username = (session.metadata && session.metadata.username) || '';
+    const packageId = (session.metadata && session.metadata.package_id) || '';
+    const pkg = GOLD_PACKAGES.find(p => p.id === packageId);
+
+    if (username && pkg) {
+      const result = game.creditPurchasedGold(username, pkg.gold, session.id);
+      if (result && result.success) {
+        console.log(`💰 PURCHASE: ${username} bought ${pkg.label} (${session.id})`);
+        // Notify connected RPG client via WebSocket
+        broadcastToUser(username, { type: 'rpg_gold_purchased', data: { gold: result.gold, added: pkg.gold, package: pkg.label } });
+      } else {
+        console.error(`❌ Failed to credit gold to ${username}:`, result);
+      }
+    }
+  }
+  res.json({ received: true });
+});
+
 app.use(express.json());
 app.use('/audio', express.static(path.join(__dirname, 'audio')));
 app.use('/overlay', (req, res, next) => {
@@ -32,6 +85,7 @@ app.get('/', (req, res) => res.redirect('/play'));
 app.get('/play', (req, res) => res.sendFile(path.join(__dirname, 'player.html')));
 app.get('/rpg', (req, res) => {
   if (!game.rpgEnabled) return res.send('<html><body style="background:#0a0a0f;color:#ffd700;display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;text-align:center"><div><h1>\u2694\ufe0f RPG Coming Soon</h1><p style="color:#888">The RPG is currently disabled. Check back later!</p><a href="/play" style="color:#4ecdc4">\u2190 Back to Player Portal</a></div></body></html>');
+  res.set('Cache-Control','no-store');
   res.sendFile(path.join(__dirname, 'rpg.html'));
 });
 app.get('/admin', (req, res) => {
@@ -60,6 +114,7 @@ app.get('/api/player/:username', (req, res) => {
 
 app.get('/api/boss', (req, res) => res.json(game.getBossStatus()));
 app.get('/api/market', (req, res) => res.json(game.getMarketListings()));
+app.get('/api/trade-log', (req, res) => res.json(game.getTradeLog()));
 app.get('/api/cosmetics', (req, res) => res.json(COSMETICS));
 app.get('/api/wearables', (req, res) => res.json(WEARABLES));
 app.get('/api/achievements', (req, res) => res.json(ACHIEVEMENTS));
@@ -67,9 +122,59 @@ app.get('/api/loot', (req, res) => res.json(BOSS_LOOT));
 app.get('/api/items', (req, res) => res.json(ITEMS));
 app.get('/api/shop', (req, res) => res.json(NPC_SHOP));
 app.get('/api/recipes', (req, res) => res.json(RECIPES));
+app.get('/api/enchantments', (req, res) => res.json(ENCHANTMENTS));
+app.get('/api/grizzle-quests', (req, res) => res.json(GRIZZLE_QUESTS));
+app.get('/api/refine-recipes', (req, res) => res.json(REFINE_RECIPES));
+app.get('/api/ore-quality', (req, res) => res.json(ORE_QUALITY));
+app.get('/api/demand', (req, res) => res.json(game.rpgGetDemand()));
 app.get('/api/leaderboard', (req, res) => res.json(game.handleLeaderboard()));
 app.get('/api/rarity-colors', (req, res) => res.json(RARITY_COLOR));
 app.get('/api/rank-badges', (req, res) => res.json(RANK_BADGES));
+
+// ═══════════════════════════════════════════
+// Gold Shop API
+// ═══════════════════════════════════════════
+app.get('/api/gold-packages', (req, res) => {
+  res.json({ packages: GOLD_PACKAGES, enabled: !!stripe, publishableKey: process.env.STRIPE_PUBLISHABLE_KEY || '' });
+});
+
+app.post('/api/create-checkout', (req, res) => {
+  if (!stripe) return res.status(503).json({ error: 'Stripe not configured' });
+  const { username, token, packageId } = req.body;
+  if (!username || !token) return res.status(401).json({ error: 'Not logged in' });
+  if (!game.validateToken(username.toLowerCase(), token)) return res.status(401).json({ error: 'Invalid session' });
+  const pkg = GOLD_PACKAGES.find(p => p.id === packageId);
+  if (!pkg) return res.status(400).json({ error: 'Invalid package' });
+
+  const origin = req.headers.origin || `http://${req.headers.host}`;
+  stripe.checkout.sessions.create({
+    payment_method_types: ['card'],
+    line_items: [{
+      price_data: {
+        currency: 'usd',
+        product_data: { name: `${pkg.emoji} ${pkg.label} — Tavernvale RPG`, description: `${pkg.gold} in-game gold for ${username}` },
+        unit_amount: pkg.price,
+      },
+      quantity: 1,
+    }],
+    mode: 'payment',
+    success_url: `${origin}/rpg?purchase=success`,
+    cancel_url: `${origin}/rpg?purchase=cancelled`,
+    metadata: { username: username.toLowerCase(), package_id: pkg.id, gold_amount: String(pkg.gold) },
+  }).then(session => {
+    res.json({ url: session.url });
+  }).catch(err => {
+    console.error('Stripe checkout error:', err.message);
+    res.status(500).json({ error: 'Payment system error' });
+  });
+});
+
+// Auth middleware for admin API actions
+function requireAdminAuth(req, res, next) {
+  const pw = req.query.pw || req.headers['x-admin-password'];
+  if (pw !== ADMIN_PASSWORD) return res.status(403).json({ error: 'Access denied' });
+  next();
+}
 
 // Auth middleware for portal actions
 function requireAuth(req, res, next) {
@@ -151,9 +256,6 @@ app.post('/api/cancel', requireAuth, (req, res) => {
   const r = game.handleCancelListing(req.playerName, req.body.listingId);
   if (r && !r.error) { broadcast('market_cancelled', r); return res.json(r); }
   res.status(400).json(r || { error: 'Failed' });
-});
-app.get('/api/market', (req, res) => {
-  res.json(game.getMarketListings());
 });
 
 // Gamble
@@ -294,6 +396,15 @@ app.get('/api/arena/leaderboard', (req, res) => {
 app.get('/api/arena/stats/:username', (req, res) => {
   res.json(game.getArenaStats(req.params.username.toLowerCase()));
 });
+app.get('/api/pvp-shop/:username', (req, res) => {
+  const r = game.rpgGetPvpShop(req.params.username.toLowerCase());
+  if (!r || r.error) return res.json({ items: [], owned: [] });
+  res.json({ items: r.items, owned: r.items.filter(i => i.owned).map(i => i.id), tokens: r.tokens });
+});
+app.post('/api/pvp-shop/buy', requireAuth, (req, res) => {
+  const r = game.rpgPvpShopBuy(req.playerName, req.body.itemId);
+  res.json(r);
+});
 
 // ═══ Prestige API ═══
 app.get('/api/prestige/:username', (req, res) => {
@@ -306,8 +417,8 @@ app.post('/api/prestige', requireAuth, (req, res) => {
 });
 
 // Admin: payout queue management
-app.get('/api/admin/payouts', (req, res) => res.json(game.getPayoutQueue()));
-app.post('/api/admin/payout', (req, res) => {
+app.get('/api/admin/payouts', requireAdminAuth, (req, res) => res.json(game.getPayoutQueue()));
+app.post('/api/admin/payout', requireAdminAuth, (req, res) => {
   const { requestId, action } = req.body;
   const r = game.processPayoutRequest(requestId, action);
   if (r && r.success) {
@@ -323,7 +434,7 @@ app.post('/api/admin/payout', (req, res) => {
 });
 
 // Admin: full reset (wipe all data)
-app.post('/api/admin/fullreset', (req, res) => {
+app.post('/api/admin/fullreset', requireAdminAuth, (req, res) => {
   game.fullReset();
   broadcast('full_reset', {});
   discordEmbed({
@@ -335,17 +446,17 @@ app.post('/api/admin/fullreset', (req, res) => {
 });
 
 // Admin: set discord webhook (events channel)
-app.post('/api/admin/discord-webhook', (req, res) => {
+app.post('/api/admin/discord-webhook', requireAdminAuth, (req, res) => {
   const url = (req.body.url || '').trim();
   game.setDiscordWebhook(url || null);
   res.json({ success: true, set: !!url });
 });
-app.get('/api/admin/discord-webhook', (req, res) => {
+app.get('/api/admin/discord-webhook', requireAdminAuth, (req, res) => {
   res.json({ url: game.getDiscordWebhook() || '' });
 });
 
 // Admin: Discord bot config (two-way chat)
-app.post('/api/admin/discord-bot', (req, res) => {
+app.post('/api/admin/discord-bot', requireAdminAuth, (req, res) => {
   const { botToken, chatChannelId } = req.body;
   if (!botToken || !chatChannelId) return res.status(400).json({ error: 'Bot token and chat channel ID required' });
   // Store config (persist in gamedata)
@@ -354,11 +465,11 @@ app.post('/api/admin/discord-bot', (req, res) => {
   initDiscordBot(botToken, chatChannelId);
   res.json({ success: true });
 });
-app.get('/api/admin/discord-bot', (req, res) => {
+app.get('/api/admin/discord-bot', requireAdminAuth, (req, res) => {
   const cfg = game.discordBotConfig || {};
   res.json({ configured: !!cfg.botToken, chatChannelId: cfg.chatChannelId || '' });
 });
-app.post('/api/admin/discord-bot/disconnect', (req, res) => {
+app.post('/api/admin/discord-bot/disconnect', requireAdminAuth, (req, res) => {
   if (discordBot) { discordBot.destroy(); discordBot = null; discordChatSend = null; }
   game.discordBotConfig = null;
   game.saveData();
@@ -366,13 +477,13 @@ app.post('/api/admin/discord-bot/disconnect', (req, res) => {
 });
 
 // RPG toggle
-app.post('/api/admin/rpg-toggle', (req, res) => {
+app.post('/api/admin/rpg-toggle', requireAdminAuth, (req, res) => {
   game.rpgEnabled = !!req.body.enabled;
   game.saveData();
   res.json({ success: true, enabled: game.rpgEnabled });
 });
 
-app.post('/api/admin/gambling-toggle', (req, res) => {
+app.post('/api/admin/gambling-toggle', requireAdminAuth, (req, res) => {
   game.gamblingEnabled = !!req.body.enabled;
   game.saveData();
   res.json({ success: true, enabled: game.gamblingEnabled });
@@ -383,7 +494,7 @@ app.get('/api/gambling-status', (req, res) => {
 });
 
 // Announcement broadcast
-app.post('/api/admin/announce', (req, res) => {
+app.post('/api/admin/announce', requireAdminAuth, (req, res) => {
   const message = (req.body.message || '').trim();
   if (!message) return res.json({ error: 'No message provided' });
   broadcast('announcement', { message, timestamp: Date.now() });
@@ -407,6 +518,13 @@ function broadcastToPortal(type, data) {
   const msg = JSON.stringify({ type, data });
   for (const c of portalClients) {
     if (c.readyState === WebSocket.OPEN) c.send(msg);
+  }
+}
+
+function broadcastToUser(username, msgObj) {
+  const msg = JSON.stringify(msgObj);
+  for (const c of wss.clients) {
+    if (c.readyState === WebSocket.OPEN && c.rpgUser === username) c.send(msg);
   }
 }
 
@@ -704,7 +822,7 @@ wss.on('connection', (ws) => {
         game.rpgBroadcastAll({ type: 'rpg_online_count', data: { count: game.rpgGetOnlineCount() } });
       }
       if (msg.type === 'rpg_change_zone' && ws.isRPG && ws.rpgUser) {
-        const r = game.rpgChangeZone(ws.rpgUser, msg.zone);
+        const r = game.rpgChangeZone(ws.rpgUser, msg.zone, msg.questTarget || null);
         ws.send(JSON.stringify({ type: 'rpg_zone_changed', data: r }));
       }
       if (msg.type === 'rpg_mine' && ws.isRPG && ws.rpgUser) {
@@ -719,21 +837,33 @@ wss.on('connection', (ws) => {
         const r = game.rpgAttackBoss(ws.rpgUser, msg.bossId);
         ws.send(JSON.stringify({ type: 'rpg_boss_attack_result', data: r }));
       }
+      if (msg.type === 'rpg_attack_sboss' && ws.isRPG && ws.rpgUser) {
+        const r = game.rpgAttackSecondaryBoss(ws.rpgUser, msg.bossId);
+        ws.send(JSON.stringify({ type: 'rpg_boss_attack_result', data: r }));
+      }
+      if (msg.type === 'rpg_wake_sboss' && ws.isRPG && ws.rpgUser) {
+        game.rpgWakeSecondaryBoss(ws.rpgUser, msg.data && msg.data.id);
+      }
       if (msg.type === 'rpg_buy_pickaxe' && ws.isRPG && ws.rpgUser) {
         const r = game.rpgBuyPickaxe(ws.rpgUser, msg.tier);
         ws.send(JSON.stringify({ type: 'rpg_pickaxe_result', data: r }));
       }
       if (msg.type === 'rpg_move' && ws.isRPG && ws.rpgUser) {
-        game.rpgMove(ws.rpgUser, msg.x, msg.y);
+        game.rpgMove(ws.rpgUser, msg.x, msg.y, msg.facing);
       }
       if (msg.type === 'rpg_sit' && ws.isRPG && ws.rpgUser) {
         game.rpgSit(ws.rpgUser, msg.x, msg.y);
+      }
+      if (msg.type === 'rpg_get_achievements' && ws.isRPG && ws.rpgUser) {
+        const r = game.rpgGetAchievements(ws.rpgUser);
+        ws.send(JSON.stringify({ type: 'rpg_achievements_data', data: r }));
       }
       if (msg.type === 'rpg_ghost_defeated' && ws.isRPG && ws.rpgUser) {
         // Server validates ghost is actually dead
         const rp = game.rpgPlayers[ws.rpgUser];
         const w = rp && game.rpgWorld[rp.zone];
-        if (w && w.boss && w.boss.dead) {
+        const pb = w && w.playerBosses && w.playerBosses[ws.rpgUser];
+        if (pb && pb.boss && pb.boss.dead) {
           const p = game.player(ws.rpgUser);
           p.ghostDefeated = true;
           game.saveData();
@@ -744,6 +874,77 @@ wss.on('connection', (ws) => {
         const r = game.rpgQuestTurnIn(ws.rpgUser, msg.questId);
         ws.send(JSON.stringify({ type: 'rpg_quest_turnin_result', data: r }));
       }
+      if (msg.type === 'rpg_sell_ore' && ws.isRPG && ws.rpgUser) {
+        const r = game.rpgSellOre(ws.rpgUser, msg.itemId, msg.qty, msg.quality);
+        ws.send(JSON.stringify({ type: 'rpg_sell_ore_result', data: r }));
+      }
+      if (msg.type === 'rpg_sell_all_ore' && ws.isRPG && ws.rpgUser) {
+        const r = game.rpgSellAllOre(ws.rpgUser);
+        ws.send(JSON.stringify({ type: 'rpg_sell_all_ore_result', data: r }));
+      }
+      if (msg.type === 'rpg_buy_coal' && ws.isRPG && ws.rpgUser) {
+        const r = game.rpgBuyCoal(ws.rpgUser, msg.qty);
+        ws.send(JSON.stringify({ type: 'rpg_buy_coal_result', data: r }));
+      }
+      if (msg.type === 'rpg_start_refine' && ws.isRPG && ws.rpgUser) {
+        const r = game.rpgStartRefine(ws.rpgUser, msg.itemId, msg.qty, msg.quality);
+        ws.send(JSON.stringify({ type: 'rpg_refine_result', data: r }));
+      }
+      if (msg.type === 'rpg_collect_refine' && ws.isRPG && ws.rpgUser) {
+        const r = game.rpgCollectRefine(ws.rpgUser, msg.jobIndex);
+        ws.send(JSON.stringify({ type: 'rpg_collect_refine_result', data: r }));
+      }
+      if (msg.type === 'rpg_get_refine_queue' && ws.isRPG && ws.rpgUser) {
+        const r = game.rpgGetRefineQueue(ws.rpgUser);
+        ws.send(JSON.stringify({ type: 'rpg_refine_queue', data: r }));
+      }
+      if (msg.type === 'rpg_get_demand' && ws.isRPG && ws.rpgUser) {
+        const r = game.rpgGetDemand();
+        ws.send(JSON.stringify({ type: 'rpg_demand', data: r }));
+      }
+      // ── Mining Mini-Game ──
+      if (msg.type === 'rpg_mine_timing' && ws.isRPG && ws.rpgUser) {
+        const r = game.rpgMinigameResult(ws.rpgUser, msg.token, msg.hitPosition);
+        ws.send(JSON.stringify({ type: 'rpg_mine_result', data: r }));
+      }
+      // ── Mining Gear ──
+      if (msg.type === 'rpg_buy_mining_gear' && ws.isRPG && ws.rpgUser) {
+        const r = game.rpgBuyMiningGear(ws.rpgUser, msg.itemId);
+        ws.send(JSON.stringify({ type: 'rpg_buy_mining_gear_result', data: r }));
+      }
+      if (msg.type === 'rpg_equip_mining_gear' && ws.isRPG && ws.rpgUser) {
+        const r = game.rpgEquipMiningGear(ws.rpgUser, msg.itemId);
+        ws.send(JSON.stringify({ type: 'rpg_equip_mining_gear_result', data: r }));
+      }
+      if (msg.type === 'rpg_unequip_mining_gear' && ws.isRPG && ws.rpgUser) {
+        const r = game.rpgUnequipMiningGear(ws.rpgUser, msg.slot);
+        ws.send(JSON.stringify({ type: 'rpg_unequip_mining_gear_result', data: r }));
+      }
+      if (msg.type === 'rpg_get_mining_gear' && ws.isRPG && ws.rpgUser) {
+        const r = game.rpgGetMiningGear(ws.rpgUser);
+        ws.send(JSON.stringify({ type: 'rpg_mining_gear', data: r }));
+      }
+      // ── Ore Caravan ──
+      if (msg.type === 'rpg_sell_caravan' && ws.isRPG && ws.rpgUser) {
+        const r = game.rpgSellToCaravan(ws.rpgUser, msg.qty, msg.quality);
+        ws.send(JSON.stringify({ type: 'rpg_sell_caravan_result', data: r }));
+      }
+      if (msg.type === 'rpg_get_caravan' && ws.isRPG && ws.rpgUser) {
+        const r = game.rpgGetCaravan();
+        ws.send(JSON.stringify({ type: 'rpg_caravan', data: r }));
+      }
+      if (msg.type === 'rpg_apply_enchant' && ws.isRPG && ws.rpgUser) {
+        const r = game.rpgApplyEnchant(ws.rpgUser, msg.bookItemId, msg.equipUid);
+        ws.send(JSON.stringify({ type: 'rpg_apply_enchant_result', data: r }));
+      }
+      if (msg.type === 'rpg_disenchant' && ws.isRPG && ws.rpgUser) {
+        const r = game.rpgDisenchant(ws.rpgUser, msg.equipUid, msg.enchantId);
+        ws.send(JSON.stringify({ type: 'rpg_disenchant_result', data: r }));
+      }
+      if (msg.type === 'rpg_grizzle_quest_turnin' && ws.isRPG && ws.rpgUser) {
+        const r = game.rpgGrizzleQuestTurnIn(ws.rpgUser, msg.questId);
+        ws.send(JSON.stringify({ type: 'rpg_grizzle_quest_turnin_result', data: r }));
+      }
       if (msg.type === 'rpg_duel_queue' && ws.isRPG && ws.rpgUser) {
         let r;
         if (msg.action === 'join') r = game.rpgDuelJoinQueue(ws.rpgUser);
@@ -751,9 +952,28 @@ wss.on('connection', (ws) => {
         else r = { error: 'invalid_action' };
         ws.send(JSON.stringify({ type: 'rpg_duel_queue_result', data: r }));
       }
-      if (msg.type === 'rpg_duel_action' && ws.isRPG && ws.rpgUser) {
-        const r = game.rpgDuelAction(ws.rpgUser, msg.action);
-        ws.send(JSON.stringify({ type: 'rpg_duel_action_result', data: r }));
+      if (msg.type === 'rpg_duel_attack' && ws.isRPG && ws.rpgUser) {
+        game.rpgDuelAttack(ws.rpgUser);
+      }
+      if (msg.type === 'rpg_block' && ws.isRPG && ws.rpgUser) {
+        game.rpgSetBlock(ws.rpgUser, msg.active);
+      }
+      // ── PvP Arena ──
+      if (msg.type === 'rpg_pvp_shop_buy' && ws.isRPG && ws.rpgUser) {
+        const r = game.rpgPvpShopBuy(ws.rpgUser, msg.itemId);
+        ws.send(JSON.stringify({ type: 'rpg_pvp_shop_buy_result', data: r }));
+      }
+      if (msg.type === 'rpg_pvp_shop' && ws.isRPG && ws.rpgUser) {
+        const r = game.rpgGetPvpShop(ws.rpgUser);
+        ws.send(JSON.stringify({ type: 'rpg_pvp_shop_result', data: r }));
+      }
+      if (msg.type === 'rpg_arena_stats' && ws.isRPG && ws.rpgUser) {
+        const r = game.rpgGetArenaStats(ws.rpgUser);
+        ws.send(JSON.stringify({ type: 'rpg_arena_stats_result', data: r }));
+      }
+      if (msg.type === 'rpg_arena_leaderboard' && ws.isRPG && ws.rpgUser) {
+        const r = game.rpgGetArenaLeaderboard();
+        ws.send(JSON.stringify({ type: 'rpg_arena_leaderboard_result', data: r }));
       }
       // ── Equipment & Items ──
       if (msg.type === 'rpg_equip' && ws.isRPG && ws.rpgUser) {
@@ -783,6 +1003,10 @@ wss.on('connection', (ws) => {
       if (msg.type === 'rpg_inventory' && ws.isRPG && ws.rpgUser) {
         const r = game.getInventory(ws.rpgUser);
         ws.send(JSON.stringify({ type: 'rpg_inventory_result', data: r }));
+      }
+      if (msg.type === 'rpg_open_chest' && ws.isRPG && ws.rpgUser) {
+        const r = game.openGoblinChest(ws.rpgUser);
+        ws.send(JSON.stringify({ type: 'rpg_open_chest_result', data: r }));
       }
       if (msg.type === 'rpg_market_sell' && ws.isRPG && ws.rpgUser) {
         const r = game.handleSellItem(ws.rpgUser, msg.itemUid, msg.price);
@@ -859,6 +1083,51 @@ wss.on('connection', (ws) => {
         const r = game.rpgTradeCancel(ws.rpgUser);
         ws.send(JSON.stringify({ type: 'rpg_trade_cancel_result', data: r }));
       }
+      // ── Party System ──
+      if (msg.type === 'rpg_party_invite' && ws.isRPG && ws.rpgUser && msg.target) {
+        const r = game.rpgPartyInvite(ws.rpgUser, msg.target.toLowerCase());
+        ws.send(JSON.stringify({ type: 'rpg_party_invite_result', data: r }));
+      }
+      if (msg.type === 'rpg_party_accept' && ws.isRPG && ws.rpgUser && msg.partyId != null) {
+        const r = game.rpgPartyAccept(ws.rpgUser, msg.partyId);
+        ws.send(JSON.stringify({ type: 'rpg_party_accept_result', data: r }));
+      }
+      if (msg.type === 'rpg_party_decline' && ws.isRPG && ws.rpgUser && msg.partyId != null) {
+        const r = game.rpgPartyDecline(ws.rpgUser, msg.partyId);
+        ws.send(JSON.stringify({ type: 'rpg_party_decline_result', data: r }));
+      }
+      if (msg.type === 'rpg_party_leave' && ws.isRPG && ws.rpgUser) {
+        const r = game.rpgPartyLeave(ws.rpgUser);
+        ws.send(JSON.stringify({ type: 'rpg_party_leave_result', data: r }));
+      }
+      if (msg.type === 'rpg_party_kick' && ws.isRPG && ws.rpgUser && msg.target) {
+        const r = game.rpgPartyKick(ws.rpgUser, msg.target.toLowerCase());
+        ws.send(JSON.stringify({ type: 'rpg_party_kick_result', data: r }));
+      }
+      // ── Party Dungeon System ──
+      if (msg.type === 'rpg_dungeon_ready' && ws.isRPG && ws.rpgUser) {
+        const r = game.rpgDungeonReady(ws.rpgUser, msg.ready);
+        ws.send(JSON.stringify({ type: 'rpg_dungeon_ready_result', data: r }));
+      }
+      if (msg.type === 'rpg_dungeon_launch' && ws.isRPG && ws.rpgUser) {
+        const r = game.rpgDungeonLaunch(ws.rpgUser);
+        ws.send(JSON.stringify({ type: 'rpg_dungeon_launch_result', data: r }));
+      }
+      if (msg.type === 'rpg_dungeon_attack_mob' && ws.isRPG && ws.rpgUser && msg.mobId) {
+        const r = game.rpgDungeonAttackMob(ws.rpgUser, msg.mobId);
+        ws.send(JSON.stringify({ type: 'rpg_dungeon_attack_mob_result', data: r }));
+      }
+      if (msg.type === 'rpg_dungeon_attack_boss' && ws.isRPG && ws.rpgUser) {
+        const r = game.rpgDungeonAttackBoss(ws.rpgUser);
+        ws.send(JSON.stringify({ type: 'rpg_dungeon_attack_boss_result', data: r }));
+      }
+      if (msg.type === 'rpg_dungeon_leave' && ws.isRPG && ws.rpgUser) {
+        const r = game.rpgDungeonLeave(ws.rpgUser);
+        ws.send(JSON.stringify({ type: 'rpg_dungeon_leave_result', data: r }));
+      }
+      if (msg.type === 'rpg_dungeon_move' && ws.isRPG && ws.rpgUser && msg.x != null && msg.y != null) {
+        game.rpgDungeonMove(ws.rpgUser, msg.x, msg.y);
+      }
       // ── RPG Chat ──
       if (msg.type === 'rpg_chat_send' && ws.isRPG && ws.rpgUser && msg.message) {
         const text = msg.message.trim().slice(0, 200);
@@ -866,6 +1135,83 @@ wss.on('connection', (ws) => {
           const chatMsg = { username: ws.rpgUser, message: text, time: Date.now() };
           game.rpgBroadcastAll({ type: 'rpg_chat_message', data: chatMsg });
         }
+      }
+      // ── Housing System ──
+      if (msg.type === 'rpg_buy_house' && ws.isRPG && ws.rpgUser) {
+        try {
+          console.log('[HOUSING] Buy house request from', ws.rpgUser);
+          const r = game.rpgBuyHouse(ws.rpgUser);
+          console.log('[HOUSING] Buy house result:', JSON.stringify(r));
+          ws.send(JSON.stringify({ type: 'rpg_buy_house_result', data: r }));
+        } catch (e) {
+          console.error('[BUY HOUSE ERROR]', e);
+          ws.send(JSON.stringify({ type: 'rpg_buy_house_result', data: { error: 'server_error', msg: 'Server error buying house' } }));
+        }
+      }
+      if (msg.type === 'rpg_upgrade_house' && ws.isRPG && ws.rpgUser) {
+        const r = game.rpgUpgradeHouse(ws.rpgUser);
+        ws.send(JSON.stringify({ type: 'rpg_upgrade_house_result', data: r }));
+      }
+      if (msg.type === 'rpg_buy_wall_style' && ws.isRPG && ws.rpgUser) {
+        const r = game.rpgBuyWallStyle(ws.rpgUser, msg.styleId);
+        ws.send(JSON.stringify({ type: 'rpg_buy_wall_result', data: r }));
+      }
+      if (msg.type === 'rpg_buy_floor_style' && ws.isRPG && ws.rpgUser) {
+        const r = game.rpgBuyFloorStyle(ws.rpgUser, msg.styleId);
+        ws.send(JSON.stringify({ type: 'rpg_buy_floor_result', data: r }));
+      }
+      if (msg.type === 'rpg_buy_furniture' && ws.isRPG && ws.rpgUser) {
+        const r = game.rpgBuyFurniture(ws.rpgUser, msg.itemId);
+        ws.send(JSON.stringify({ type: 'rpg_buy_furniture_result', data: r }));
+      }
+      if (msg.type === 'rpg_place_furniture' && ws.isRPG && ws.rpgUser) {
+        const r = game.rpgPlaceFurniture(ws.rpgUser, msg.invIndex, msg.fx, msg.fy, msg.floor);
+        ws.send(JSON.stringify({ type: 'rpg_place_furniture_result', data: r }));
+      }
+      if (msg.type === 'rpg_pickup_furniture' && ws.isRPG && ws.rpgUser) {
+        const r = game.rpgPickupFurniture(ws.rpgUser, msg.furnitureIdx);
+        ws.send(JSON.stringify({ type: 'rpg_pickup_furniture_result', data: r }));
+      }
+      if (msg.type === 'rpg_move_furniture' && ws.isRPG && ws.rpgUser) {
+        const r = game.rpgMoveFurniture(ws.rpgUser, msg.furnitureIdx, msg.fx, msg.fy, msg.floor);
+        ws.send(JSON.stringify({ type: 'rpg_move_furniture_result', data: r }));
+      }
+      if (msg.type === 'rpg_set_plaque' && ws.isRPG && ws.rpgUser) {
+        const r = game.rpgSetPlaque(ws.rpgUser, msg.furnitureIdx, msg.achievementId);
+        ws.send(JSON.stringify({ type: 'rpg_set_plaque_result', data: r }));
+      }
+      if (msg.type === 'rpg_get_house' && ws.isRPG && ws.rpgUser) {
+        const r = game.rpgGetHouseData(ws.rpgUser);
+        ws.send(JSON.stringify({ type: 'rpg_house_data', data: r }));
+      }
+      if (msg.type === 'rpg_visit_house' && ws.isRPG && ws.rpgUser && msg.target) {
+        const r = game.rpgVisitHouse(ws.rpgUser, msg.target);
+        ws.send(JSON.stringify({ type: 'rpg_visit_house_result', data: r }));
+      }
+      if (msg.type === 'rpg_get_street' && ws.isRPG && ws.rpgUser) {
+        const r = game.rpgGetStreetData(msg.streetIndex);
+        ws.send(JSON.stringify({ type: 'rpg_street_data', data: r }));
+      }
+      if (msg.type === 'rpg_housing_directory' && ws.isRPG && ws.rpgUser) {
+        const r = game.rpgGetHousingDirectory(msg.page || 0);
+        ws.send(JSON.stringify({ type: 'rpg_housing_directory_result', data: r }));
+      }
+      if (msg.type === 'rpg_search_house' && ws.isRPG && ws.rpgUser && msg.target) {
+        const r = game.rpgSearchHouse(msg.target);
+        ws.send(JSON.stringify({ type: 'rpg_search_house_result', data: r }));
+      }
+      if (msg.type === 'rpg_house_knock' && ws.isRPG && ws.rpgUser) {
+        const r = game.rpgKnockHouse(ws.rpgUser, msg.streetIndex, msg.plotIndex);
+        ws.send(JSON.stringify({ type: 'rpg_house_knock_result', data: r }));
+      }
+      if (msg.type === 'rpg_get_furniture_shop' && ws.isRPG && ws.rpgUser) {
+        const r = game.rpgGetFurnitureShop();
+        ws.send(JSON.stringify({ type: 'rpg_furniture_shop_data', data: r }));
+      }
+      // ── Dice Game ──
+      if (msg.type === 'rpg_play_dice' && ws.isRPG && ws.rpgUser) {
+        const r = game.rpgPlayDice(ws.rpgUser, msg.bet);
+        ws.send(JSON.stringify({ type: 'rpg_dice_result', data: r }));
       }
       // ── RPG Admin Tools (mikeydamike only) ──
       if (msg.type === 'rpg_admin' && ws.isRPG && ws.rpgUser === 'mikeydamike') {
@@ -880,6 +1226,8 @@ wss.on('connection', (ws) => {
           case 'give_wearable':  r = game.rpgAdminGiveWearable(ws.rpgUser, msg.key); break;
           case 'set_level':      r = game.rpgAdminSetLevel(ws.rpgUser, msg.level); break;
           case 'set_mining':     r = game.rpgAdminSetMiningLevel(ws.rpgUser, msg.level); break;
+          case 'set_trust':      r = game.rpgAdminSetTrust(ws.rpgUser, msg.trust); break;
+          case 'finish_grizzle': r = game.rpgAdminCompleteGrizzleQuests(ws.rpgUser); break;
           case 'heal':           r = game.rpgAdminHeal(ws.rpgUser); break;
           case 'speed':          r = game.rpgAdminSpeed(ws.rpgUser); break;
           case 'spawn_boss':     r = game.rpgAdminSpawnBoss(ws.rpgUser); break;
@@ -887,11 +1235,20 @@ wss.on('connection', (ws) => {
           case 'give_all_wearables': r = game.rpgAdminGiveAllWearables(ws.rpgUser); break;
           case 'give_all_items': r = game.rpgAdminGiveAllItems(ws.rpgUser); break;
           case 'get_game_data':  r = game.rpgAdminGetGameData(); break;
+          case 'force_caravan':  r = game.rpgAdminForceCaravan(ws.rpgUser); break;
+          case 'stop_caravan':   r = game.rpgAdminStopCaravan(ws.rpgUser); break;
+          case 'open_gold_vein': r = game.rpgAdminOpenGoldVein(ws.rpgUser); break;
+          case 'close_gold_vein':r = game.rpgAdminCloseGoldVein(ws.rpgUser); break;
+          case 'double_xp':     r = game.rpgAdminDoubleXP(ws.rpgUser); break;
+          case 'give_all_cosmetics': r = game.rpgAdminGiveAllCosmetics(ws.rpgUser); break;
+          case 'give_cosmetic': r = game.rpgAdminGiveCosmetic(ws.rpgUser, msg.cosmeticId); break;
+          case 'respawn_all_mobs': r = game.rpgAdminRespawnAllMobs(ws.rpgUser); break;
+          case 'set_dmg_mult':  r = game.rpgAdminSetDmgMult(ws.rpgUser, msg.mult); break;
           default: r = { error: 'unknown_action' };
         }
         ws.send(JSON.stringify({ type: 'rpg_admin_result', data: { action: msg.action, ...r } }));
       }
-    } catch {}
+    } catch (e) { console.error('[WS MSG ERROR]', e.message, e.stack); }
   });
 
   ws.on('close', () => {
@@ -1194,7 +1551,10 @@ function handleChatMessage(data) {
 // Start
 // ═══════════════════════════════════════════
 async function start() {
-  server.listen(PORT, () => {
+  server.listen(PORT, '0.0.0.0', () => {
+    const nets = require('os').networkInterfaces();
+    const lanIPs = Object.values(nets).flat().filter(i => i.family === 'IPv4' && !i.internal).map(i => i.address);
+    const lanIP = lanIPs[lanIPs.length - 1] || 'YOUR_IP';
     console.log('');
     console.log('========================================');
     console.log('  ⚔️  KICKSTREAM MMO SERVER  ⚔️');
@@ -1202,6 +1562,7 @@ async function start() {
     console.log(`  Overlay:  http://localhost:${PORT}`);
     console.log(`  Admin:    http://localhost:${PORT}/admin`);
     console.log(`  Portal:   http://localhost:${PORT}/play`);
+    console.log(`  📱 Phone: http://${lanIP}:${PORT}/play`);
     console.log(`  Channel:  ${KICK_CHANNEL}`);
     console.log('========================================');
     console.log('');
@@ -1229,4 +1590,8 @@ async function start() {
 }
 
 start();
-process.on('SIGINT', () => { if (discordBot) discordBot.destroy(); game.shutdown(); process.exit(); });
+function gracefulShutdown() { if (discordBot) discordBot.destroy(); game.shutdown(); process.exit(); }
+process.on('SIGINT', gracefulShutdown);
+process.on('SIGTERM', gracefulShutdown);
+process.on('uncaughtException', (err) => { console.error('Uncaught exception:', err); game.shutdown(); process.exit(1); });
+process.on('unhandledRejection', (reason) => { console.error('Unhandled rejection:', reason); });

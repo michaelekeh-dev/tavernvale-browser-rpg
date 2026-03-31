@@ -349,17 +349,21 @@ body{background:transparent;font-family:'Segoe UI',sans-serif;color:#fff}
 // WebSocket
 // ═══════════════════════════════════════════
 let ws;
+let reconnectDelay = 2000;
+const MAX_RECONNECT_DELAY = 60000;
 function connect() {
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
   ws = new WebSocket(proto + '://' + location.host);
   ws.onopen = () => {
+    reconnectDelay = 2000; // reset on successful connection
     document.getElementById('status-dot').className = 'connected';
     document.getElementById('status-text').textContent = 'Connected';
   };
   ws.onclose = () => {
     document.getElementById('status-dot').className = '';
     document.getElementById('status-text').textContent = 'Disconnected';
-    setTimeout(connect, 2000);
+    setTimeout(connect, reconnectDelay);
+    reconnectDelay = Math.min(reconnectDelay * 2, MAX_RECONNECT_DELAY);
   };
   ws.onmessage = e => {
     const m = JSON.parse(e.data);
