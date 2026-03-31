@@ -695,7 +695,7 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;di
         <span style="color:#60a5fa;font-weight:700">VG: <span id="vg-vg">0</span> 💎</span>
       </div>
       <div style="font-size:11px;color:var(--dim);margin-bottom:8px">Convert 5,000 gold → 1,000 Vault Gold<br>Only Vault Gold can be withdrawn for cash</div>
-      <div style="font-size:11px;color:var(--dim);margin-bottom:4px">Rate: 1,000 VG = $1 · Limit: once per 24hrs</div>
+      <div style="font-size:11px;color:var(--dim);margin-bottom:4px">Rate: 1,000 VG = $1 · No cooldown</div>
       <div id="vg-cooldown" style="font-size:11px;color:#ef4444;display:none;margin-bottom:8px"></div>
       <button class="btn" id="vg-convert-btn" onclick="convertToVG()" style="width:100%;background:linear-gradient(135deg,#3b82f6,#8b5cf6);color:#fff;font-weight:700;padding:10px;border-radius:6px;cursor:pointer;border:1px solid #60a5fa;text-shadow:0 0 6px rgba(96,165,250,0.5)">Convert 5,000g → 1,000 VG 💎</button>
     </div>
@@ -27691,15 +27691,7 @@ function onConvertVGResult(d){
   if(d.error){
     logMsg(d.message||d.error,'dmg');
     const cdEl=document.getElementById('vg-cooldown');
-    if(d.error==='cooldown'&&d.nextConvert){
-      cdEl.style.display='block';
-      const remaining=d.nextConvert-Date.now();
-      const hrs=Math.floor(remaining/3600000);
-      const mins=Math.ceil((remaining%3600000)/60000);
-      cdEl.textContent='⏰ Cooldown: '+hrs+'h '+mins+'m remaining';
-    } else {
-      cdEl.style.display='block';cdEl.textContent=d.message||d.error;
-    }
+    cdEl.style.display='block';cdEl.textContent=d.message||d.error;
     return;
   }
   gold=d.gold;vaultGold=d.vaultGold;updateHUD();

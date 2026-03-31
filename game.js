@@ -958,14 +958,6 @@ class Game {
     const p = this.player(username);
     const CONVERT_COST = 5000;   // gold spent
     const CONVERT_YIELD = 1000;  // VG received
-    const CONVERT_COOLDOWN = 24 * 60 * 60 * 1000; // 24 hours
-    const since = Date.now() - (p.lastVgConvert || 0);
-    if (since < CONVERT_COOLDOWN) {
-      const remaining = CONVERT_COOLDOWN - since;
-      const hrs = Math.floor(remaining / 3600000);
-      const mins = Math.ceil((remaining % 3600000) / 60000);
-      return { error: 'cooldown', remaining, nextConvert: (p.lastVgConvert || 0) + CONVERT_COOLDOWN, message: `Conversion available in ${hrs}h ${mins}m ⏰` };
-    }
     if (p.gold < CONVERT_COST) return { error: 'broke', gold: p.gold, cost: CONVERT_COST, message: `Need ${CONVERT_COST.toLocaleString()}g to convert (you have ${p.gold.toLocaleString()}g)` };
     p.gold -= CONVERT_COST;
     p.vaultGold = (p.vaultGold || 0) + CONVERT_YIELD;
@@ -2644,22 +2636,33 @@ class Game {
     if (!validMethods.includes(method)) return { error: 'invalid_method', message: 'Nah fam, only Solana or Discord. We ain\'t PayPal over here 😤' };
     const p = this.player(username);
     const amt = parseInt(goldAmount);
-    const minRedeem = 1000;  // $1 minimum (1000 VG at 1000 VG/$1)
-    const maxRedeemPerDay = 5000; // $5/day max (5000 VG)
-    const redeemCooldownMs = 24 * 60 * 60 * 1000; // 24 hours
+    const minRedeem = 1000;           // $1 minimum (1000 VG)
+    const maxRedeemPerDay = 15000;    // $15/day max (15000 VG)
+    const WITHDRAW_COOLDOWN = 3 * 60 * 60 * 1000;  // 3hr between any withdrawal
+    const DAY_MS = 24 * 60 * 60 * 1000;
     if (isNaN(amt) || amt < minRedeem) return { error: 'min_redeem', minimum: minRedeem, message: `Minimum withdrawal is ${minRedeem.toLocaleString()} Vault Gold ($${(minRedeem/CONFIG.goldPerDollar).toFixed(0)})` };
     if (amt > maxRedeemPerDay) return { error: 'max_redeem', message: `Max withdrawal is ${maxRedeemPerDay.toLocaleString()} VG ($${(maxRedeemPerDay/CONFIG.goldPerDollar).toFixed(0)}) per day 🚫`, maximum: maxRedeemPerDay };
     const vg = p.vaultGold || 0;
     if (vg < amt) return { error: 'broke', vaultGold: vg, message: `Not enough Vault Gold! You have ${vg.toLocaleString()} VG. Convert gold → VG first! 💎` };
     if (this.payoutQueue.find(r => r.username === username && r.status === 'pending')) return { error: 'already_pending', message: 'Chill, you already got one cooking 🍳' };
+    // 3hr cooldown between any withdrawal
+    const lastWithdraw = this.payoutQueue
+      .filter(r => r.username === username && (r.status === 'approved' || r.status === 'pending'))
+      .reduce((latest, r) => Math.max(latest, r.date), 0);
+    if (lastWithdraw && Date.now() - lastWithdraw < WITHDRAW_COOLDOWN) {
+      const remaining = WITHDRAW_COOLDOWN - (Date.now() - lastWithdraw);
+      const hrs = Math.floor(remaining / 3600000);
+      const mins = Math.ceil((remaining % 3600000) / 60000);
+      return { error: 'cooldown', message: `Withdraw cooldown: ${hrs}h ${mins}m remaining ⏰`, remaining };
+    }
     // Check 24h rolling window: total approved + pending in last 24h
-    const dayAgo = Date.now() - redeemCooldownMs;
+    const dayAgo = Date.now() - DAY_MS;
     const recentTotal = this.payoutQueue
       .filter(r => r.username === username && r.date > dayAgo && (r.status === 'approved' || r.status === 'pending'))
       .reduce((sum, r) => sum + r.goldAmount, 0);
     if (recentTotal + amt > maxRedeemPerDay) {
       const remaining = Math.max(0, maxRedeemPerDay - recentTotal);
-      return { error: 'daily_limit', message: `You've hit the daily limit! ${remaining > 0 ? remaining.toLocaleString() + ' VG remaining' : 'Try again in 24hrs'} ⏰`, remaining };
+      return { error: 'daily_limit', message: `Daily limit hit ($15/day)! ${remaining > 0 ? remaining.toLocaleString() + ' VG remaining today' : 'Try again in 24hrs'} ⏰`, remaining };
     }
     const dollarValue = parseFloat((amt / CONFIG.goldPerDollar).toFixed(2));
     p.vaultGold -= amt;

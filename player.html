@@ -897,7 +897,7 @@
         <div style="background:var(--bg3);border-radius:8px;padding:14px;margin-bottom:16px;">
           <div style="font-size:14px;font-weight:700;color:var(--gold);margin-bottom:4px;">Your Gold: <span id="convert-gold" style="color:var(--gold)">0</span></div>
           <div style="font-size:14px;font-weight:700;color:#60a5fa;margin-bottom:4px;">Your VG: <span id="convert-vg" style="color:#60a5fa">0</span> 💎</div>
-          <div style="font-size:12px;color:var(--dim);margin-bottom:4px;">Convert 5,000 gold → 1,000 Vault Gold · Once per 24hrs</div>
+          <div style="font-size:12px;color:var(--dim);margin-bottom:4px;">Convert 5,000 gold → 1,000 Vault Gold · No cooldown</div>
           <div style="font-size:11px;color:var(--dim);margin-bottom:8px;font-style:italic;">Only Vault Gold can be withdrawn for real money</div>
           <div id="portal-vg-cooldown" style="font-size:11px;color:#ef4444;display:none;margin-bottom:8px"></div>
           <button class="btn btn-gold btn-full" id="portal-vg-btn" onclick="portalConvertVG()" style="background:linear-gradient(135deg,#3b82f6,#8b5cf6);border-color:#60a5fa;">💎 Convert 5,000g → 1,000 VG</button>
@@ -907,7 +907,7 @@
         <div class="card-header">💰 Redeem Vault Gold for Cash</div>
         <div style="background:var(--bg3);border-radius:8px;padding:14px;margin-bottom:16px;">
           <div style="font-size:14px;font-weight:700;color:#60a5fa;margin-bottom:4px;">Exchange Rate: <span id="redeem-rate">1000</span> VG = $1</div>
-          <div style="font-size:12px;color:var(--dim);">Minimum redeem: <span id="redeem-min">1000</span> VG ($1) · Max: 5,000 VG/day ($5)</div>
+          <div style="font-size:12px;color:var(--dim);">Minimum redeem: <span id="redeem-min">1000</span> VG ($1) · Max: 15,000 VG/day ($15)</div>
           <div style="font-size:12px;color:var(--green);margin-top:2px;">Payouts processed quickly by ur boy mikeydamike 🏄‍♂️💨</div>
           <div style="font-size:11px;color:var(--dim);margin-top:2px;font-style:italic;">"we ain't a bank out here, we move FAST" — mikeydamike</div>
           <div style="font-size:12px;color:var(--dim);margin-top:2px;">Your Vault Gold: <span id="redeem-gold" style="color:#60a5fa;font-weight:700;">0</span> 💎</div>
@@ -4550,7 +4550,8 @@ function submitRedeem() {
         else if (r.error === 'already_pending') toast(r.message || "Chill, you already got one cooking 🍳", 'error');
         else if (r.error === 'invalid_method') toast(r.message || 'Invalid method', 'error');
         else if (r.error === 'max_redeem') toast(r.message || 'Max withdrawal exceeded', 'error');
-        else if (r.error === 'daily_limit') toast(r.message || 'Daily withdrawal limit reached ⏰', 'error');
+        else if (r.error === 'daily_limit') toast(r.message || 'Daily limit hit ($15/day) ⏰', 'error');
+        else if (r.error === 'cooldown') toast(r.message || 'Withdraw cooldown active ⏰', 'error');
         else toast(r.message || r.error, 'error');
       } else {
         toast('Request locked in! mikeydamike moves fast 🏄‍♂️💨', 'success');
@@ -4570,18 +4571,9 @@ function portalConvertVG() {
   fetch('/api/convert-vg', { method: 'POST', headers: authHeaders(), body: authBody({}) })
     .then(r => r.json()).then(r => {
       if (r.error) {
-        if (r.error === 'cooldown' && r.nextConvert) {
-          const remaining = r.nextConvert - Date.now();
-          const hrs = Math.floor(remaining / 3600000);
-          const mins = Math.ceil((remaining % 3600000) / 60000);
-          const cdEl = document.getElementById('portal-vg-cooldown');
-          cdEl.style.display = 'block';
-          cdEl.textContent = '⏰ Cooldown: ' + hrs + 'h ' + mins + 'm remaining';
-        }
         toast(r.message || r.error, 'error');
       } else {
         toast(r.message || 'Converted to Vault Gold! 💎', 'success');
-        document.getElementById('portal-vg-cooldown').style.display = 'none';
         refreshProfile();
       }
       btn.disabled = false; btn.textContent = '💎 Convert 5,000g → 1,000 VG';
@@ -4657,7 +4649,7 @@ enterDashboard = function() {
   loadRedeemHistory();
   // Update redeem panel info
   document.getElementById('redeem-rate').textContent = 1000;
-  document.getElementById('redeem-min').textContent = '1000 VG ($1) · Max: 5,000 VG/day ($5)';
+  document.getElementById('redeem-min').textContent = '1000 VG ($1) · Max: 15,000 VG/day ($15)';
 };
 
 // Override updateAuthBadge to update chat UI too
