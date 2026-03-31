@@ -5958,15 +5958,15 @@ function render(){
     // Collect tavern light sources in tile coordinates
     const _tavLights=[];
     for(const d2 of decorations){
-      if(d2.type==='tavern_candle') _tavLights.push({tx:d2.x/T,ty:d2.y/T,r:3.5});
-      else if(d2.type==='tavern_wall_sconce') _tavLights.push({tx:d2.x/T,ty:d2.y/T,r:4.5});
-      else if(d2.type==='tavern_fireplace') _tavLights.push({tx:d2.x/T,ty:d2.y/T,r:6});
-      else if(d2.type==='tavern_hanging_lantern') _tavLights.push({tx:d2.x/T,ty:d2.y/T,r:5});
+      if(d2.type==='tavern_candle') _tavLights.push({tx:d2.x/T,ty:d2.y/T,r:2.8});
+      else if(d2.type==='tavern_wall_sconce') _tavLights.push({tx:d2.x/T,ty:d2.y/T,r:3.5});
+      else if(d2.type==='tavern_fireplace') _tavLights.push({tx:d2.x/T,ty:d2.y/T,r:5});
+      else if(d2.type==='tavern_hanging_lantern') _tavLights.push({tx:d2.x/T,ty:d2.y/T,r:4});
     }
     // Bar area as a light source
-    _tavLights.push({tx:30,ty:5.5,r:5.5});
+    _tavLights.push({tx:30,ty:5.5,r:4.5});
     // Player as portable subtle light
-    _tavLights.push({tx:px/T,ty:py/T,r:3.5});
+    _tavLights.push({tx:px/T,ty:py/T,r:3});
 
     for(let ty2=4;ty2<=11;ty2++){
       for(let tx2=24;tx2<=36;tx2++){
@@ -5982,16 +5982,16 @@ function render(){
           const contrib=Math.max(0,1-dist/L.r);
           if(contrib>maxL)maxL=contrib;
         }
-        // Darkness: far from lights → darken with warm-brown tint; quadratic falloff
-        const darkA=0.55*(1-maxL*maxL);
+        // Darkness: far from lights → darken heavily; quadratic falloff
+        const darkA=0.70*(1-maxL*maxL);
         if(darkA>0.01){
-          ctx.fillStyle='rgba(8,4,2,'+darkA.toFixed(3)+')';
+          ctx.fillStyle='rgba(5,2,1,'+darkA.toFixed(3)+')';
           ctx.fillRect(s2.x,s2.y,ts+1,ts+1);
         }
-        // Warmth: near lights → warm orange-gold tint
-        if(maxL>0.2){
-          const warmA=0.10*maxL*maxL;
-          ctx.fillStyle='rgba(255,180,70,'+warmA.toFixed(3)+')';
+        // Warmth: near lights → subtle warm tint
+        if(maxL>0.3){
+          const warmA=0.05*maxL*maxL;
+          ctx.fillStyle='rgba(255,170,60,'+warmA.toFixed(3)+')';
           ctx.fillRect(s2.x,s2.y,ts+1,ts+1);
         }
       }
@@ -6003,18 +6003,18 @@ function render(){
     const tlScreen=worldToScreen(24*T,4*T);
     const brScreen=worldToScreen(37*T,12*T);
     const tw=brScreen.x-tlScreen.x, th=brScreen.y-tlScreen.y;
-    ctx.fillStyle='rgba(60,40,20,0.18)';
+    ctx.fillStyle='rgba(40,25,12,0.25)';
     ctx.fillRect(tlScreen.x,tlScreen.y,tw,th);
     // Rich edge vignette (warm dark corners, brighter center)
     const vigCx=(tlScreen.x+brScreen.x)/2,vigCy=(tlScreen.y+brScreen.y)/2;
     const vig=ctx.createRadialGradient(
-      vigCx,vigCy,Math.min(tw,th)*0.25,
-      vigCx,vigCy,Math.max(tw,th)*0.65
+      vigCx,vigCy,Math.min(tw,th)*0.20,
+      vigCx,vigCy,Math.max(tw,th)*0.60
     );
-    vig.addColorStop(0,'rgba(90,65,35,0.0)');
-    vig.addColorStop(0.5,'rgba(50,30,15,0.06)');
-    vig.addColorStop(0.8,'rgba(30,15,5,0.14)');
-    vig.addColorStop(1,'rgba(15,6,2,0.26)');
+    vig.addColorStop(0,'rgba(80,55,30,0.0)');
+    vig.addColorStop(0.4,'rgba(40,22,10,0.10)');
+    vig.addColorStop(0.7,'rgba(20,10,4,0.22)');
+    vig.addColorStop(1,'rgba(8,3,1,0.38)');
     ctx.fillStyle=vig;ctx.fillRect(tlScreen.x,tlScreen.y,tw,th);
     ctx.restore();
 
@@ -6023,19 +6023,13 @@ function render(){
     // Light source positions: candles, sconces, fireplace, hanging lantern, bar area
     const lightSources=[];
     for(const d2 of decorations){
-      if(d2.type==='tavern_candle') lightSources.push({x:d2.x,y:d2.y,r:65,a:0.16,c:[255,215,110]});
-      else if(d2.type==='tavern_wall_sconce') lightSources.push({x:d2.x,y:d2.y,r:85,a:0.18,c:[255,185,75]});
-      else if(d2.type==='tavern_fireplace') lightSources.push({x:d2.x,y:d2.y,r:130,a:0.22,c:[255,145,55]});
-      else if(d2.type==='tavern_hanging_lantern') lightSources.push({x:d2.x,y:d2.y,r:110,a:0.20,c:[255,205,85]});
+      if(d2.type==='tavern_candle') lightSources.push({x:d2.x,y:d2.y,r:45,a:0.08,c:[255,210,100]});
+      else if(d2.type==='tavern_wall_sconce') lightSources.push({x:d2.x,y:d2.y,r:60,a:0.10,c:[255,175,65]});
+      else if(d2.type==='tavern_fireplace') lightSources.push({x:d2.x,y:d2.y,r:90,a:0.14,c:[255,135,45]});
+      else if(d2.type==='tavern_hanging_lantern') lightSources.push({x:d2.x,y:d2.y,r:75,a:0.12,c:[255,195,75]});
     }
-    // Bar area warm backlighting (stronger, wider)
-    lightSources.push({x:30*T,y:5.5*T,r:150,a:0.14,c:[255,210,100]});
-    // Secondary bar shelf glow (amber backlight behind bottles)
-    lightSources.push({x:30*T,y:4.8*T,r:80,a:0.10,c:[255,170,60]});
-    // General ambient fill light for whole interior
-    lightSources.push({x:30*T,y:8*T,r:180,a:0.08,c:[255,225,145]});
-    // Fireplace bounce light (warm pool on floor)
-    lightSources.push({x:26.5*T,y:6.5*T,r:60,a:0.06,c:[255,130,45]});
+    // Bar area warm glow
+    lightSources.push({x:30*T,y:5.5*T,r:100,a:0.08,c:[255,200,90]});
     for(const ls of lightSources){
       const lp=worldToScreen(ls.x,ls.y);
       if(lp.x<-200||lp.x>W+200||lp.y<-200||lp.y>H+200)continue;
@@ -7039,28 +7033,6 @@ function render(){
 
   // Tavern dust particles
   if(!isMobile)drawTavernDust();
-  // Tavern atmospheric haze (soft warm fog layer)
-  if(playerInsideTavern&&!isMobile){
-    const T=TILE_SIZE;
-    const hTL=worldToScreen(24*T,4*T),hBR=worldToScreen(37*T,12*T);
-    const hW=hBR.x-hTL.x,hH=hBR.y-hTL.y;
-    const hCx=(hTL.x+hBR.x)/2,hCy=(hTL.y+hBR.y)/2;
-    ctx.save();ctx.globalCompositeOperation='screen';
-    // Warm haze concentrated low (simulates smoke/steam settling)
-    const hazeG=ctx.createRadialGradient(hCx,hCy+hH*0.15,hW*0.1,hCx,hCy+hH*0.1,hW*0.55);
-    const hazeFlk=0.7+Math.sin(Date.now()*0.0015)*0.15;
-    hazeG.addColorStop(0,'rgba(255,200,120,'+(0.025*hazeFlk)+')');
-    hazeG.addColorStop(0.5,'rgba(255,180,100,'+(0.012*hazeFlk)+')');
-    hazeG.addColorStop(1,'rgba(0,0,0,0)');
-    ctx.fillStyle=hazeG;ctx.fillRect(hTL.x,hTL.y,hW,hH);
-    // Secondary haze near fireplace (smoky wisp)
-    const fpS=worldToScreen(26.5*T,6.5*T);
-    const fpG=ctx.createRadialGradient(fpS.x,fpS.y-10*ISO_S,5*ISO_S,fpS.x,fpS.y-5*ISO_S,50*ISO_S);
-    fpG.addColorStop(0,'rgba(255,160,60,'+(0.03*hazeFlk)+')');
-    fpG.addColorStop(1,'rgba(0,0,0,0)');
-    ctx.fillStyle=fpG;ctx.beginPath();ctx.arc(fpS.x,fpS.y-5*ISO_S,50*ISO_S,0,Math.PI*2);ctx.fill();
-    ctx.restore();
-  }
   // Gold collect particles
   drawGoldCollect();
   // ═══ MOBILE FLOATING HP/XP BAR (center bottom) ═══
@@ -24821,22 +24793,12 @@ function closeDiceGame(){diceGameOpen=false;diceState='idle';closeDialogue()}
 function initTavernDust(){
   if(tavernDustParticles.length>0)return;
   const T=TILE_SIZE;
-  for(let i=0;i<55;i++){
-    // Concentrate ~40% of particles near light sources (bar, fireplace, lantern)
-    let px,py;
-    const zone=i%5;
-    if(zone===0){// near fireplace
-      px=26*T+Math.random()*2*T;py=6*T+Math.random()*3*T;
-    } else if(zone===1){// near bar area
-      px=28*T+Math.random()*5*T;py=5*T+Math.random()*2*T;
-    } else {// general tavern area
-      px=25*T+Math.random()*10*T;py=5*T+Math.random()*6*T;
-    }
+  for(let i=0;i<6;i++){
     tavernDustParticles.push({
-      x:px, y:py,
-      vx:(Math.random()-0.5)*0.08, vy:-0.015-Math.random()*0.035,
-      size:0.8+Math.random()*2.5, alpha:0.08+Math.random()*0.22,
-      life:3000+Math.random()*5000, maxLife:3000+Math.random()*5000,
+      x:26*T+Math.random()*8*T, y:5*T+Math.random()*5*T,
+      vx:(Math.random()-0.5)*0.05, vy:-0.01-Math.random()*0.02,
+      size:1+Math.random()*1.5, alpha:0.08+Math.random()*0.12,
+      life:4000+Math.random()*5000, maxLife:4000+Math.random()*5000,
       drift:Math.random()*Math.PI*2
     });
   }
@@ -24845,20 +24807,16 @@ function updateTavernDust(dt){
   if(!playerInsideTavern)return;
   const now=Date.now();
   for(const p of tavernDustParticles){
-    // Gentle horizontal drift (sine wave)
-    p.x+=(p.vx+Math.sin(now*0.001+(p.drift||0))*0.02)*dt*0.05;
+    p.x+=(p.vx+Math.sin(now*0.001+(p.drift||0))*0.015)*dt*0.05;
     p.y+=p.vy*dt*0.05;
     p.life-=dt;
     if(p.life<=0){
       const T=TILE_SIZE;
-      const zone=Math.random();
-      if(zone<0.2){p.x=26*T+Math.random()*2*T;p.y=6*T+Math.random()*3*T;}
-      else if(zone<0.4){p.x=28*T+Math.random()*5*T;p.y=5*T+Math.random()*2*T;}
-      else{p.x=25*T+Math.random()*10*T;p.y=5*T+Math.random()*6*T;}
-      p.vx=(Math.random()-0.5)*0.08;p.vy=-0.015-Math.random()*0.035;
-      p.life=p.maxLife;p.alpha=0.08+Math.random()*0.22;
+      p.x=26*T+Math.random()*8*T;p.y=5*T+Math.random()*5*T;
+      p.vx=(Math.random()-0.5)*0.05;p.vy=-0.01-Math.random()*0.02;
+      p.life=p.maxLife;p.alpha=0.08+Math.random()*0.12;
       p.drift=Math.random()*Math.PI*2;
-      p.size=0.8+Math.random()*2.5;
+      p.size=1+Math.random()*1.5;
     }
   }
 }
@@ -24867,20 +24825,8 @@ function drawTavernDust(){
   for(const p of tavernDustParticles){
     const s=worldToScreen(p.x,p.y);
     const fadeAlpha=p.alpha*Math.min(1,p.life/500);
-    const r=p.size*ISO_S;
-    // Outer soft glow (subtle bloom)
-    if(r>1.5){
-      ctx.fillStyle='rgba(255,230,180,'+(fadeAlpha*0.25)+')';
-      ctx.beginPath();ctx.arc(s.x,s.y,r*2.2,0,Math.PI*2);ctx.fill();
-    }
-    // Core mote
     ctx.fillStyle='rgba(255,240,200,'+fadeAlpha+')';
-    ctx.beginPath();ctx.arc(s.x,s.y,r,0,Math.PI*2);ctx.fill();
-    // Bright center dot for larger particles
-    if(r>2){
-      ctx.fillStyle='rgba(255,250,230,'+(fadeAlpha*0.5)+')';
-      ctx.beginPath();ctx.arc(s.x,s.y,r*0.4,0,Math.PI*2);ctx.fill();
-    }
+    ctx.beginPath();ctx.arc(s.x,s.y,p.size*ISO_S,0,Math.PI*2);ctx.fill();
   }
 }
 
