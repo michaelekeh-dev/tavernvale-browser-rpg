@@ -27,11 +27,14 @@ const server = http.createServer(app);
 // ═══════════════════════════════════════════
 // Stripe Gold Shop
 // ═══════════════════════════════════════════
+// Fix trailing spaces in Railway env var names
+for (const key of Object.keys(process.env)) {
+  if (key !== key.trim()) { process.env[key.trim()] = process.env[key]; delete process.env[key]; }
+}
 const STRIPE_SECRET = process.env.STRIPE_SECRET_KEY;
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
 const stripe = STRIPE_SECRET ? require('stripe')(STRIPE_SECRET) : null;
 console.log(`💳 Stripe: ${stripe ? 'ENABLED' : 'DISABLED (no STRIPE_SECRET_KEY)'} | Webhook: ${STRIPE_WEBHOOK_SECRET ? 'SET' : 'NOT SET'} | PubKey: ${process.env.STRIPE_PUBLISHABLE_KEY ? 'SET' : 'NOT SET'}`);
-console.log('🔑 STRIPE env vars found:', Object.keys(process.env).filter(k => k.includes('STRIPE')).join(', ') || 'NONE');
 
 const GOLD_PACKAGES = [
   { id: 'gold_500',   gold: 500,    price: 100,  label: '500 Gold',    emoji: '🪙' },
