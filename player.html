@@ -122,7 +122,7 @@
   .cosmetic-desc { font-size: 12px; color: var(--dim); margin-bottom: 8px; line-height: 1.4; }
   .cosmetic-cost { color: var(--gold); font-weight: 700; font-size: 14px; display: flex; align-items: center; gap: 4px; }
   .cosmetic-badge { position: absolute; top: 10px; right: 10px; font-size: 9px; padding: 3px 8px; border-radius: 20px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
-  .cosmetic-badge.owned-badge { background: rgba(74,222,128,0.15); color: var(--green); }
+  .cosmetic-badge.owned-badge { background: rgba(58, 109, 77, 0.15); color: var(--green); }
   .cosmetic-badge.active-badge { background: rgba(251,191,36,0.2); color: var(--gold); }
   .cosmetic-type-tag { font-size: 9px; color: var(--dim); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; opacity: 0.7; }
   .cosmetic-preview { margin: 8px 0; display: flex; align-items: center; gap: 8px; }
@@ -418,6 +418,7 @@
     <div class="tab" data-tab="achievements">🏆 Achievements</div>
     <div class="tab" data-tab="prestige">🏅 Prestige</div>
     <div class="tab" data-tab="chat">💬 Chat</div>
+    <div class="tab" data-tab="goldshop" style="color:#f59e0b">🛒 Gold Shop</div>
     <div class="tab" data-tab="redeem">💰 Redeem</div>
   </div>
   <div class="sub-tabs" id="sub-tabs" style="display:none"></div>
@@ -877,6 +878,18 @@
     </div>
 
     <!-- REDEEM PANEL -->
+    <div class="panel" id="panel-goldshop">
+      <div class="card">
+        <div class="card-header">🛒 Gold Shop — Buy Gold with Credit Card</div>
+        <div style="background:var(--bg3);border-radius:8px;padding:14px;margin-bottom:16px;">
+          <div style="font-size:14px;font-weight:700;color:var(--gold);margin-bottom:4px;">Purchase gold instantly with a credit or debit card</div>
+          <div style="font-size:12px;color:var(--dim);">Powered by Stripe · Secure checkout · Gold credited immediately</div>
+          <div style="font-size:12px;color:var(--dim);margin-top:2px;">Your gold: <span id="shop-gold" style="color:var(--gold);font-weight:700;">0</span></div>
+        </div>
+        <div id="gold-shop-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;"></div>
+      </div>
+    </div>
+
     <div class="panel" id="panel-redeem">
       <div class="card">
         <div class="card-header">💰 Redeem Gold for Cash</div>
@@ -1102,6 +1115,7 @@ const TAB_GROUPS = {
   achievements: [{ id: 'achievements', label: '🏆 Achievements' }],
   prestige: [{ id: 'prestige', label: '🏅 Prestige' }],
   chat: [{ id: 'chat', label: '💬 Chat' }],
+  goldshop: [{ id: 'goldshop', label: '🛒 Gold Shop' }],
   redeem: [{ id: 'redeem', label: '💰 Redeem' }],
 };
 let currentMainTab = 'player';
@@ -1150,6 +1164,7 @@ function switchSubTab(subId) {
   if (subId === 'gambling') { updateGambleGold(); checkGamblingStatus(); }
   if (subId === 'character') { drawCharacter(); renderCharacterCosmetics(); renderWearables(); }
   if (subId === 'cosmetics') { renderCosmetics(); }
+  if (subId === 'goldshop') { renderGoldShop(); }
 }
 
 document.querySelectorAll('#main-tabs .tab').forEach(tab => {
@@ -4558,6 +4573,45 @@ function loadRedeemHistory() {
 // ═══════════════════════════════════════════
 // Override enterDashboard to start chat + redeem
 // ═══════════════════════════════════════════
+// ═══════════════════════════════════════════
+// Gold Shop
+// ═══════════════════════════════════════════
+function renderGoldShop(){
+  const grid=document.getElementById('gold-shop-grid');
+  if(!grid)return;
+  const shopGold=document.getElementById('shop-gold');
+  if(shopGold&&profile) shopGold.textContent=profile.gold.toLocaleString();
+  grid.innerHTML='<div style="color:var(--dim);text-align:center;grid-column:1/-1">Loading...</div>';
+  fetch('/api/gold-packages').then(r=>r.json()).then(d=>{
+    if(!d.enabled){grid.innerHTML='<div style="color:var(--red);text-align:center;grid-column:1/-1">Shop is currently offline</div>';return}
+    grid.innerHTML='';
+    for(const pkg of d.packages){
+      const card=document.createElement('div');
+      card.style.cssText='background:linear-gradient(135deg,rgba(251,191,36,0.08),rgba(245,158,11,0.04));border:1px solid rgba(251,191,36,0.25);border-radius:10px;padding:18px;text-align:center;cursor:pointer;transition:all .2s';
+      card.onmouseenter=()=>{card.style.borderColor='rgba(251,191,36,0.6)';card.style.boxShadow='0 0 20px rgba(251,191,36,0.15)'};
+      card.onmouseleave=()=>{card.style.borderColor='rgba(251,191,36,0.25)';card.style.boxShadow='none'};
+      card.innerHTML=`<div style="font-size:28px;margin-bottom:8px">${pkg.emoji}</div><div style="color:var(--gold);font-family:'Press Start 2P',monospace;font-size:12px;margin-bottom:6px">${pkg.label}</div><div style="color:var(--text);font-size:18px;font-weight:bold">$${(pkg.price/100).toFixed(2)}</div>`;
+      card.onclick=()=>buyGoldPackage(pkg.id);
+      grid.appendChild(card);
+    }
+  }).catch(()=>{grid.innerHTML='<div style="color:var(--red);text-align:center;grid-column:1/-1">Failed to load shop</div>'});
+}
+function buyGoldPackage(packageId){
+  if(!username||!authToken){showToast('You must link your account first','error');return}
+  const grid=document.getElementById('gold-shop-grid');
+  const origHTML=grid.innerHTML;
+  grid.innerHTML='<div style="color:var(--gold);text-align:center;grid-column:1/-1">Redirecting to checkout...</div>';
+  fetch('/api/create-checkout',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({username,token:authToken,packageId})
+  }).then(r=>r.json()).then(d=>{
+    if(d.url){window.open(d.url,'_blank')}
+    else{showToast(d.error||'Checkout failed','error')}
+    grid.innerHTML=origHTML;
+  }).catch(()=>{showToast('Payment system error','error');grid.innerHTML=origHTML});
+}
+
 const _origEnterDashboard = enterDashboard;
 enterDashboard = function() {
   _origEnterDashboard();
