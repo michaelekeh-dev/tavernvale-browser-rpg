@@ -2696,7 +2696,13 @@ function handleMessage(msg){
       if(inPartyDungeon)onDungeonAttackBossResult(d);
       break;
     case'rpg_dungeon_boss_phase':
-      if(inPartyDungeon&&d.boss){boss=d.boss;boss.phase='combat';logMsg('All mobs slain! The boss awakens!','loot')}
+      if(inPartyDungeon&&d.boss){
+        boss=d.boss;boss.phase='combat';logMsg('All mobs slain! The boss awakens!','loot');
+        shakeTimer=15;
+        // Start boss music + wake SFX
+        if(boss.cfgId&&BOSS_MUSIC_TRACKS[boss.cfgId])startBossMusic(boss.cfgId);
+        if(boss.cfgId==='pdung_abyssal_dragon'){playBossSFX('dragon_roar',{volume:0.55,minPitch:0.7,maxPitch:0.9});setTimeout(()=>playBossSFX('dragon_roar',{volume:0.4,minPitch:0.5,maxPitch:0.7}),800)}
+      }
       break;
     case'rpg_dungeon_boss_hp':
       if(inPartyDungeon&&boss){boss.hp=d.hp;boss.maxHP=d.maxHP;boss.flash=1}
