@@ -5952,46 +5952,98 @@ function render(){
   // Warm tavern interior lighting overlay
   if(playerInsideTavern&&!isMobile){
     const T=40;
-    // Step 1: Gentle warm tint (much brighter than before)
+    const ts=TILE_SIZE*ISO_S;
+
+    // ── STEP 0: PER-TILE DARKNESS — tiles far from light are dark, near light are warm ──
+    // Collect tavern light sources in tile coordinates
+    const _tavLights=[];
+    for(const d2 of decorations){
+      if(d2.type==='tavern_candle') _tavLights.push({tx:d2.x/T,ty:d2.y/T,r:3.5});
+      else if(d2.type==='tavern_wall_sconce') _tavLights.push({tx:d2.x/T,ty:d2.y/T,r:4.5});
+      else if(d2.type==='tavern_fireplace') _tavLights.push({tx:d2.x/T,ty:d2.y/T,r:6});
+      else if(d2.type==='tavern_hanging_lantern') _tavLights.push({tx:d2.x/T,ty:d2.y/T,r:5});
+    }
+    // Bar area as a light source
+    _tavLights.push({tx:30,ty:5.5,r:5.5});
+    // Player as portable subtle light
+    _tavLights.push({tx:px/T,ty:py/T,r:3.5});
+
+    for(let ty2=4;ty2<=11;ty2++){
+      for(let tx2=24;tx2<=36;tx2++){
+        const tid2=tileMap[ty2]?tileMap[ty2][tx2]:-1;
+        if(tid2===TILE.WALL||tid2<0)continue;
+        const s2=worldToScreen(tx2*T,ty2*T);
+        // Find max light contribution
+        let maxL=0;
+        const tcx=tx2+0.5,tcy=ty2+0.5;
+        for(const L of _tavLights){
+          const dx=tcx-L.tx,dy=tcy-L.ty;
+          const dist=Math.sqrt(dx*dx+dy*dy);
+          const contrib=Math.max(0,1-dist/L.r);
+          if(contrib>maxL)maxL=contrib;
+        }
+        // Darkness: far from lights → darken with warm-brown tint; quadratic falloff
+        const darkA=0.55*(1-maxL*maxL);
+        if(darkA>0.01){
+          ctx.fillStyle='rgba(8,4,2,'+darkA.toFixed(3)+')';
+          ctx.fillRect(s2.x,s2.y,ts+1,ts+1);
+        }
+        // Warmth: near lights → warm orange-gold tint
+        if(maxL>0.2){
+          const warmA=0.10*maxL*maxL;
+          ctx.fillStyle='rgba(255,180,70,'+warmA.toFixed(3)+')';
+          ctx.fillRect(s2.x,s2.y,ts+1,ts+1);
+        }
+      }
+    }
+
+    // ── STEP 1: Gentle warm tint + vignette ──
     ctx.save();
     ctx.globalCompositeOperation='multiply';
     const tlScreen=worldToScreen(24*T,4*T);
     const brScreen=worldToScreen(37*T,12*T);
     const tw=brScreen.x-tlScreen.x, th=brScreen.y-tlScreen.y;
-    ctx.fillStyle='rgba(70,50,30,0.15)';
+    ctx.fillStyle='rgba(60,40,20,0.18)';
     ctx.fillRect(tlScreen.x,tlScreen.y,tw,th);
-    // Subtle edge vignette (only at corners)
+    // Rich edge vignette (warm dark corners, brighter center)
+    const vigCx=(tlScreen.x+brScreen.x)/2,vigCy=(tlScreen.y+brScreen.y)/2;
     const vig=ctx.createRadialGradient(
-      (tlScreen.x+brScreen.x)/2,(tlScreen.y+brScreen.y)/2,Math.min(tw,th)*0.35,
-      (tlScreen.x+brScreen.x)/2,(tlScreen.y+brScreen.y)/2,Math.max(tw,th)*0.6
+      vigCx,vigCy,Math.min(tw,th)*0.25,
+      vigCx,vigCy,Math.max(tw,th)*0.65
     );
-    vig.addColorStop(0,'rgba(80,60,40,0.0)');
-    vig.addColorStop(0.7,'rgba(50,30,15,0.08)');
-    vig.addColorStop(1,'rgba(25,12,5,0.2)');
+    vig.addColorStop(0,'rgba(90,65,35,0.0)');
+    vig.addColorStop(0.5,'rgba(50,30,15,0.06)');
+    vig.addColorStop(0.8,'rgba(30,15,5,0.14)');
+    vig.addColorStop(1,'rgba(15,6,2,0.26)');
     ctx.fillStyle=vig;ctx.fillRect(tlScreen.x,tlScreen.y,tw,th);
     ctx.restore();
 
-    // Step 2: Warm light sources (screen blend for bright spots)
+    // ── STEP 2: Warm light sources (screen blend for bright spots) ──
     ctx.save();ctx.globalCompositeOperation='screen';
     // Light source positions: candles, sconces, fireplace, hanging lantern, bar area
     const lightSources=[];
     for(const d2 of decorations){
-      if(d2.type==='tavern_candle') lightSources.push({x:d2.x,y:d2.y,r:50,a:0.12,c:[255,210,100]});
-      else if(d2.type==='tavern_wall_sconce') lightSources.push({x:d2.x,y:d2.y,r:70,a:0.14,c:[255,180,70]});
-      else if(d2.type==='tavern_fireplace') lightSources.push({x:d2.x,y:d2.y,r:100,a:0.18,c:[255,140,50]});
-      else if(d2.type==='tavern_hanging_lantern') lightSources.push({x:d2.x,y:d2.y,r:90,a:0.16,c:[255,200,80]});
+      if(d2.type==='tavern_candle') lightSources.push({x:d2.x,y:d2.y,r:65,a:0.16,c:[255,215,110]});
+      else if(d2.type==='tavern_wall_sconce') lightSources.push({x:d2.x,y:d2.y,r:85,a:0.18,c:[255,185,75]});
+      else if(d2.type==='tavern_fireplace') lightSources.push({x:d2.x,y:d2.y,r:130,a:0.22,c:[255,145,55]});
+      else if(d2.type==='tavern_hanging_lantern') lightSources.push({x:d2.x,y:d2.y,r:110,a:0.20,c:[255,205,85]});
     }
-    // Bar area warm glow
-    lightSources.push({x:30*T,y:5.5*T,r:120,a:0.10,c:[255,200,90]});
+    // Bar area warm backlighting (stronger, wider)
+    lightSources.push({x:30*T,y:5.5*T,r:150,a:0.14,c:[255,210,100]});
+    // Secondary bar shelf glow (amber backlight behind bottles)
+    lightSources.push({x:30*T,y:4.8*T,r:80,a:0.10,c:[255,170,60]});
     // General ambient fill light for whole interior
-    lightSources.push({x:30*T,y:8*T,r:160,a:0.06,c:[255,220,140]});
+    lightSources.push({x:30*T,y:8*T,r:180,a:0.08,c:[255,225,145]});
+    // Fireplace bounce light (warm pool on floor)
+    lightSources.push({x:26.5*T,y:6.5*T,r:60,a:0.06,c:[255,130,45]});
     for(const ls of lightSources){
       const lp=worldToScreen(ls.x,ls.y);
       if(lp.x<-200||lp.x>W+200||lp.y<-200||lp.y>H+200)continue;
-      const flk2=0.7+Math.sin(Date.now()*0.004+ls.x*0.3+ls.y*0.2)*0.2;
+      const flk2=0.75+Math.sin(Date.now()*0.004+ls.x*0.3+ls.y*0.2)*0.18;
       const lg2=ctx.createRadialGradient(lp.x,lp.y-8*ISO_S,0,lp.x,lp.y,ls.r*ISO_S);
       lg2.addColorStop(0,'rgba('+ls.c[0]+','+ls.c[1]+','+ls.c[2]+','+(ls.a*flk2)+')');
-      lg2.addColorStop(0.4,'rgba('+ls.c[0]+','+ls.c[1]+','+ls.c[2]+','+(ls.a*flk2*0.4)+')');
+      lg2.addColorStop(0.3,'rgba('+ls.c[0]+','+ls.c[1]+','+ls.c[2]+','+(ls.a*flk2*0.55)+')');
+      lg2.addColorStop(0.6,'rgba('+ls.c[0]+','+ls.c[1]+','+ls.c[2]+','+(ls.a*flk2*0.2)+')');
       lg2.addColorStop(1,'rgba(0,0,0,0)');
       ctx.fillStyle=lg2;
       ctx.beginPath();ctx.arc(lp.x,lp.y-4*ISO_S,ls.r*ISO_S,0,Math.PI*2);ctx.fill();
@@ -6987,6 +7039,28 @@ function render(){
 
   // Tavern dust particles
   if(!isMobile)drawTavernDust();
+  // Tavern atmospheric haze (soft warm fog layer)
+  if(playerInsideTavern&&!isMobile){
+    const T=TILE_SIZE;
+    const hTL=worldToScreen(24*T,4*T),hBR=worldToScreen(37*T,12*T);
+    const hW=hBR.x-hTL.x,hH=hBR.y-hTL.y;
+    const hCx=(hTL.x+hBR.x)/2,hCy=(hTL.y+hBR.y)/2;
+    ctx.save();ctx.globalCompositeOperation='screen';
+    // Warm haze concentrated low (simulates smoke/steam settling)
+    const hazeG=ctx.createRadialGradient(hCx,hCy+hH*0.15,hW*0.1,hCx,hCy+hH*0.1,hW*0.55);
+    const hazeFlk=0.7+Math.sin(Date.now()*0.0015)*0.15;
+    hazeG.addColorStop(0,'rgba(255,200,120,'+(0.025*hazeFlk)+')');
+    hazeG.addColorStop(0.5,'rgba(255,180,100,'+(0.012*hazeFlk)+')');
+    hazeG.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=hazeG;ctx.fillRect(hTL.x,hTL.y,hW,hH);
+    // Secondary haze near fireplace (smoky wisp)
+    const fpS=worldToScreen(26.5*T,6.5*T);
+    const fpG=ctx.createRadialGradient(fpS.x,fpS.y-10*ISO_S,5*ISO_S,fpS.x,fpS.y-5*ISO_S,50*ISO_S);
+    fpG.addColorStop(0,'rgba(255,160,60,'+(0.03*hazeFlk)+')');
+    fpG.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=fpG;ctx.beginPath();ctx.arc(fpS.x,fpS.y-5*ISO_S,50*ISO_S,0,Math.PI*2);ctx.fill();
+    ctx.restore();
+  }
   // Gold collect particles
   drawGoldCollect();
   // ═══ MOBILE FLOATING HP/XP BAR (center bottom) ═══
@@ -7843,16 +7917,55 @@ function drawTiles(){
           ctx.beginPath();ctx.ellipse(s.x+ts*0.5,s.y+ts*0.4,ts*0.2,ts*0.12,0,0,Math.PI*2);ctx.fill();
         }
       } else if(tid===TILE.WOOD){
-        // Wood: plank floor with grain and gap lines
+        // Wood: rich plank floor with grain, knots, wear marks & nail dots
         const plankW=ts/3;
-        ctx.fillStyle='rgba(15,8,0,0.3)';
-        for(let pl=1;pl<3;pl++){ctx.fillRect(s.x+pl*plankW,s.y,1.5,ts+1)}
-        ctx.fillStyle='rgba(120,80,30,0.06)';
-        for(let pl=1;pl<3;pl++){ctx.fillRect(s.x+pl*plankW+1.5,s.y,1,ts+1)}
-        ctx.fillStyle='rgba(80,50,20,0.06)';
-        const gy=s.y+ts*((tx*3+ty*7)%7)*0.12+ts*0.3;
-        ctx.fillRect(s.x+2,gy,ts-4,1.5);
-        if((tx+ty)%2===0){ctx.fillStyle='rgba(180,130,70,0.04)';ctx.fillRect(s.x,s.y,ts,ts)}
+        // Alternating plank tint for depth
+        for(let pl=0;pl<3;pl++){
+          const ptint=((tx*5+ty*3+pl*7)%3);
+          if(ptint===0) ctx.fillStyle='rgba(160,110,50,0.06)';
+          else if(ptint===1) ctx.fillStyle='rgba(130,90,40,0.04)';
+          else ctx.fillStyle='rgba(180,130,60,0.05)';
+          ctx.fillRect(s.x+pl*plankW,s.y,plankW,ts+1);
+        }
+        // Board gap lines (dark crack + light edge highlight)
+        for(let pl=1;pl<3;pl++){
+          ctx.fillStyle='rgba(10,5,0,0.35)';ctx.fillRect(s.x+pl*plankW,s.y,1.5,ts+1);
+          ctx.fillStyle='rgba(200,160,80,0.08)';ctx.fillRect(s.x+pl*plankW+1.5,s.y,1,ts+1);
+        }
+        // Multiple grain lines per plank
+        for(let pl=0;pl<3;pl++){
+          const grainSeed=(tx*7+ty*11+pl*13)%11;
+          const gx=s.x+pl*plankW+2;
+          const gw=plankW-4;
+          ctx.fillStyle='rgba(80,45,15,0.07)';
+          const gy1=s.y+ts*(grainSeed%7)*0.12+ts*0.15;
+          ctx.fillRect(gx,gy1,gw,1.2);
+          ctx.fillStyle='rgba(90,55,20,0.05)';
+          const gy2=s.y+ts*((grainSeed+3)%7)*0.12+ts*0.5;
+          ctx.fillRect(gx,gy2,gw*0.7,1);
+        }
+        // Knot holes (occasional dark rings)
+        const knotHash=(tx*17+ty*23)%41;
+        if(knotHash<4){
+          const kx=s.x+plankW*(knotHash%3)+plankW*0.5;
+          const ky=s.y+ts*(0.3+(knotHash%3)*0.2);
+          ctx.fillStyle='rgba(30,15,5,0.18)';
+          ctx.beginPath();ctx.arc(kx,ky,2.5,0,Math.PI*2);ctx.fill();
+          ctx.strokeStyle='rgba(50,25,8,0.12)';ctx.lineWidth=0.8;
+          ctx.beginPath();ctx.arc(kx,ky,4,0,Math.PI*2);ctx.stroke();ctx.lineWidth=1;
+        }
+        // Worn center traffic marks
+        if((tx>=28&&tx<=32)&&(ty>=7&&ty<=10)){
+          ctx.fillStyle='rgba(200,170,110,0.04)';ctx.fillRect(s.x+ts*0.15,s.y+ts*0.2,ts*0.7,ts*0.6);
+        }
+        // Nail dots at board ends
+        const nailHash=(tx*13+ty*19)%7;
+        if(nailHash<2){
+          ctx.fillStyle='rgba(60,60,60,0.15)';
+          ctx.fillRect(s.x+plankW*0.5-1,s.y+2,2,2);
+          ctx.fillRect(s.x+plankW*1.5-1,s.y+2,2,2);
+          ctx.fillRect(s.x+plankW*2.5-1,s.y+2,2,2);
+        }
       } else if(tid===TILE.STAIRS){
         // Stair tiles: wooden step look
         const stepH=ts/3;
@@ -11422,6 +11535,25 @@ function drawDecoration(d){
       ctx.fillStyle='#4a2a10';ctx.fillRect(s.x-hw+2*S,bpY+1*S,hw*2-4*S,2*S);
       ctx.fillStyle='#4a2a10';ctx.fillRect(s.x-hw+2*S,bpY+bpH-3*S,hw*2-4*S,2*S);
 
+      // ── AMBER BACKLIGHTING GLOW behind bottles ──
+      ctx.save();ctx.globalCompositeOperation='screen';
+      const blFlk=0.7+Math.sin(Date.now()*0.003)*0.15;
+      // Wide warm wash across entire shelf area
+      const blG=ctx.createRadialGradient(s.x,bpY+bpH*0.5,10*S,s.x,bpY+bpH*0.5,hw*1.1);
+      blG.addColorStop(0,'rgba(255,170,50,'+(0.10*blFlk)+')');
+      blG.addColorStop(0.5,'rgba(255,140,30,'+(0.05*blFlk)+')');
+      blG.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle=blG;ctx.fillRect(s.x-hw,bpY,hw*2,bpH);
+      // Bright hot spots behind each shelf tier
+      for(let sh=0;sh<3;sh++){
+        const glowY=bpY+12*S+sh*14*S;
+        const sg=ctx.createRadialGradient(s.x,glowY,5*S,s.x,glowY,hw*0.6);
+        sg.addColorStop(0,'rgba(255,190,70,'+(0.08*blFlk)+')');
+        sg.addColorStop(1,'rgba(0,0,0,0)');
+        ctx.fillStyle=sg;ctx.fillRect(s.x-hw,glowY-10*S,hw*2,20*S);
+      }
+      ctx.restore();
+
       // ── 3D BOTTLE SHELF (3 tiers with depth & perspective) ──
       const shX=s.x-hw+16*S,shW=hw*2-32*S;
       for(let sh=0;sh<3;sh++){
@@ -11973,6 +12105,8 @@ function drawDecoration(d){
     }
     case'tavern_chair':{
       const S=sc;
+      // Shadow under chair
+      ctx.fillStyle='rgba(0,0,0,0.12)';ctx.beginPath();ctx.ellipse(s.x,s.y+3*S,5*S,2*S,0,0,Math.PI*2);ctx.fill();
       // Legs
       ctx.fillStyle='#4a3018';ctx.fillRect(s.x-3*S,s.y,1.5*S,4*S);ctx.fillRect(s.x+1.5*S,s.y,1.5*S,4*S);
       // Seat
@@ -12065,6 +12199,8 @@ function drawDecoration(d){
     }
     case'tavern_stool':{
       const S=sc;
+      // Shadow under stool
+      ctx.fillStyle='rgba(0,0,0,0.14)';ctx.beginPath();ctx.ellipse(s.x,s.y+3*S,5*S,2*S,0,0,Math.PI*2);ctx.fill();
       // Legs (cross pattern)
       ctx.fillStyle='#4a3018';
       ctx.fillRect(s.x-2.5*S,s.y,1.5*S,4*S);ctx.fillRect(s.x+1*S,s.y,1.5*S,4*S);
@@ -12108,9 +12244,11 @@ function drawDecoration(d){
       ctx.fillStyle='rgba(255,220,100,'+(flk*0.7)+')';ctx.beginPath();ctx.arc(s.x,s.y-10.5*S,1.5*S,0,Math.PI*2);ctx.fill();
       // Warm glow
       ctx.save();
-      const sg=ctx.createRadialGradient(s.x,s.y-9*S,1*S,s.x,s.y-7*S,20*S);
-      sg.addColorStop(0,'rgba(255,160,50,'+(0.08*flk)+')');sg.addColorStop(1,'rgba(255,120,30,0)');
-      ctx.fillStyle=sg;ctx.beginPath();ctx.arc(s.x,s.y-7*S,20*S,0,Math.PI*2);ctx.fill();
+      const sg=ctx.createRadialGradient(s.x,s.y-9*S,1*S,s.x,s.y-7*S,28*S);
+      sg.addColorStop(0,'rgba(255,160,50,'+(0.12*flk)+')');
+      sg.addColorStop(0.5,'rgba(255,140,40,'+(0.04*flk)+')');
+      sg.addColorStop(1,'rgba(255,120,30,0)');
+      ctx.fillStyle=sg;ctx.beginPath();ctx.arc(s.x,s.y-7*S,28*S,0,Math.PI*2);ctx.fill();
       ctx.restore();
       break;
     }
@@ -12129,11 +12267,13 @@ function drawDecoration(d){
       ctx.beginPath();ctx.moveTo(s.x,s.y-9*S);ctx.lineTo(s.x-1*S,s.y-6*S);ctx.lineTo(s.x+1*S,s.y-6*S);ctx.closePath();ctx.fill();
       ctx.fillStyle='rgba(255,240,150,'+(cflk*0.6)+')';
       ctx.beginPath();ctx.arc(s.x,s.y-7*S,1*S,0,Math.PI*2);ctx.fill();
-      // Tiny glow
+      // Warm glow radius
       ctx.save();
-      const cg=ctx.createRadialGradient(s.x,s.y-7*S,0.5*S,s.x,s.y-5*S,10*S);
-      cg.addColorStop(0,'rgba(255,200,80,'+(0.06*cflk)+')');cg.addColorStop(1,'rgba(255,160,40,0)');
-      ctx.fillStyle=cg;ctx.beginPath();ctx.arc(s.x,s.y-5*S,10*S,0,Math.PI*2);ctx.fill();
+      const cg=ctx.createRadialGradient(s.x,s.y-7*S,0.5*S,s.x,s.y-5*S,14*S);
+      cg.addColorStop(0,'rgba(255,200,80,'+(0.09*cflk)+')');
+      cg.addColorStop(0.5,'rgba(255,170,50,'+(0.03*cflk)+')');
+      cg.addColorStop(1,'rgba(255,160,40,0)');
+      ctx.fillStyle=cg;ctx.beginPath();ctx.arc(s.x,s.y-5*S,14*S,0,Math.PI*2);ctx.fill();
       ctx.restore();
       break;
     }
@@ -12812,31 +12952,50 @@ function drawDecoration(d){
       const rc=d.color||'#6a2222', rb=d.border||'#8a3a1a';
       ctx.save();
       // Shadow underneath
-      ctx.fillStyle='rgba(0,0,0,0.08)';
-      ctx.fillRect(s.x-rw/2+2,s.y-rh/2+2,rw,rh);
+      ctx.fillStyle='rgba(0,0,0,0.10)';
+      ctx.fillRect(s.x-rw/2+3,s.y-rh/2+3,rw,rh);
       // Rug body
       ctx.fillStyle=rc;
       ctx.fillRect(s.x-rw/2,s.y-rh/2,rw,rh);
-      // Border trim (2 layers)
-      ctx.strokeStyle=rb;ctx.lineWidth=2.5*S;
-      ctx.strokeRect(s.x-rw/2+3*S,s.y-rh/2+3*S,rw-6*S,rh-6*S);
-      ctx.strokeStyle='rgba(200,160,80,0.25)';ctx.lineWidth=1*S;
-      ctx.strokeRect(s.x-rw/2+6*S,s.y-rh/2+6*S,rw-12*S,rh-12*S);
+      // Subtle woven texture (horizontal fiber lines)
+      ctx.fillStyle='rgba(0,0,0,0.04)';
+      for(let fy=0;fy<rh;fy+=3*S){ctx.fillRect(s.x-rw/2,s.y-rh/2+fy,rw,1)}
+      ctx.fillStyle='rgba(255,255,255,0.03)';
+      for(let fy=1.5*S;fy<rh;fy+=3*S){ctx.fillRect(s.x-rw/2,s.y-rh/2+fy,rw,1)}
+      // Outer border trim (thick, ornate)
+      ctx.strokeStyle=rb;ctx.lineWidth=3*S;
+      ctx.strokeRect(s.x-rw/2+2*S,s.y-rh/2+2*S,rw-4*S,rh-4*S);
+      // Inner gold border accent
+      ctx.strokeStyle='rgba(200,160,80,0.3)';ctx.lineWidth=1.5*S;
+      ctx.strokeRect(s.x-rw/2+5*S,s.y-rh/2+5*S,rw-10*S,rh-10*S);
+      // Corner accent squares
+      const cs=3*S;
+      ctx.fillStyle='rgba(200,160,80,0.2)';
+      ctx.fillRect(s.x-rw/2+3*S,s.y-rh/2+3*S,cs,cs);
+      ctx.fillRect(s.x+rw/2-3*S-cs,s.y-rh/2+3*S,cs,cs);
+      ctx.fillRect(s.x-rw/2+3*S,s.y+rh/2-3*S-cs,cs,cs);
+      ctx.fillRect(s.x+rw/2-3*S-cs,s.y+rh/2-3*S-cs,cs,cs);
       // Fringe on short ends
       ctx.fillStyle=rb;
-      for(let f=0;f<Math.floor(rw/(4*S));f++){
-        const fx=s.x-rw/2+f*4*S+2*S;
-        ctx.fillRect(fx,s.y-rh/2-2*S,1.5*S,2.5*S);
-        ctx.fillRect(fx,s.y+rh/2-0.5*S,1.5*S,2.5*S);
+      for(let f=0;f<Math.floor(rw/(3.5*S));f++){
+        const fx=s.x-rw/2+f*3.5*S+1.5*S;
+        ctx.fillRect(fx,s.y-rh/2-2.5*S,1.5*S,3*S);
+        ctx.fillRect(fx,s.y+rh/2-0.5*S,1.5*S,3*S);
       }
-      // Subtle pattern (diamond center motif)
-      ctx.fillStyle='rgba(200,160,80,0.12)';
+      // Central diamond motif (larger, more visible)
       const cx2=s.x,cy2=s.y;
-      ctx.beginPath();ctx.moveTo(cx2,cy2-rh*0.25);ctx.lineTo(cx2+rw*0.15,cy2);
-      ctx.lineTo(cx2,cy2+rh*0.25);ctx.lineTo(cx2-rw*0.15,cy2);ctx.closePath();ctx.fill();
-      // Worn spots (subtle lighter patches)
-      ctx.fillStyle='rgba(255,200,150,0.04)';
-      ctx.beginPath();ctx.ellipse(s.x+rw*0.15,s.y+rh*0.1,rw*0.08,rh*0.12,0.3,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='rgba(200,160,80,0.16)';
+      ctx.beginPath();ctx.moveTo(cx2,cy2-rh*0.28);ctx.lineTo(cx2+rw*0.18,cy2);
+      ctx.lineTo(cx2,cy2+rh*0.28);ctx.lineTo(cx2-rw*0.18,cy2);ctx.closePath();ctx.fill();
+      // Inner diamond
+      ctx.fillStyle='rgba(180,120,50,0.10)';
+      ctx.beginPath();ctx.moveTo(cx2,cy2-rh*0.14);ctx.lineTo(cx2+rw*0.09,cy2);
+      ctx.lineTo(cx2,cy2+rh*0.14);ctx.lineTo(cx2-rw*0.09,cy2);ctx.closePath();ctx.fill();
+      // Worn spots (lighter patches from foot traffic)
+      ctx.fillStyle='rgba(255,200,150,0.05)';
+      ctx.beginPath();ctx.ellipse(s.x+rw*0.15,s.y+rh*0.1,rw*0.1,rh*0.12,0.3,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='rgba(255,190,140,0.04)';
+      ctx.beginPath();ctx.ellipse(s.x-rw*0.08,s.y-rh*0.05,rw*0.07,rh*0.1,0,0,Math.PI*2);ctx.fill();
       ctx.restore();
       break;
     }
@@ -24662,25 +24821,44 @@ function closeDiceGame(){diceGameOpen=false;diceState='idle';closeDialogue()}
 function initTavernDust(){
   if(tavernDustParticles.length>0)return;
   const T=TILE_SIZE;
-  for(let i=0;i<30;i++){
+  for(let i=0;i<55;i++){
+    // Concentrate ~40% of particles near light sources (bar, fireplace, lantern)
+    let px,py;
+    const zone=i%5;
+    if(zone===0){// near fireplace
+      px=26*T+Math.random()*2*T;py=6*T+Math.random()*3*T;
+    } else if(zone===1){// near bar area
+      px=28*T+Math.random()*5*T;py=5*T+Math.random()*2*T;
+    } else {// general tavern area
+      px=25*T+Math.random()*10*T;py=5*T+Math.random()*6*T;
+    }
     tavernDustParticles.push({
-      x:25*T+Math.random()*10*T, y:5*T+Math.random()*6*T,
-      vx:(Math.random()-0.5)*0.08, vy:-0.02-Math.random()*0.03,
-      size:1+Math.random()*2, alpha:0.1+Math.random()*0.2,
-      life:3000+Math.random()*4000, maxLife:3000+Math.random()*4000
+      x:px, y:py,
+      vx:(Math.random()-0.5)*0.08, vy:-0.015-Math.random()*0.035,
+      size:0.8+Math.random()*2.5, alpha:0.08+Math.random()*0.22,
+      life:3000+Math.random()*5000, maxLife:3000+Math.random()*5000,
+      drift:Math.random()*Math.PI*2
     });
   }
 }
 function updateTavernDust(dt){
   if(!playerInsideTavern)return;
+  const now=Date.now();
   for(const p of tavernDustParticles){
-    p.x+=p.vx*dt*0.05;p.y+=p.vy*dt*0.05;
+    // Gentle horizontal drift (sine wave)
+    p.x+=(p.vx+Math.sin(now*0.001+(p.drift||0))*0.02)*dt*0.05;
+    p.y+=p.vy*dt*0.05;
     p.life-=dt;
     if(p.life<=0){
       const T=TILE_SIZE;
-      p.x=25*T+Math.random()*10*T;p.y=5*T+Math.random()*6*T;
-      p.vx=(Math.random()-0.5)*0.08;p.vy=-0.02-Math.random()*0.03;
-      p.life=p.maxLife;p.alpha=0.1+Math.random()*0.2;
+      const zone=Math.random();
+      if(zone<0.2){p.x=26*T+Math.random()*2*T;p.y=6*T+Math.random()*3*T;}
+      else if(zone<0.4){p.x=28*T+Math.random()*5*T;p.y=5*T+Math.random()*2*T;}
+      else{p.x=25*T+Math.random()*10*T;p.y=5*T+Math.random()*6*T;}
+      p.vx=(Math.random()-0.5)*0.08;p.vy=-0.015-Math.random()*0.035;
+      p.life=p.maxLife;p.alpha=0.08+Math.random()*0.22;
+      p.drift=Math.random()*Math.PI*2;
+      p.size=0.8+Math.random()*2.5;
     }
   }
 }
@@ -24689,8 +24867,20 @@ function drawTavernDust(){
   for(const p of tavernDustParticles){
     const s=worldToScreen(p.x,p.y);
     const fadeAlpha=p.alpha*Math.min(1,p.life/500);
+    const r=p.size*ISO_S;
+    // Outer soft glow (subtle bloom)
+    if(r>1.5){
+      ctx.fillStyle='rgba(255,230,180,'+(fadeAlpha*0.25)+')';
+      ctx.beginPath();ctx.arc(s.x,s.y,r*2.2,0,Math.PI*2);ctx.fill();
+    }
+    // Core mote
     ctx.fillStyle='rgba(255,240,200,'+fadeAlpha+')';
-    ctx.beginPath();ctx.arc(s.x,s.y,p.size*ISO_S,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(s.x,s.y,r,0,Math.PI*2);ctx.fill();
+    // Bright center dot for larger particles
+    if(r>2){
+      ctx.fillStyle='rgba(255,250,230,'+(fadeAlpha*0.5)+')';
+      ctx.beginPath();ctx.arc(s.x,s.y,r*0.4,0,Math.PI*2);ctx.fill();
+    }
   }
 }
 
