@@ -5667,7 +5667,7 @@ function gameLoop(ts){
   const dt=Math.min(ts-lastT,50);lastT=ts;
   update(dt);
   render();
-  }catch(e){console.error('gameLoop error:',e)}
+  }catch(e){console.error('gameLoop error:',e);ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle='red';ctx.font='bold 16px monospace';ctx.fillText('RENDER ERROR: '+e.message,20,60);ctx.fillText('Stack: '+e.stack?.split('\n')[1],20,80);}
   requestAnimationFrame(gameLoop);
 }
 
@@ -6419,6 +6419,10 @@ function update(dt){
 function render(){
   ctx.setTransform(canvasDPR,0,0,canvasDPR,0,0);
   ctx.save();
+  // DEBUG — remove after fixing black screen
+  ctx.fillStyle='#ff0';ctx.font='12px monospace';
+  ctx.fillText('DBG zone='+currentZone+' type='+zoneType+' tileMap='+(tileMap?tileMap.length:'null')+' px='+Math.round(px)+' py='+Math.round(py)+' cam='+Math.round(camX)+','+Math.round(camY)+' W='+W+' H='+H+' ISO='+ISO_S,10,20);
+  ctx.fillText('DBG2 inDuel='+inDuel+' dmf='+(duelMatchFound?'yes':'no')+' alpha='+ctx.globalAlpha+' dpr='+canvasDPR,10,36);
   if(shakeTimer>0){const s=shakeTimer*2;ctx.translate((Math.random()-.5)*s,(Math.random()-.5)*s)}
   // Beer wobble effect
   if(beerBuff>0){const wb=Math.sin(Date.now()*.003)*2.5;ctx.translate(wb,Math.sin(Date.now()*.004)*1.5)}
