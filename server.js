@@ -1063,8 +1063,26 @@ wss.on('connection', (ws) => {
         else r = { error: 'invalid_action' };
         ws.send(JSON.stringify({ type: 'rpg_duel_queue_result', data: r }));
       }
+      if (msg.type === 'rpg_duel_lobby' && ws.isRPG && ws.rpgUser) {
+        let r;
+        if (msg.action === 'create') r = game.rpgDuelCreateLobby(ws.rpgUser, msg.wager);
+        else if (msg.action === 'join') r = game.rpgDuelJoinLobby(ws.rpgUser, msg.lobbyId);
+        else if (msg.action === 'cancel') r = game.rpgDuelCancelLobby(ws.rpgUser);
+        else if (msg.action === 'list') r = game.rpgDuelListLobbies(ws.rpgUser);
+        else r = { error: 'invalid_action' };
+        ws.send(JSON.stringify({ type: 'rpg_duel_lobby_result', data: r }));
+      }
       if (msg.type === 'rpg_duel_attack' && ws.isRPG && ws.rpgUser) {
-        game.rpgDuelAttack(ws.rpgUser);
+        game.rpgDuelAttack(ws.rpgUser, !!msg.heavy);
+      }
+      if (msg.type === 'rpg_duel_swing' && ws.isRPG && ws.rpgUser) {
+        game.rpgDuelSwing(ws.rpgUser, !!msg.heavy, msg.facing || 'right');
+      }
+      if (msg.type === 'rpg_duel_dodge' && ws.isRPG && ws.rpgUser) {
+        game.rpgDuelDodge(ws.rpgUser, msg.dirX || 0, msg.dirY || 0);
+      }
+      if (msg.type === 'rpg_duel_decline' && ws.isRPG && ws.rpgUser) {
+        game.rpgDuelDecline(ws.rpgUser);
       }
       if (msg.type === 'rpg_block' && ws.isRPG && ws.rpgUser) {
         game.rpgSetBlock(ws.rpgUser, msg.active);
@@ -1214,6 +1232,10 @@ wss.on('connection', (ws) => {
       if (msg.type === 'rpg_party_kick' && ws.isRPG && ws.rpgUser && msg.target) {
         const r = game.rpgPartyKick(ws.rpgUser, msg.target.toLowerCase());
         ws.send(JSON.stringify({ type: 'rpg_party_kick_result', data: r }));
+      }
+      if (msg.type === 'rpg_party_transfer' && ws.isRPG && ws.rpgUser && msg.target) {
+        const r = game.rpgPartyTransferLeader(ws.rpgUser, msg.target.toLowerCase());
+        ws.send(JSON.stringify({ type: 'rpg_party_transfer_result', data: r }));
       }
       // ── Party Dungeon System ──
       if (msg.type === 'rpg_dungeon_ready' && ws.isRPG && ws.rpgUser) {

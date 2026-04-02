@@ -3011,6 +3011,10 @@ class Game {
     this.rpgDuelQueue = []; // [username, ...]
     this.rpgDuels = {}; // duelId -> duel state
     this.rpgDuelId = 0;
+    this.rpgPendingDuels = {}; // pendingId -> { p1, p2, timer, countdown }
+    this.rpgDuelLobbies = {}; // lobbyId -> { id, creator, wager, level, createdAt }
+    this.rpgDuelLobbyId = 0;
+    this.WAGER_TAX = 0.05; // 5% tax on wager pot
     // ── Party System ──
     this.rpgParties = {};       // partyId -> { leader, members: [username], invites: {username: timestamp} }
     this.rpgPartyId = 0;
@@ -4808,6 +4812,7 @@ class Game {
                 targetX: rp.x, targetY: rp.y,
                 radius: boss.currentAttack.radius || 0,
                 range: boss.currentAttack.range || 0, width: boss.currentAttack.width || 0,
+                sweepAngle: boss.currentAttack.sweepAngle || 0,
               }});
             }
           } else {
@@ -4861,6 +4866,7 @@ class Game {
                     bossX: boss.x, bossY: boss.y,
                     targetX: rp.x, targetY: rp.y,
                     radius: atk.radius || 0, range: atk.range || 0, width: atk.width || 0,
+                    sweepAngle: atk.sweepAngle || 0,
                   }});
                 }
               }
@@ -7179,6 +7185,22 @@ class Game {
     return { success: true };
   }
 
+  rpgPartyTransferLeader(leader, target) {
+    const partyId = this.rpgPlayerParty[leader];
+    if (partyId == null) return { error: 'not_in_party' };
+    const party = this.rpgParties[partyId];
+    if (party.leader !== leader) return { error: 'not_leader' };
+    if (!party.members.includes(target)) return { error: 'target_not_in_party' };
+    if (leader === target) return { error: 'already_leader' };
+    party.leader = target;
+    // Notify all party members
+    for (const m of party.members) {
+      this.rpgSendTo(m, { type: 'rpg_party_update', data: this.rpgGetPartyData(partyId) });
+      this.rpgSendTo(m, { type: 'rpg_party_leader_changed', data: { newLeader: target, oldLeader: leader } });
+    }
+    return { success: true, newLeader: target };
+  }
+
   rpgGetPartyData(partyId) {
     const party = this.rpgParties[partyId];
     if (!party) return null;
@@ -7432,31 +7454,212 @@ class Game {
     return rank;
   }
 
+  // ════════════════════════════════════════════
+  // Duel Lobby System (wager-based)
+  // ════════════════════════════════════════════
+  rpgDuelCreateLobby(username, wager) {
+    const rp = this.rpgPlayers[username];
+    if (!rp) return { error: 'not_in_rpg' };
+    if (rp.inDuel) return { error: 'already_in_duel' };
+    if (rp.pendingDuel) return { error: 'match_found' };
+    // Check if already has a lobby
+    for (const lid in this.rpgDuelLobbies) {
+      if (this.rpgDuelLobbies[lid].creator === username) return { error: 'already_has_lobby' };
+    }
+    const p = this.rpgGetPlayerData(username);
+    if (!p) return { error: 'no_player_data' };
+    wager = Math.floor(Number(wager) || 0);
+    if (wager < 0) return { error: 'invalid_wager' };
+    if (wager > 0 && p.gold < wager) return { error: 'not_enough_gold' };
+    const lobbyId = ++this.rpgDuelLobbyId;
+    this.rpgDuelLobbies[lobbyId] = {
+      id: lobbyId, creator: username, wager,
+      level: p.level, createdAt: Date.now(),
+    };
+    // Broadcast updated lobby list to all
+    this._broadcastDuelLobbies();
+    return { created: true, lobbyId };
+  }
+
+  rpgDuelCancelLobby(username) {
+    for (const lid in this.rpgDuelLobbies) {
+      if (this.rpgDuelLobbies[lid].creator === username) {
+        delete this.rpgDuelLobbies[lid];
+        this._broadcastDuelLobbies();
+        return { cancelled: true };
+      }
+    }
+    return { error: 'no_lobby' };
+  }
+
+  rpgDuelJoinLobby(username, lobbyId) {
+    const rp = this.rpgPlayers[username];
+    if (!rp) return { error: 'not_in_rpg' };
+    if (rp.inDuel) return { error: 'already_in_duel' };
+    if (rp.pendingDuel) return { error: 'match_found' };
+    const lobby = this.rpgDuelLobbies[lobbyId];
+    if (!lobby) return { error: 'lobby_not_found' };
+    if (lobby.creator === username) return { error: 'cant_join_own' };
+    const p = this.rpgGetPlayerData(username);
+    if (!p) return { error: 'no_player_data' };
+    if (lobby.wager > 0 && p.gold < lobby.wager) return { error: 'not_enough_gold' };
+    // Deduct wager from both players
+    const creatorData = this.rpgGetPlayerData(lobby.creator);
+    if (!creatorData) { delete this.rpgDuelLobbies[lobbyId]; this._broadcastDuelLobbies(); return { error: 'creator_gone' }; }
+    if (lobby.wager > 0 && creatorData.gold < lobby.wager) { delete this.rpgDuelLobbies[lobbyId]; this._broadcastDuelLobbies(); return { error: 'creator_broke' }; }
+    if (lobby.wager > 0) {
+      creatorData.gold -= lobby.wager;
+      p.gold -= lobby.wager;
+      this.saveData();
+    }
+    // Remove the lobby
+    delete this.rpgDuelLobbies[lobbyId];
+    // Cancel any other lobbies by either player
+    for (const lid in this.rpgDuelLobbies) {
+      if (this.rpgDuelLobbies[lid].creator === username || this.rpgDuelLobbies[lid].creator === lobby.creator) {
+        delete this.rpgDuelLobbies[lid];
+      }
+    }
+    this._broadcastDuelLobbies();
+    // Start pending duel with 5s countdown (reuse existing flow)
+    const pendingId = ++this.rpgDuelId;
+    const p1data = this.rpgGetPlayerData(lobby.creator);
+    const p2data = this.rpgGetPlayerData(username);
+    const matchBracket = this.getPlayerBracket(Math.max(p1data.level, p2data.level));
+    const pending = {
+      id: pendingId, p1: lobby.creator, p2: username, bracket: matchBracket,
+      p1Ready: true, p2Ready: true, countdown: 5,
+      wager: lobby.wager,
+    };
+    pending.timer = setInterval(() => {
+      pending.countdown--;
+      if (pending.countdown > 0) {
+        this.rpgSendTo(pending.p1, { type: 'rpg_duel_countdown', data: { countdown: pending.countdown } });
+        this.rpgSendTo(pending.p2, { type: 'rpg_duel_countdown', data: { countdown: pending.countdown } });
+      } else {
+        clearInterval(pending.timer);
+        delete this.rpgPendingDuels[pendingId];
+        const rp1 = this.rpgPlayers[pending.p1];
+        const rp2 = this.rpgPlayers[pending.p2];
+        if (rp1) rp1.pendingDuel = null;
+        if (rp2) rp2.pendingDuel = null;
+        this.rpgDuelStart(pending.p1, pending.p2, pending.wager);
+      }
+    }, 1000);
+    this.rpgPendingDuels[pendingId] = pending;
+    rp.pendingDuel = pendingId;
+    const rpCreator = this.rpgPlayers[lobby.creator];
+    if (rpCreator) rpCreator.pendingDuel = pendingId;
+    // Send match found to both with wager info
+    this.rpgSendTo(lobby.creator, { type: 'rpg_duel_matched', data: {
+      pendingId, opponent: username, opponentLevel: p2data.level, bracket: matchBracket, countdown: 5,
+      opponentAppearance: p2data.appearance, wager: lobby.wager,
+    }});
+    this.rpgSendTo(username, { type: 'rpg_duel_matched', data: {
+      pendingId, opponent: lobby.creator, opponentLevel: p1data.level, bracket: matchBracket, countdown: 5,
+      opponentAppearance: p1data.appearance, wager: lobby.wager,
+    }});
+    return { joined: true, wager: lobby.wager };
+  }
+
+  rpgDuelListLobbies(username) {
+    const list = [];
+    for (const lid in this.rpgDuelLobbies) {
+      const l = this.rpgDuelLobbies[lid];
+      list.push({ id: l.id, creator: l.creator, wager: l.wager, level: l.level });
+    }
+    return { lobbies: list };
+  }
+
+  _broadcastDuelLobbies() {
+    const list = [];
+    for (const lid in this.rpgDuelLobbies) {
+      const l = this.rpgDuelLobbies[lid];
+      list.push({ id: l.id, creator: l.creator, wager: l.wager, level: l.level });
+    }
+    this.rpgBroadcastAll({ type: 'rpg_duel_lobbies', data: { lobbies: list } });
+  }
+
   rpgDuelJoinQueue(username) {
     const rp = this.rpgPlayers[username];
     if (!rp) return { error: 'not_in_rpg' };
     if (rp.inDuel) return { error: 'already_in_duel' };
+    if (rp.pendingDuel) return { error: 'match_found' };
     if (this.rpgDuelQueue.includes(username)) return { error: 'already_queued' };
     const p = this.rpgGetPlayerData(username);
     const bracket = this.getPlayerBracket(p.level);
     this.rpgDuelQueue.push(username);
-    // Try to match within same bracket
-    const match = this.rpgDuelQueue.find(u => {
+    // Try to match within same bracket first, then fall back to any bracket
+    let match = this.rpgDuelQueue.find(u => {
       if (u === username) return false;
+      const rp2 = this.rpgPlayers[u];
+      if (rp2 && rp2.pendingDuel) return false;
       const op = this.rpgGetPlayerData(u);
       return op && this.getPlayerBracket(op.level) === bracket;
     });
+    // Cross-bracket fallback — match with anyone available
+    if (!match) {
+      match = this.rpgDuelQueue.find(u => {
+        if (u === username) return false;
+        const rp2 = this.rpgPlayers[u];
+        if (rp2 && rp2.pendingDuel) return false;
+        return !!this.rpgGetPlayerData(u);
+      });
+    }
     if (match) {
       this.rpgDuelQueue.splice(this.rpgDuelQueue.indexOf(username), 1);
       this.rpgDuelQueue.splice(this.rpgDuelQueue.indexOf(match), 1);
-      this.rpgDuelStart(username, match);
-      return { matched: true, bracket };
+      // Start a pending duel with 5s countdown instead of immediately starting
+      const pendingId = ++this.rpgDuelId;
+      const p1data = this.rpgGetPlayerData(username);
+      const p2data = this.rpgGetPlayerData(match);
+      const matchBracket = this.getPlayerBracket(Math.max(p1data.level, p2data.level));
+      const pending = {
+        id: pendingId, p1: username, p2: match, bracket: matchBracket,
+        p1Ready: true, p2Ready: true, countdown: 5,
+      };
+      pending.timer = setInterval(() => {
+        pending.countdown--;
+        if (pending.countdown > 0) {
+          this.rpgSendTo(pending.p1, { type: 'rpg_duel_countdown', data: { countdown: pending.countdown } });
+          this.rpgSendTo(pending.p2, { type: 'rpg_duel_countdown', data: { countdown: pending.countdown } });
+        } else {
+          clearInterval(pending.timer);
+          delete this.rpgPendingDuels[pendingId];
+          const rp1 = this.rpgPlayers[pending.p1];
+          const rp2 = this.rpgPlayers[pending.p2];
+          if (rp1) rp1.pendingDuel = null;
+          if (rp2) rp2.pendingDuel = null;
+          this.rpgDuelStart(pending.p1, pending.p2);
+        }
+      }, 1000);
+      this.rpgPendingDuels[pendingId] = pending;
+      if (rp) rp.pendingDuel = pendingId;
+      const rp2 = this.rpgPlayers[match];
+      if (rp2) rp2.pendingDuel = pendingId;
+      // Send match found to both players with opponent info
+      this.rpgSendTo(username, { type: 'rpg_duel_matched', data: {
+        pendingId, opponent: match, opponentLevel: p2data.level, bracket: matchBracket, countdown: 5,
+        opponentAppearance: p2data.appearance,
+      }});
+      this.rpgSendTo(match, { type: 'rpg_duel_matched', data: {
+        pendingId, opponent: username, opponentLevel: p1data.level, bracket: matchBracket, countdown: 5,
+        opponentAppearance: p1data.appearance,
+      }});
+      this.rpgBroadcastAll({ type: 'rpg_duel_queue_update', data: { count: this.rpgDuelQueue.length } });
+      return { matched: true, bracket: matchBracket };
     }
     this.rpgBroadcastAll({ type: 'rpg_duel_queue_update', data: { count: this.rpgDuelQueue.length } });
     return { queued: true, position: this.rpgDuelQueue.length, bracket };
   }
 
   rpgDuelLeaveQueue(username) {
+    // Also cancel any pending duel
+    const rp = this.rpgPlayers[username];
+    if (rp && rp.pendingDuel) {
+      this.rpgDuelDecline(username);
+      return { left: true };
+    }
     const idx = this.rpgDuelQueue.indexOf(username);
     if (idx >= 0) {
       this.rpgDuelQueue.splice(idx, 1);
@@ -7466,34 +7669,81 @@ class Game {
     return { error: 'not_queued' };
   }
 
-  rpgDuelStart(u1, u2) {
+  rpgDuelDecline(username) {
+    const rp = this.rpgPlayers[username];
+    if (!rp || !rp.pendingDuel) return { error: 'no_pending' };
+    const pending = this.rpgPendingDuels[rp.pendingDuel];
+    if (!pending) { rp.pendingDuel = null; return { error: 'no_pending' }; }
+    clearInterval(pending.timer);
+    // Refund wagers on decline
+    if (pending.wager > 0) {
+      const p1d = this.rpgGetPlayerData(pending.p1);
+      const p2d = this.rpgGetPlayerData(pending.p2);
+      if (p1d) p1d.gold += pending.wager;
+      if (p2d) p2d.gold += pending.wager;
+      this.saveData();
+    }
+    const other = pending.p1 === username ? pending.p2 : pending.p1;
+    delete this.rpgPendingDuels[pending.id];
+    rp.pendingDuel = null;
+    const rpOther = this.rpgPlayers[other];
+    if (rpOther) rpOther.pendingDuel = null;
+    // Notify both
+    this.rpgSendTo(username, { type: 'rpg_duel_declined', data: { who: username } });
+    this.rpgSendTo(other, { type: 'rpg_duel_declined', data: { who: username } });
+    return { declined: true };
+  }
+
+  rpgDuelStart(u1, u2, wager) {
+    wager = Math.floor(Number(wager) || 0);
     const id = ++this.rpgDuelId;
     const p1 = this.rpgGetPlayerData(u1);
     const p2 = this.rpgGetPlayerData(u2);
-    const sc = ARENA_CONFIG.pvpStatScale;
-    const hp1 = 50 + p1.level * 5 + (p1.prestige || 0) * 10 + Math.floor(this.equipStat(p1, 'maxHP') * sc.maxHP);
-    const hp2 = 50 + p2.level * 5 + (p2.prestige || 0) * 10 + Math.floor(this.equipStat(p2, 'maxHP') * sc.maxHP);
-    const baseDmg1 = Math.floor((CONFIG.baseMinDmg + CONFIG.baseMaxDmg) / 2 + (p1.level - 1) * CONFIG.dmgPerLevel);
-    const gearDmg1 = Math.floor((this.minDmg(p1) + this.maxDmg(p1)) / 2) - baseDmg1;
-    const dmg1 = Math.max(5, baseDmg1 + Math.floor(gearDmg1 * sc.dmgMult));
-    const baseDmg2 = Math.floor((CONFIG.baseMinDmg + CONFIG.baseMaxDmg) / 2 + (p2.level - 1) * CONFIG.dmgPerLevel);
-    const gearDmg2 = Math.floor((this.minDmg(p2) + this.maxDmg(p2)) / 2) - baseDmg2;
-    const dmg2 = Math.max(5, baseDmg2 + Math.floor(gearDmg2 * sc.dmgMult));
+    // ═══ FAIR FIST FIGHT — flat stats, no gear/level advantage ═══
+    const FIST_HP = 150;
+    const FIST_DMG = 10; // base punch damage
+    const FIST_CRIT = 0.08; // flat 8% crit for everyone
     const bracket = this.getPlayerBracket(Math.max(p1.level, p2.level));
     const duel = {
+      wager,
       id, p1: u1, p2: u2,
-      p1HP: hp1, p2HP: hp2, p1MaxHP: hp1, p2MaxHP: hp2,
-      p1MinDmg: Math.max(3, Math.floor(dmg1 * 0.7)),
-      p1MaxDmg: Math.max(5, Math.floor(dmg1 * 1.3)),
-      p2MinDmg: Math.max(3, Math.floor(dmg2 * 0.7)),
-      p2MaxDmg: Math.max(5, Math.floor(dmg2 * 1.3)),
-      p1CritChance: Math.min(0.5, this.critChance(p1) * sc.crit),
-      p2CritChance: Math.min(0.5, this.critChance(p2) * sc.crit),
+      p1HP: FIST_HP, p2HP: FIST_HP, p1MaxHP: FIST_HP, p2MaxHP: FIST_HP,
+      p1MinDmg: Math.floor(FIST_DMG * 0.8),
+      p1MaxDmg: Math.floor(FIST_DMG * 1.2),
+      p2MinDmg: Math.floor(FIST_DMG * 0.8),
+      p2MaxDmg: Math.floor(FIST_DMG * 1.2),
+      p1CritChance: FIST_CRIT,
+      p2CritChance: FIST_CRIT,
       p1Level: p1.level, p2Level: p2.level,
       p1Rating: p1.arenaRating || 1000, p2Rating: p2.arenaRating || 1000,
       bracket, state: 'active',
       p1LastAtk: 0, p2LastAtk: 0,
-      atkCooldown: 800,
+      atkCooldown: 500, // fists are fast
+      // Stamina system
+      p1Stamina: 100, p2Stamina: 100, maxStamina: 100,
+      staminaRegen: 18, // per second
+      blockDrain: 8,    // per second while blocking
+      lightAtkCost: 12,
+      heavyAtkCost: 30,
+      dodgeCost: 25,
+      p1LastStaminaTick: Date.now(), p2LastStaminaTick: Date.now(),
+      // Dodge i-frame tracking
+      p1DodgeUntil: 0, p2DodgeUntil: 0,
+      p1DodgeCD: 0, p2DodgeCD: 0,
+      dodgeIFrames: 300, // ms of invincibility
+      dodgeCooldown: 800, // ms between dodges
+      // Combo system
+      p1ComboCount: 0, p2ComboCount: 0,
+      p1LastComboHit: 0, p2LastComboHit: 0,
+      comboWindow: 1500, // ms between hits to keep combo alive
+      comboMult: [1.0, 1.2, 1.5], // damage multipliers for hits 1, 2, 3
+      // Stagger
+      p1StaggerUntil: 0, p2StaggerUntil: 0,
+      staggerDuration: 400, // ms of stun
+      // Dodge counter
+      p1CounterUntil: 0, p2CounterUntil: 0,
+      counterWindow: 500, // ms after successful dodge to get counter
+      counterMult: 1.6, // damage multiplier for counter attacks
       p1OldZone: null, p2OldZone: null,
       timer: setTimeout(() => this.rpgDuelTimeout(id), 120000),
     };
@@ -7504,14 +7754,18 @@ class Game {
     if (rp2) { duel.p2OldZone = rp2.zone; rp2.inDuel = id; rp2.zone = 'colosseum'; rp2.x = 850; rp2.y = 600; }
     this.rpgSendTo(u1, { type: 'rpg_duel_start', data: {
       duelId: id, opponent: u2, opponentLevel: p2.level,
-      yourHP: hp1, yourMaxHP: hp1, theirHP: hp2, theirMaxHP: hp2,
-      opponentAppearance: p2.appearance, opponentEquipped: p2.equipped || {},
+      yourHP: FIST_HP, yourMaxHP: FIST_HP, theirHP: FIST_HP, theirMaxHP: FIST_HP,
+      stamina: 100, maxStamina: 100,
+      fistFight: true, wager,
+      opponentAppearance: p2.appearance, opponentEquipped: {},
       opponentWearables: p2.activeWearables || {}, opponentCosmetics: p2.activeCosmetics || null,
     }});
     this.rpgSendTo(u2, { type: 'rpg_duel_start', data: {
       duelId: id, opponent: u1, opponentLevel: p1.level,
-      yourHP: hp2, yourMaxHP: hp2, theirHP: hp1, theirMaxHP: hp1,
-      opponentAppearance: p1.appearance, opponentEquipped: p1.equipped || {},
+      yourHP: FIST_HP, yourMaxHP: FIST_HP, theirHP: FIST_HP, theirMaxHP: FIST_HP,
+      stamina: 100, maxStamina: 100,
+      fistFight: true, wager,
+      opponentAppearance: p1.appearance, opponentEquipped: {},
       opponentWearables: p1.activeWearables || {}, opponentCosmetics: p1.activeCosmetics || null,
     }});
     this.rpgBroadcastAll({ type: 'rpg_duel_queue_update', data: { count: this.rpgDuelQueue.length } });
@@ -7524,24 +7778,123 @@ class Game {
     rp.blockStart = active ? Date.now() : 0;
   }
 
-  rpgDuelAttack(username) {
+  // Tick stamina regen for a player in a duel (call before any stamina check)
+  _duelTickStamina(duel, isP1) {
+    const now = Date.now();
+    const key = isP1 ? 'p1' : 'p2';
+    const lastTick = duel[key + 'LastStaminaTick'];
+    const elapsed = (now - lastTick) / 1000;
+    if (elapsed <= 0) return;
+    duel[key + 'LastStaminaTick'] = now;
+    const rp = this.rpgPlayers[isP1 ? duel.p1 : duel.p2];
+    // Block drains stamina
+    if (rp && rp.blocking) {
+      duel[key + 'Stamina'] = Math.max(0, duel[key + 'Stamina'] - duel.blockDrain * elapsed);
+      // Guard break if stamina hits 0 while blocking
+      if (duel[key + 'Stamina'] <= 0) {
+        rp.blocking = false;
+        rp.blockStart = 0;
+        this.rpgSendTo(isP1 ? duel.p1 : duel.p2, { type: 'rpg_duel_stamina', data: { stamina: 0, guardBreak: true } });
+      }
+    } else {
+      // Regen stamina when not blocking
+      duel[key + 'Stamina'] = Math.min(duel.maxStamina, duel[key + 'Stamina'] + duel.staminaRegen * elapsed);
+    }
+  }
+
+  rpgDuelDodge(username, dirX, dirY) {
     const rp = this.rpgPlayers[username];
     if (!rp || !rp.inDuel) return { error: 'not_in_duel' };
     const duel = this.rpgDuels[rp.inDuel];
     if (!duel || duel.state !== 'active') return { error: 'duel_over' };
     const now = Date.now();
     const isP1 = duel.p1 === username;
+    const key = isP1 ? 'p1' : 'p2';
+    // Tick stamina
+    this._duelTickStamina(duel, isP1);
+    // Stagger check — can't dodge while staggered
+    if (now < duel[key + 'StaggerUntil']) return { error: 'staggered' };
     // Cooldown check
-    if (isP1 && now - duel.p1LastAtk < duel.atkCooldown) return { error: 'cooldown' };
-    if (!isP1 && now - duel.p2LastAtk < duel.atkCooldown) return { error: 'cooldown' };
+    if (now < duel[key + 'DodgeCD']) return { error: 'dodge_cooldown' };
+    // Stamina check
+    if (duel[key + 'Stamina'] < duel.dodgeCost) return { error: 'no_stamina' };
+    // Can't dodge while blocking
+    if (rp.blocking) return { error: 'blocking' };
+    // Consume stamina
+    duel[key + 'Stamina'] -= duel.dodgeCost;
+    // Set i-frames and cooldown
+    duel[key + 'DodgeUntil'] = now + duel.dodgeIFrames;
+    duel[key + 'DodgeCD'] = now + duel.dodgeCooldown;
+    // Move the player in dodge direction (80px dash)
+    const norm = Math.sqrt((dirX || 0) * (dirX || 0) + (dirY || 0) * (dirY || 0)) || 1;
+    const nx = (dirX || 0) / norm, ny = (dirY || 0) / norm;
+    rp.x = Math.max(50, Math.min(1150, rp.x + nx * 80));
+    rp.y = Math.max(50, Math.min(1150, rp.y + ny * 80));
+    // Broadcast dodge to both players
+    const dodgeData = { who: username, x: rp.x, y: rp.y, dirX: nx, dirY: ny, stamina: Math.round(duel[key + 'Stamina']) };
+    this.rpgSendTo(duel.p1, { type: 'rpg_duel_dodge', data: dodgeData });
+    this.rpgSendTo(duel.p2, { type: 'rpg_duel_dodge', data: dodgeData });
+    return { dodged: true };
+  }
+
+  // Broadcast swing telegraph to both players (visual warning before hit lands)
+  rpgDuelSwing(username, heavy, facing) {
+    const rp = this.rpgPlayers[username];
+    if (!rp || !rp.inDuel) return;
+    const duel = this.rpgDuels[rp.inDuel];
+    if (!duel || duel.state !== 'active') return;
+    const swingData = { who: username, heavy: !!heavy, facing: facing || 'right', x: rp.x, y: rp.y };
+    this.rpgSendTo(duel.p1, { type: 'rpg_duel_swing', data: swingData });
+    this.rpgSendTo(duel.p2, { type: 'rpg_duel_swing', data: swingData });
+  }
+
+  rpgDuelAttack(username, heavy) {
+    const rp = this.rpgPlayers[username];
+    if (!rp || !rp.inDuel) return { error: 'not_in_duel' };
+    const duel = this.rpgDuels[rp.inDuel];
+    if (!duel || duel.state !== 'active') return { error: 'duel_over' };
+    const now = Date.now();
+    const isP1 = duel.p1 === username;
+    const key = isP1 ? 'p1' : 'p2';
+    // Tick stamina for both players
+    this._duelTickStamina(duel, true);
+    this._duelTickStamina(duel, false);
+    // Stagger check — can't act while staggered
+    if (now < duel[key + 'StaggerUntil']) return { error: 'staggered' };
+    // Cooldown check
+    const lastAtk = duel[key + 'LastAtk'];
+    const cd = heavy ? Math.floor(duel.atkCooldown * 2) : duel.atkCooldown;
+    if (now - lastAtk < cd) return { error: 'cooldown' };
+    // Stamina check
+    const staCost = heavy ? duel.heavyAtkCost : duel.lightAtkCost;
+    if (duel[key + 'Stamina'] < staCost) {
+      this.rpgSendTo(username, { type: 'rpg_duel_stamina', data: { stamina: Math.round(duel[key + 'Stamina']), noStamina: true } });
+      return { error: 'no_stamina' };
+    }
+    // Can't attack while blocking
+    if (rp.blocking) return { error: 'blocking' };
     // Proximity check
-    const attacker = rp;
     const defenderName = isP1 ? duel.p2 : duel.p1;
     const defender = this.rpgPlayers[defenderName];
     if (!defender) return { error: 'opponent_gone' };
-    const dx = attacker.x - defender.x, dy = attacker.y - defender.y;
+    const dx = rp.x - defender.x, dy = rp.y - defender.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
     if (dist > 100) return { error: 'too_far' };
+    // Consume stamina
+    duel[key + 'Stamina'] -= staCost;
+    duel[key + 'LastAtk'] = now;
+    // Check dodge i-frames on defender
+    const defKey = isP1 ? 'p2' : 'p1';
+    if (now < duel[defKey + 'DodgeUntil']) {
+      // Defender dodged — miss! Grant dodge counter window to defender
+      duel[defKey + 'CounterUntil'] = now + duel.counterWindow;
+      const missData = { attacker: username, defender: defenderName, dmg: 0, miss: true, heavy: !!heavy,
+        attackerStamina: Math.round(duel[key + 'Stamina']), dx: defender.x, dy: defender.y - 40,
+        dodgeCounter: true };
+      this.rpgSendTo(duel.p1, { type: 'rpg_duel_hit', data: missData });
+      this.rpgSendTo(duel.p2, { type: 'rpg_duel_hit', data: missData });
+      return { miss: true };
+    }
     // Calculate damage
     const minD = isP1 ? duel.p1MinDmg : duel.p2MinDmg;
     const maxD = isP1 ? duel.p1MaxDmg : duel.p2MaxDmg;
@@ -7549,24 +7902,71 @@ class Game {
     let crit = false;
     const critChance = isP1 ? duel.p1CritChance : duel.p2CritChance;
     if (Math.random() < critChance) { dmg = Math.floor(dmg * 1.5); crit = true; }
-    // Block / Parry check for PvP
+    // Heavy attack: 1.8x damage
+    if (heavy) { dmg = Math.floor(dmg * 1.8); }
+    // Dodge counter bonus — attacker dodged an attack and is counter-attacking
+    let isCounter = false;
+    if (now < duel[key + 'CounterUntil']) {
+      dmg = Math.floor(dmg * duel.counterMult);
+      isCounter = true;
+      duel[key + 'CounterUntil'] = 0; // consume counter window
+    }
+    // Combo system — track consecutive hits
+    let comboHit = 0;
+    let comboFinisher = false;
+    if (now - duel[key + 'LastComboHit'] < duel.comboWindow && duel[key + 'ComboCount'] > 0) {
+      duel[key + 'ComboCount'] = Math.min(duel[key + 'ComboCount'] + 1, 3);
+    } else {
+      duel[key + 'ComboCount'] = 1;
+    }
+    comboHit = duel[key + 'ComboCount'];
+    const comboIdx = Math.min(comboHit - 1, duel.comboMult.length - 1);
+    dmg = Math.floor(dmg * duel.comboMult[comboIdx]);
+    if (comboHit >= 3) { comboFinisher = true; duel[key + 'ComboCount'] = 0; } // reset after full combo
+    // Block / Parry check
     let blocked = false, parried = false;
     if (defender.blocking) {
       if (now - defender.blockStart < 250) {
-        parried = true; dmg = 0; crit = false;
-        // Penalize attacker: extra cooldown
-        if (isP1) duel.p1LastAtk = now + 600;
-        else duel.p2LastAtk = now + 600;
-      } else {
+        // Perfect parry — 0 damage, stagger attacker, reflect some stamina cost
+        parried = true; dmg = 0; crit = false; isCounter = false;
+        duel[key + 'LastAtk'] = now + 600; // extra cooldown penalty
+        duel[key + 'StaggerUntil'] = now + duel.staggerDuration; // stagger the attacker
+        duel[key + 'ComboCount'] = 0; // reset attacker combo
+      } else if (duel[defKey + 'Stamina'] > 0) {
         blocked = true; dmg = Math.max(1, Math.floor(dmg * 0.5)); crit = false;
+        duel[defKey + 'Stamina'] = Math.max(0, duel[defKey + 'Stamina'] - (heavy ? 20 : 8));
       }
     }
     // Apply damage
-    if (isP1) { duel.p2HP = Math.max(0, duel.p2HP - dmg); if (!parried) duel.p1LastAtk = now; }
-    else { duel.p1HP = Math.max(0, duel.p1HP - dmg); if (!parried) duel.p2LastAtk = now; }
+    if (isP1) { duel.p2HP = Math.max(0, duel.p2HP - dmg); }
+    else { duel.p1HP = Math.max(0, duel.p1HP - dmg); }
     const defHP = isP1 ? duel.p2HP : duel.p1HP;
+    // Stagger on heavy attacks and combo finishers (if not blocked/parried)
+    let stagger = false;
+    if (!blocked && !parried && (heavy || comboFinisher)) {
+      duel[defKey + 'StaggerUntil'] = now + duel.staggerDuration;
+      stagger = true;
+    }
+    // Heavy attack / stagger knockback (push defender away)
+    let knockX = 0, knockY = 0;
+    if ((heavy || stagger) && !parried && defender) {
+      const ndx = defender.x - rp.x, ndy = defender.y - rp.y;
+      const ndist = Math.sqrt(ndx * ndx + ndy * ndy) || 1;
+      const knockDist = heavy ? 50 : (comboFinisher ? 35 : 0);
+      knockX = (ndx / ndist) * knockDist; knockY = (ndy / ndist) * knockDist;
+      defender.x = Math.max(50, Math.min(1150, defender.x + knockX));
+      defender.y = Math.max(50, Math.min(1150, defender.y + knockY));
+    }
+    duel[key + 'LastComboHit'] = now;
     // Broadcast hit to both players
-    const hitData = { attacker: username, defender: defenderName, dmg, crit, blocked, parried, defenderHP: defHP, dx: defender.x, dy: defender.y - 40 };
+    const hitData = {
+      attacker: username, defender: defenderName, dmg, crit, blocked, parried, heavy: !!heavy,
+      defenderHP: defHP, dx: defender.x, dy: defender.y - 40,
+      attackerStamina: Math.round(duel[key + 'Stamina']),
+      defenderStamina: Math.round(duel[defKey + 'Stamina']),
+      knockX, knockY,
+      combo: comboHit, comboFinisher, isCounter, stagger,
+    };
     this.rpgSendTo(duel.p1, { type: 'rpg_duel_hit', data: hitData });
     this.rpgSendTo(duel.p2, { type: 'rpg_duel_hit', data: hitData });
     // Check for death
@@ -7595,6 +7995,16 @@ class Game {
       const lP = this.player(loser);
       const goldReward = 5 + Math.floor(avgLevel * 2);
       const xpReward = 10 + avgLevel * 3;
+
+      // ── Wager payout ──
+      let wagerWon = 0;
+      if (duel.wager > 0) {
+        const totalPot = duel.wager * 2;
+        const tax = Math.floor(totalPot * DUEL_WAGER_TAX);
+        wagerWon = totalPot - tax;
+        wP.gold += wagerWon; // winner gets pot minus tax
+      }
+
       wP.gold += goldReward;
       this.addXP(wP, xpReward);
 
@@ -7632,15 +8042,21 @@ class Game {
         ratingChange: wRatingChange, newRating: wP.arenaRating, rank: wRank,
         tokensEarned: winTokens, totalTokens: wP.arenaTokens,
         streak: wP.duelWinStreak, duelsWon: wP.duelsWon, duelsLost: wP.duelsLost,
+        wager: duel.wager, wagerWon,
       }});
       this.rpgSendTo(loser, { type: 'rpg_duel_end', data: {
         result: 'loss', gold: 0, xp: 0, totalGold: lP.gold,
         ratingChange: lRatingChange, newRating: lP.arenaRating, rank: lRank,
         tokensEarned: loseTokens, totalTokens: lP.arenaTokens,
         streak: 0, duelsWon: lP.duelsWon, duelsLost: lP.duelsLost,
+        wager: duel.wager, wagerLost: duel.wager,
       }});
     } else {
-      // Draw
+      // Draw — refund wagers
+      if (duel.wager > 0) {
+        p1Data.gold += duel.wager;
+        p2Data.gold += duel.wager;
+      }
       const drawTokens = ARENA_CONFIG.drawTokens;
       p1Data.arenaTokens = (p1Data.arenaTokens || 0) + drawTokens;
       p2Data.arenaTokens = (p2Data.arenaTokens || 0) + drawTokens;
@@ -8399,13 +8815,44 @@ class Game {
         // Attack in progress
         if (boss.currentAttack) {
           boss.attackTimer -= 200;
+          const atk = boss.currentAttack;
+          const totalTele = atk.telegraphTime || 800;
+          const atkProgress = 1 - boss.attackTimer / totalTele; // 0→1
+
+          // ── BREATH ATTACKS: fire starts sweeping at 55% telegraph progress ──
+          if ((atk.type === 'breath_sweep' || atk.type === 'line') && !atk._breathFired && atkProgress >= 0.55) {
+            atk._breathFired = true;
+            // Broadcast so client starts the fire VFX immediately
+            this.rpgBroadcastInstance(instId, { type: 'rpg_boss_breath_active', data: {
+              attack: atk.name, type: atk.type,
+              bossX: boss.x, bossY: boss.y,
+              targetX: atk.snapX || boss.x, targetY: atk.snapY || boss.y,
+              radius: atk.radius || 0, range: atk.range || 0, width: atk.width || 0,
+              sweepAngle: atk.sweepAngle || 0,
+              sweepDuration: atk.type === 'breath_sweep' ? 1800 : 1300,
+            }});
+            // Apply staggered burn damage NOW (synced with visual sweep)
+            try { this.rpgDungeonBossBreathDamage(instId, boss, atk); } catch(e) { console.error('[PDUNG BREATH DMG ERROR]', e.message); }
+          }
+
           if (boss.attackTimer <= 0) {
             const landingAtk = boss.currentAttack;
             boss.attackCooldowns[landingAtk.name] = now + landingAtk.cooldown;
             boss.currentAttack = null;
             boss.globalCD = 2500;
-            // Hit check against ALL alive players
-            try { this.rpgDungeonBossAttackLand(instId, boss, landingAtk); } catch(e) { console.error('[PDUNG BOSS ATTACK ERROR]', boss.id, landingAtk.name, e.message); }
+            // Hit check against ALL alive players (skip breath attacks — they already applied damage)
+            if (landingAtk.type !== 'breath_sweep' && landingAtk.type !== 'line') {
+              try { this.rpgDungeonBossAttackLand(instId, boss, landingAtk); } catch(e) { console.error('[PDUNG BOSS ATTACK ERROR]', boss.id, landingAtk.name, e.message); }
+            } else {
+              // Still broadcast attack_land for VFX continuation (persistent ground effects)
+              this.rpgBroadcastInstance(instId, { type: 'rpg_boss_attack_land', data: {
+                attack: landingAtk.name, type: landingAtk.type,
+                bossX: boss.x, bossY: boss.y,
+                targetX: landingAtk.snapX || boss.x, targetY: landingAtk.snapY || boss.y,
+                radius: landingAtk.radius || 0, range: landingAtk.range || 0, width: landingAtk.width || 0,
+                sweepAngle: landingAtk.sweepAngle || 0,
+              }});
+            }
           } else {
             this.rpgBroadcastInstance(instId, { type: 'rpg_boss_telegraph', data: {
               attack: boss.currentAttack.name, type: boss.currentAttack.type,
@@ -8414,6 +8861,7 @@ class Game {
               targetX: nearest.rp.x, targetY: nearest.rp.y,
               radius: boss.currentAttack.radius || 0,
               range: boss.currentAttack.range || 0, width: boss.currentAttack.width || 0,
+              sweepAngle: boss.currentAttack.sweepAngle || 0,
             }});
           }
         } else {
@@ -8457,6 +8905,7 @@ class Game {
                   bossX: boss.x, bossY: boss.y,
                   targetX: nearest.rp.x, targetY: nearest.rp.y,
                   radius: atk.radius || 0, range: atk.range || 0, width: atk.width || 0,
+                  sweepAngle: atk.sweepAngle || 0,
                 }});
               }
             }
@@ -8475,6 +8924,30 @@ class Game {
           boss.poisonTickAt = now + 500;
           this.rpgBroadcastInstance(instId, { type: 'rpg_boss_poison', data: { bossId: boss.id, dmg: boss.poisonDamage, hp: boss.hp, maxHP: boss.maxHP } });
           if (boss.hp <= 0 && !boss.dead) { boss.dead = true; boss.hp = 0; }
+        }
+      }
+
+      // ── Player Burn DOT (from dragon breath) ──
+      for (const m of inst.members) {
+        if (inst.deadMembers.includes(m)) continue;
+        const rp = this.rpgPlayers[m];
+        if (!rp || rp.hp <= 0) continue;
+        if (rp.burnEnd && now < rp.burnEnd && now >= rp.burnTickAt) {
+          const p = this.player(m);
+          const def = this.armorDefBonus(p) + ((p.rpg && p.rpg.buffDef && Date.now() < p.rpg.buffDef.expires) ? p.rpg.buffDef.value : 0);
+          const dmg = Math.max(1, rp.burnDamage - def);
+          rp.hp = Math.max(0, rp.hp - dmg);
+          rp.burnTickAt = now + 500;
+          this.degradeEquipped(p, 'armor', 1);
+          this.rpgSendTo(m, { type: 'rpg_boss_hit', data: { dmg, hp: rp.hp, maxHP: rp.maxHP, attack: 'Burn', armorBroke: null } });
+          this.rpgBroadcastInstance(instId, { type: 'rpg_dungeon_player_hp', data: { username: m, hp: rp.hp, maxHP: rp.maxHP } }, m);
+          if (rp.hp <= 0) {
+            rp.burnEnd = 0;
+            this.rpgDungeonPlayerDied(instId, m);
+          }
+        }
+        if (rp.burnEnd && now >= rp.burnEnd) {
+          rp.burnEnd = 0; rp.burnDamage = 0; rp.burnTickAt = 0; rp.burnInstId = null;
         }
       }
 
@@ -8579,6 +9052,7 @@ class Game {
         const dx = px - boss.x, dy = py - boss.y;
         hit = Math.sqrt(dx * dx + dy * dy) < (atk.radius || 100);
       } else if (atk.type === 'line') {
+        // Line breath — STAGGERED burn: fire sweeps along beam, sets players on fire
         const sx = atk.snapX || px, sy = atk.snapY || py;
         const dx = sx - boss.x, dy = sy - boss.y;
         const len = Math.sqrt(dx * dx + dy * dy) || 1;
@@ -8587,21 +9061,65 @@ class Game {
         const proj = ppx * nx + ppy * ny;
         if (proj > 0 && proj < (atk.range || 180)) {
           const perpDist = Math.sqrt((ppx - proj * nx) ** 2 + (ppy - proj * ny) ** 2);
-          hit = perpDist < (atk.width || 40) / 2;
+          if (perpDist < (atk.width || 40) / 2) {
+            // Player is in the beam — delay based on distance, then apply burn DOT
+            const distFrac = proj / (atk.range || 180);
+            const delay = Math.floor(distFrac * 1300);
+            const memberName = m;
+            const bossRef = boss;
+            setTimeout(() => {
+              const inst2 = this.rpgDungeonInstances[instId];
+              if (!inst2 || inst2.phase === 'failed') return;
+              const rp2 = this.rpgPlayers[memberName];
+              if (!rp2 || rp2.hp <= 0 || inst2.deadMembers.includes(memberName)) return;
+              if (rp2.godMode) return;
+              // Apply 3-second burn DOT instead of instant damage
+              const burnDmg = Math.max(1, Math.floor((atk.dmg * (bossRef.dmgMult || 1)) / 3));
+              rp2.burnEnd = Date.now() + 3000;
+              rp2.burnTickAt = Date.now() + 500;
+              rp2.burnDamage = burnDmg;
+              rp2.burnInstId = instId;
+              this.rpgSendTo(memberName, { type: 'rpg_player_burn', data: { attack: atk.name, burnDmg, duration: 3000 } });
+              this.rpgBroadcastInstance(instId, { type: 'rpg_dungeon_player_burn', data: { username: memberName, duration: 3000 } });
+            }, delay);
+            hit = false;
+          }
         }
       } else if (atk.type === 'breath_sweep') {
-        // Cone sweep — player hit if within range AND within the sweep angle arc
+        // Cone sweep — fire sweeps left to right, sets players on fire for 3s burn DOT
         const dx = px - boss.x, dy = py - boss.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
         if (dist < (atk.range || 250)) {
-          // Sweep direction based on snapped target position
           const sx = atk.snapX || px, sy = atk.snapY || py;
           const centerAngle = Math.atan2(sy - boss.y, sx - boss.x);
           const playerAngle = Math.atan2(dy, dx);
           let angleDiff = playerAngle - centerAngle;
           while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
           while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
-          hit = Math.abs(angleDiff) < (atk.sweepAngle || 2.4) / 2;
+          const halfSweep = (atk.sweepAngle || 2.4) / 2;
+          if (Math.abs(angleDiff) < halfSweep) {
+            // Player is in the cone — delay based on sweep position, then apply burn
+            const sweepFrac = (angleDiff + halfSweep) / (halfSweep * 2);
+            const delay = Math.floor(sweepFrac * 1800);
+            const memberName = m;
+            const bossRef = boss;
+            setTimeout(() => {
+              const inst2 = this.rpgDungeonInstances[instId];
+              if (!inst2 || inst2.phase === 'failed') return;
+              const rp2 = this.rpgPlayers[memberName];
+              if (!rp2 || rp2.hp <= 0 || inst2.deadMembers.includes(memberName)) return;
+              if (rp2.godMode) return;
+              // Apply 3-second burn DOT
+              const burnDmg = Math.max(1, Math.floor((atk.dmg * (bossRef.dmgMult || 1)) / 3));
+              rp2.burnEnd = Date.now() + 3000;
+              rp2.burnTickAt = Date.now() + 500;
+              rp2.burnDamage = burnDmg;
+              rp2.burnInstId = instId;
+              this.rpgSendTo(memberName, { type: 'rpg_player_burn', data: { attack: atk.name, burnDmg, duration: 3000 } });
+              this.rpgBroadcastInstance(instId, { type: 'rpg_dungeon_player_burn', data: { username: memberName, duration: 3000 } });
+            }, delay);
+            hit = false;
+          }
         }
       } else if (atk.type === 'head_lunge') {
         // Narrow fast lunge — tighter than line, longer range
@@ -8629,7 +9147,87 @@ class Game {
         }
       }
     }
-    this.rpgBroadcastInstance(instId, { type: 'rpg_boss_attack_land', data: { attack: atk.name, type: atk.type, bossX: boss.x, bossY: boss.y, radius: atk.radius || 0, range: atk.range || 0, width: atk.width || 0 } });
+    this.rpgBroadcastInstance(instId, { type: 'rpg_boss_attack_land', data: {
+      attack: atk.name, type: atk.type,
+      bossX: boss.x, bossY: boss.y,
+      targetX: atk.snapX || boss.x, targetY: atk.snapY || boss.y,
+      radius: atk.radius || 0, range: atk.range || 0, width: atk.width || 0,
+      sweepAngle: atk.sweepAngle || 0,
+    } });
+  }
+
+  rpgDungeonBossBreathDamage(instId, boss, atk) {
+    // Applies staggered burn DOT synced with the visual fire sweep
+    const inst = this.rpgDungeonInstances[instId];
+    if (!inst) return;
+    for (const m of inst.members) {
+      if (inst.deadMembers.includes(m)) continue;
+      const rp = this.rpgPlayers[m];
+      if (!rp || rp.hp <= 0 || rp.godMode) continue;
+      const px = rp.x || 400, py = rp.y || 200;
+
+      if (atk.type === 'line') {
+        const sx = atk.snapX || px, sy = atk.snapY || py;
+        const dx = sx - boss.x, dy = sy - boss.y;
+        const len = Math.sqrt(dx * dx + dy * dy) || 1;
+        const nx = dx / len, ny = dy / len;
+        const ppx = px - boss.x, ppy = py - boss.y;
+        const proj = ppx * nx + ppy * ny;
+        if (proj > 0 && proj < (atk.range || 180)) {
+          const perpDist = Math.sqrt((ppx - proj * nx) ** 2 + (ppy - proj * ny) ** 2);
+          if (perpDist < (atk.width || 40) / 2) {
+            const distFrac = proj / (atk.range || 180);
+            const delay = Math.floor(distFrac * 1300);
+            const memberName = m;
+            const bossRef = boss;
+            setTimeout(() => {
+              const inst2 = this.rpgDungeonInstances[instId];
+              if (!inst2 || inst2.phase === 'failed') return;
+              const rp2 = this.rpgPlayers[memberName];
+              if (!rp2 || rp2.hp <= 0 || inst2.deadMembers.includes(memberName) || rp2.godMode) return;
+              const burnDmg = Math.max(1, Math.floor((atk.dmg * (bossRef.dmgMult || 1)) / 3));
+              rp2.burnEnd = Date.now() + 3000;
+              rp2.burnTickAt = Date.now() + 500;
+              rp2.burnDamage = burnDmg;
+              rp2.burnInstId = instId;
+              this.rpgSendTo(memberName, { type: 'rpg_player_burn', data: { attack: atk.name, burnDmg, duration: 3000 } });
+              this.rpgBroadcastInstance(instId, { type: 'rpg_dungeon_player_burn', data: { username: memberName, duration: 3000 } });
+            }, delay);
+          }
+        }
+      } else if (atk.type === 'breath_sweep') {
+        const dx = px - boss.x, dy = py - boss.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < (atk.range || 250)) {
+          const sx = atk.snapX || px, sy = atk.snapY || py;
+          const centerAngle = Math.atan2(sy - boss.y, sx - boss.x);
+          const playerAngle = Math.atan2(dy, dx);
+          let angleDiff = playerAngle - centerAngle;
+          while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+          while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+          const halfSweep = (atk.sweepAngle || 2.4) / 2;
+          if (Math.abs(angleDiff) < halfSweep) {
+            const sweepFrac = (angleDiff + halfSweep) / (halfSweep * 2);
+            const delay = Math.floor(sweepFrac * 1800);
+            const memberName = m;
+            const bossRef = boss;
+            setTimeout(() => {
+              const inst2 = this.rpgDungeonInstances[instId];
+              if (!inst2 || inst2.phase === 'failed') return;
+              const rp2 = this.rpgPlayers[memberName];
+              if (!rp2 || rp2.hp <= 0 || inst2.deadMembers.includes(memberName) || rp2.godMode) return;
+              const burnDmg = Math.max(1, Math.floor((atk.dmg * (bossRef.dmgMult || 1)) / 3));
+              rp2.burnEnd = Date.now() + 3000;
+              rp2.burnTickAt = Date.now() + 500;
+              rp2.burnDamage = burnDmg;
+              rp2.burnInstId = instId;
+              this.rpgSendTo(memberName, { type: 'rpg_player_burn', data: { attack: atk.name, burnDmg, duration: 3000 } });
+              this.rpgBroadcastInstance(instId, { type: 'rpg_dungeon_player_burn', data: { username: memberName, duration: 3000 } });
+            }, delay);
+          }
+        }
+      }
+    }
   }
 
   rpgDungeonBossSummon(instId, boss, atk) {
