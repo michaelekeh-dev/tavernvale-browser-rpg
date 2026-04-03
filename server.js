@@ -132,6 +132,11 @@ app.post('/api/stripe-webhook', express.raw({ type: 'application/json' }), (req,
 });
 
 app.use(express.json());
+
+// Version endpoint to verify deployed code
+const BUILD_VERSION = '7f11e7b-' + new Date().toISOString();
+app.get('/api/version', (req, res) => res.json({ commit: '7f11e7b', built: BUILD_VERSION }));
+
 app.use('/audio', express.static(path.join(__dirname, 'audio')));
 app.use('/overlay', (req, res, next) => {
   // Check Bearer token from header (preferred), or admin session cookie
