@@ -3254,7 +3254,7 @@ function onMineResult(d){
     if(d.error==='pickaxe_too_weak') logMsg('Need '+d.required+' to mine '+d.oreType+'!','dmg');
     miningTarget=null;swingAnim=0;swingCD=0;return}
   if(d.hit){
-    swingAnim=0;swingCD=0;playSound('mine');
+    playSound('mine');
     const n=nodes.find(n=>n.id===(miningTarget&&miningTarget.id));
     if(n){n.hp=d.hpLeft;spawnParticles(n.x,n.y,n.color||'#888',4);shakeTimer=2;updateActionInfo()}
     return;
