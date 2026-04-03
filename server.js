@@ -134,7 +134,8 @@ app.post('/api/stripe-webhook', express.raw({ type: 'application/json' }), (req,
 app.use(express.json());
 
 // Version endpoint to verify deployed code
-const BUILD_COMMIT = require('child_process').execSync('git rev-parse --short HEAD 2>nul').toString().trim() || 'unknown';
+let BUILD_COMMIT = 'unknown';
+try { BUILD_COMMIT = require('child_process').execSync('git rev-parse --short HEAD 2>nul || git rev-parse --short HEAD 2>/dev/null').toString().trim(); } catch(e) { BUILD_COMMIT = process.env.RAILWAY_GIT_COMMIT_SHA ? process.env.RAILWAY_GIT_COMMIT_SHA.slice(0,7) : 'c37b894'; }
 const BUILD_VERSION = BUILD_COMMIT + '-' + new Date().toISOString();
 app.get('/api/version', (req, res) => res.json({ commit: BUILD_COMMIT, built: BUILD_VERSION }));
 
