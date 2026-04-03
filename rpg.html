@@ -25234,17 +25234,6 @@ document.addEventListener('keydown',e=>{
     else{logMsg('No players nearby to invite (walk closer)','dmg')}
     return;
   }
-  // D to challenge nearest player to a duel
-  if(k==='d'&&!dialogueOpen&&!diceGameOpen&&!tradeOpen&&!chatOpen&&!inDuel&&zoneType==='hub'){
-    let nearest=null,nearDist=120;
-    for(const op of otherPlayers){
-      const dx2=op.x-px,dy2=op.y-py,dd=Math.sqrt(dx2*dx2+dy2*dy2);
-      if(dd<nearDist){nearDist=dd;nearest=op}
-    }
-    if(nearest){challengePlayerToDuel(nearest.username)}
-    else{logMsg('No players nearby to challenge','dmg')}
-    return;
-  }
   // Dialogue number keys
   if(dialogueOpen&&k>='1'&&k<='9'){const idx=parseInt(k)-1;if(idx<dialogueOptions.length)selectDialogueOption(idx)}
   if(k==='1'&&!dialogueOpen){activeTool='sword';updateToolHUD();logMsg('Equipped: Sword','xp');if(tutorialActive)advanceTutorial('switch_tool')}

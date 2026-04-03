@@ -134,8 +134,9 @@ app.post('/api/stripe-webhook', express.raw({ type: 'application/json' }), (req,
 app.use(express.json());
 
 // Version endpoint to verify deployed code
-const BUILD_VERSION = '7f11e7b-' + new Date().toISOString();
-app.get('/api/version', (req, res) => res.json({ commit: '7f11e7b', built: BUILD_VERSION }));
+const BUILD_COMMIT = require('child_process').execSync('git rev-parse --short HEAD 2>nul').toString().trim() || 'unknown';
+const BUILD_VERSION = BUILD_COMMIT + '-' + new Date().toISOString();
+app.get('/api/version', (req, res) => res.json({ commit: BUILD_COMMIT, built: BUILD_VERSION }));
 
 app.use('/audio', express.static(path.join(__dirname, 'audio')));
 app.use('/overlay', (req, res, next) => {
