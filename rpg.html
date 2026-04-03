@@ -1065,7 +1065,7 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;di
 // =============================================
 // State
 // =============================================
-let username='',authToken='',ws=null;
+let username='',ws=null;
 let currentZone='hub',zoneType='hub',zoneBG='#1a1a2e';
 let nodes=[],mobs=[],otherPlayers=[],decorations=[];
 let boss=null; // current zone boss entity
@@ -1650,12 +1650,18 @@ const DEATH_TIPS=[
 // ── Tutorial Tips ──
 let tutorialActive=false,tutorialStep=0,tutorialTimer=0;
 const TUTORIAL_STEPS=[
-  {text:'Use <span class="tip-key">WASD</span> to move around',dur:3500},
-  {text:'Press <span class="tip-key">E</span> near NPCs to talk',dur:3500},
-  {text:'Press <span class="tip-key">M</span> to open the Zone Map',dur:3500},
-  {text:'Press <span class="tip-key">1/2</span> to switch Sword / Pickaxe',dur:3500},
-  {text:'Talk to <span class="tip-key">Cask</span> for your first quest!',dur:4000},
+  {text:'Use <span class="tip-key">WASD</span> to move around',goal:'move'},
+  {text:'Press <span class="tip-key">E</span> near an NPC to talk',goal:'talk_npc'},
+  {text:'Press <span class="tip-key">M</span> to open the Zone Map',goal:'open_map'},
+  {text:'Press <span class="tip-key">1/2</span> to switch Sword / Pickaxe',goal:'switch_tool'},
+  {text:'Talk to <span class="tip-key">Cask</span> to get your first quest!',goal:'talk_cask'},
+  {text:'Enter the <span class="tip-key">Shadow Forest</span> through a portal',goal:'enter_zone'},
+  {text:'Hold <span class="tip-key">E</span> near a monster to attack!',goal:'kill_mob'},
+  {text:'Visit the <span class="tip-key">Mining Caves</span> to mine ores',goal:'mine_ore'},
+  {text:'Press <span class="tip-key">I</span> to open your Inventory',goal:'open_inventory'},
+  {text:'You\'re ready! Explore, quest, and grow stronger! ⚔️',goal:'done'},
 ];
+let tutorialGoalMet={}; // tracks which goals have been met
 // ── Milestone Popup ──
 let milestonePopup=null; // {title,desc,reward,timer}
 const introLines=[
@@ -1920,6 +1926,11 @@ let inDuel=false,duelData=null,duelQueued=false;
 let duelQueueCount=0;
 let duelOpponentHP=0,duelOpponentMaxHP=0,duelMyHP=0,duelMyMaxHP=0;
 let duelResultMsg=null,duelResultTimer=0;
+let duelChallenge=null; // {challengeId, from, timer}
+
+// World Event state
+let activeWorldEvent=null; // {type, name, desc, endsAt, multipliers}
+let worldEventBannerTimer=null;
 
 // Trade state
 let tradeOpen=false,tradeId=null,tradePartner=null,tradeAmP1=false;
@@ -2341,7 +2352,8 @@ let rpgAuthFailed=false;
 function init(){
   const savedUser=localStorage.getItem('mmo_last_user');
   if(!savedUser){document.querySelector('#login-screen .info').innerHTML='You need to log in via the <a href="/play" style="color:var(--accent)">Player Portal</a> first.';return}
-  username=savedUser;authToken=localStorage.getItem('mmo_token_'+username);
+  username=savedUser;
+  const authToken=localStorage.getItem('mmo_token_'+username);
   if(!authToken){document.querySelector('#login-screen .info').innerHTML='Account not linked. Go to the <a href="/play" style="color:var(--accent)">Player Portal</a>.';return}
   connectWS();
 }
@@ -2349,7 +2361,7 @@ let wsReconnectDelay=3000;
 function connectWS(){
   const proto=location.protocol==='https:'?'wss':'ws';
   ws=new WebSocket(`${proto}://${location.host}`);
-  ws.onopen=()=>{wsReconnectDelay=3000;ws.send(JSON.stringify({type:'rpg_join',username,token:authToken}))};
+  ws.onopen=()=>{wsReconnectDelay=3000;const tk=localStorage.getItem('mmo_token_'+username);ws.send(JSON.stringify({type:'rpg_join',username,token:tk}))};
   ws.onmessage=e=>{try{handleMessage(JSON.parse(e.data))}catch(err){console.error('[WS MSG ERROR]',err.message,err.stack)}};
   ws.onclose=()=>{if(!rpgAuthFailed){setTimeout(connectWS,wsReconnectDelay);wsReconnectDelay=Math.min(30000,wsReconnectDelay*1.5)}};
 }
@@ -2541,6 +2553,15 @@ function handleMessage(msg){
     case'rpg_duel_start':onDuelStart(d);break;
     case'rpg_duel_hit':onDuelHit(d);break;
     case'rpg_duel_end':onDuelEnd(d);break;
+    // ── Direct Duel Challenge ──
+    case'rpg_duel_challenge_received':onDuelChallengeReceived(d);break;
+    case'rpg_duel_challenge_declined':logMsg(d.target+' declined your duel challenge.','dmg');break;
+    case'rpg_duel_challenge_expired':if(duelChallenge&&duelChallenge.challengeId===d.challengeId){duelChallenge=null;hideDuelChallengePopup()}break;
+    // ── World Events ──
+    case'rpg_world_event_start':onWorldEventStart(d);break;
+    case'rpg_world_event_end':onWorldEventEnd(d);break;
+    case'rpg_world_event_mvp':logMsg('🏆 '+d.mvp+' was the MVP! (+'+d.bonus+'g bonus)','loot');break;
+    case'rpg_bounty_claimed':logMsg('🎯 '+d.username+' slew the bounty target '+d.target+'!','loot');break;
     case'rpg_error':
       // Token invalid — stop reconnecting, show error, but keep localStorage token
       // (another tab may have refreshed it)
@@ -2641,7 +2662,7 @@ function handleMessage(msg){
       localStorage.removeItem('rpg_mikey_met');localStorage.removeItem('rpg_cask_met');
       logMsg('Admin wiped all progress!','dmg');
       // Re-join to get fresh state
-      send('rpg_join',{username,token:authToken});
+      send('rpg_join',{username,token:localStorage.getItem('mmo_token_'+username)});
       break;
     // Trading
     case'rpg_trade_request':tradeIncoming={tradeId:d.tradeId,from:d.from};tradeAmP1=false;showTradeIncoming(d.from,d.tradeId);break;
@@ -2893,6 +2914,8 @@ function onJoined(d){
   myAchievements=d.achievements||[];
   // Caravan
   if(d.caravan&&d.caravan.active){activeCaravan=d.caravan;setTimeout(showCaravanBanner,1000)}
+  // World event
+  if(d.worldEvent&&d.worldEvent.active){activeWorldEvent=d.worldEvent;setTimeout(showWorldEventBanner,1200)}
   // Restore party state on reconnect
   if(d.party){myParty=d.party;updateHUD()}else{myParty=null}
   // Dungeon reconnect: restore dungeon state if player was in a dungeon
@@ -2920,6 +2943,7 @@ function onJoined(d){
 
 function onZoneState(z){
   stopBossMusic(true);
+  if(tutorialActive&&z.id!=='hub')advanceTutorial('enter_zone');
   // Clean up house interior state if transitioning out
   if(insideHouse){insideHouse=false;insideHouseData=null;carryingFurniture=null;delete TILE_COLORS.house_interior;const btn=document.getElementById('house-manage-btn');if(btn)btn.remove()}
   currentZone=z.id;zoneType=z.type;zoneBG=z.bg||'#1a1a2e';
@@ -3248,6 +3272,7 @@ function onMineResult(d){
     return;
   }
   if(d.success){
+    if(tutorialActive)advanceTutorial('mine_ore');
     const gradeColors={perfect:'#fbbf24',good:'#4ade80',bad:'#888'};
     const gradeLabels={perfect:'PERFECT!',good:'Good',bad:'Bad...'};
     // Grade float
@@ -3362,6 +3387,7 @@ function onAttackResult(d){
     playCombatSound('hit');
   }
   if(d.killed){
+    if(tutorialActive)advanceTutorial('kill_mob');
     if(m){
       const tier=m.eliteTier||'normal';
       // Enhanced death — burst particles + shrink + loot rain
@@ -4632,6 +4658,103 @@ function onDuelEnd(d){
   },3000);
 }
 
+// ── Direct Duel Challenge ──
+function challengePlayerToDuel(targetUsername){
+  send('rpg_duel_challenge',{target:targetUsername});
+  logMsg('Challenged '+targetUsername+' to a duel!','xp');
+}
+function onDuelChallengeReceived(d){
+  duelChallenge={challengeId:d.challengeId,from:d.from,timer:30};
+  showDuelChallengePopup();
+}
+function acceptDuelChallenge(){
+  if(!duelChallenge)return;
+  send('rpg_duel_accept_challenge',{challengeId:duelChallenge.challengeId});
+  duelChallenge=null;hideDuelChallengePopup();
+}
+function declineDuelChallenge(){
+  if(!duelChallenge)return;
+  send('rpg_duel_decline_challenge',{challengeId:duelChallenge.challengeId});
+  duelChallenge=null;hideDuelChallengePopup();
+}
+function showDuelChallengePopup(){
+  let el=document.getElementById('duel-challenge-popup');
+  if(!el){
+    el=document.createElement('div');el.id='duel-challenge-popup';
+    el.style.cssText='position:fixed;top:120px;left:50%;transform:translateX(-50%);z-index:350;background:linear-gradient(135deg,#1a0a0a,#2a1515);border:2px solid #ff4444;border-radius:10px;padding:12px 20px;color:#fff;font-family:"Press Start 2P",monospace;font-size:9px;text-align:center;animation:panelSlideUp .3s ease;box-shadow:0 4px 20px rgba(255,68,68,0.4)';
+    document.body.appendChild(el);
+  }
+  el.innerHTML='⚔️ <span style="color:#ff4444">'+duelChallenge.from+'</span> challenges you to a duel!<br><br>'+
+    '<button onclick="acceptDuelChallenge()" style="margin:0 5px;padding:6px 12px;background:#22c55e;border:none;border-radius:5px;color:#fff;font-family:inherit;font-size:8px;cursor:pointer">✅ Accept</button>'+
+    '<button onclick="declineDuelChallenge()" style="margin:0 5px;padding:6px 12px;background:#ef4444;border:none;border-radius:5px;color:#fff;font-family:inherit;font-size:8px;cursor:pointer">❌ Decline</button>'+
+    '<div id="duel-challenge-timer" style="color:#888;font-size:7px;margin-top:6px">30s</div>';
+  el.style.display='block';
+  if(duelChallenge._iv)clearInterval(duelChallenge._iv);
+  duelChallenge._iv=setInterval(()=>{
+    if(!duelChallenge){hideDuelChallengePopup();return}
+    duelChallenge.timer--;
+    const tel=document.getElementById('duel-challenge-timer');
+    if(tel)tel.textContent=duelChallenge.timer+'s';
+    if(duelChallenge.timer<=0){duelChallenge=null;hideDuelChallengePopup()}
+  },1000);
+}
+function hideDuelChallengePopup(){
+  const el=document.getElementById('duel-challenge-popup');
+  if(el)el.style.display='none';
+  if(duelChallenge&&duelChallenge._iv){clearInterval(duelChallenge._iv);duelChallenge._iv=null}
+}
+
+// ── World Events HUD ──
+function onWorldEventStart(d){
+  activeWorldEvent={type:d.type,name:d.name,desc:d.desc,endsAt:d.endsAt,multipliers:d.multipliers||{}};
+  logMsg('🌍 WORLD EVENT: '+d.name+' — '+d.desc,'loot');
+  showWorldEventBanner();
+  // Blood Moon visual tint
+  if(d.type==='blood_moon')document.getElementById('game-canvas').style.filter='saturate(1.3) hue-rotate(-10deg)';
+}
+function onWorldEventEnd(d){
+  activeWorldEvent=null;
+  hideWorldEventBanner();
+  logMsg('🌍 World event ended! Kills: '+(d.totalKills||0)+', Gold earned: '+(d.totalGold||0),'xp');
+  document.getElementById('game-canvas').style.filter='';
+}
+function showWorldEventBanner(){
+  if(!activeWorldEvent)return;
+  let el=document.getElementById('world-event-banner');
+  if(!el){
+    el=document.createElement('div');el.id='world-event-banner';
+    el.style.cssText='position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:310;background:linear-gradient(135deg,#0a0a2a,#1a1040);border:2px solid #a855f7;border-radius:10px;padding:10px 24px;color:#fff;font-family:"Press Start 2P",monospace;font-size:9px;text-align:center;pointer-events:none;animation:panelSlideUp .3s ease;box-shadow:0 4px 20px rgba(168,85,247,0.4)';
+    document.body.appendChild(el);
+  }
+  function updateBanner(){
+    if(!activeWorldEvent){hideWorldEventBanner();return}
+    const tl=Math.max(0,Math.floor((activeWorldEvent.endsAt-Date.now())/1000));
+    if(tl<=0){hideWorldEventBanner();activeWorldEvent=null;return}
+    const m=Math.floor(tl/60),s=tl%60;
+    const icons={mob_invasion:'👹',blood_moon:'🌑',boss_rush:'💀',gold_rush:'💰',bounty_hunt:'🎯'};
+    const colors={mob_invasion:'#ef4444',blood_moon:'#dc2626',boss_rush:'#f59e0b',gold_rush:'#fbbf24',bounty_hunt:'#a855f7'};
+    const icon=icons[activeWorldEvent.type]||'🌍';
+    const col=colors[activeWorldEvent.type]||'#a855f7';
+    // Build multiplier tags
+    let mults='';
+    const mp=activeWorldEvent.multipliers;
+    if(mp.gold&&mp.gold>1)mults+=' <span style="color:#fbbf24">'+mp.gold+'x Gold</span>';
+    if(mp.xp&&mp.xp>1)mults+=' <span style="color:#60a5fa">'+mp.xp+'x XP</span>';
+    if(mp.mobDmg&&mp.mobDmg>1)mults+=' <span style="color:#ef4444">'+mp.mobDmg+'x Mob Dmg</span>';
+    if(mp.miningGold&&mp.miningGold>1)mults+=' <span style="color:#4ade80">'+mp.miningGold+'x Mining</span>';
+    el.innerHTML=icon+' <span style="color:'+col+'">'+activeWorldEvent.name+'</span> '+mults+' <span style="color:#888;font-size:7px">('+m+':'+String(s).padStart(2,'0')+')</span>';
+    el.style.display='block';
+  }
+  updateBanner();
+  if(worldEventBannerTimer)clearInterval(worldEventBannerTimer);
+  worldEventBannerTimer=setInterval(updateBanner,1000);
+}
+function hideWorldEventBanner(){
+  const el=document.getElementById('world-event-banner');
+  if(el)el.style.display='none';
+  if(worldEventBannerTimer){clearInterval(worldEventBannerTimer);worldEventBannerTimer=null}
+}
+
 function renderColosseumBG(){
   if(!duelData||!duelData.arena)return;
   const th=duelData.arena;
@@ -4979,6 +5102,7 @@ function update(dt){
   }
   }
   if(pvx&&pvy){const mag=Math.sqrt(pvx*pvx+pvy*pvy);if(mag>1){pvx/=mag;pvy/=mag}}
+  if(tutorialActive&&(pvx||pvy))advanceTutorial('move');
   let spd=SPEED*(dt/16);
   if(adminSpeedMode)spd*=2.5;
   if(zoneType==='mine'&&moveSpeedMult>1)spd*=moveSpeedMult;
@@ -22317,7 +22441,7 @@ function drawOtherPlayer(p){
       // [P] Invite to Party (only if not already in same party)
       const inPartyWith=myParty&&myParty.members&&myParty.members.some(m=>m.username===p.username);
       if(!inPartyWith){
-        const iy=s.y-84;
+        const iy=s.y-110;
         ctx.fillStyle='rgba(0,0,0,0.7)';
         ctx.fillRect(s.x-60,iy-10,120,16);
         ctx.fillStyle='#60a5fa';
@@ -22329,6 +22453,12 @@ function drawOtherPlayer(p){
       ctx.fillRect(s.x-48,ey-10,96,16);
       ctx.fillStyle='#fbbf24';
       ctx.fillText('[E] Trade',s.x,ey+2);
+      // [D] Duel
+      const dy=ey-26;
+      ctx.fillStyle='rgba(0,0,0,0.7)';
+      ctx.fillRect(s.x-48,dy-10,96,16);
+      ctx.fillStyle='#ef4444';
+      ctx.fillText('[D] Duel',s.x,dy+2);
       ctx.globalAlpha=1;
     }
   }
@@ -22576,6 +22706,7 @@ const MOB_COLORS={
 function toggleDetailMap(){
   if(detailMapOpen){closeDetailMap();return}
   detailMapOpen=true;
+  if(tutorialActive)advanceTutorial('open_map');
   document.getElementById('detail-map-overlay').classList.add('show');
   drawDetailMap();
 }
@@ -23900,6 +24031,7 @@ function selectDialogueOption(idx){
 }
 function showDialogueUI(name,text,options){
   dialogueOptions=options;
+  if(tutorialActive){advanceTutorial('talk_npc');if(name.toLowerCase()==='cask')advanceTutorial('talk_cask')}
   if(dialogueTypeTimer){clearInterval(dialogueTypeTimer);dialogueTypeTimer=null}
   let el=document.getElementById('dialogue-overlay');
   if(!el){
@@ -25102,10 +25234,21 @@ document.addEventListener('keydown',e=>{
     else{logMsg('No players nearby to invite (walk closer)','dmg')}
     return;
   }
+  // D to challenge nearest player to a duel
+  if(k==='d'&&!dialogueOpen&&!diceGameOpen&&!tradeOpen&&!chatOpen&&!inDuel&&zoneType==='hub'){
+    let nearest=null,nearDist=120;
+    for(const op of otherPlayers){
+      const dx2=op.x-px,dy2=op.y-py,dd=Math.sqrt(dx2*dx2+dy2*dy2);
+      if(dd<nearDist){nearDist=dd;nearest=op}
+    }
+    if(nearest){challengePlayerToDuel(nearest.username)}
+    else{logMsg('No players nearby to challenge','dmg')}
+    return;
+  }
   // Dialogue number keys
   if(dialogueOpen&&k>='1'&&k<='9'){const idx=parseInt(k)-1;if(idx<dialogueOptions.length)selectDialogueOption(idx)}
-  if(k==='1'&&!dialogueOpen){activeTool='sword';updateToolHUD();logMsg('Equipped: Sword','xp')}
-  if(k==='2'&&!dialogueOpen){activeTool='pickaxe';updateToolHUD();logMsg('Equipped: Pickaxe','xp')}
+  if(k==='1'&&!dialogueOpen){activeTool='sword';updateToolHUD();logMsg('Equipped: Sword','xp');if(tutorialActive)advanceTutorial('switch_tool')}
+  if(k==='2'&&!dialogueOpen){activeTool='pickaxe';updateToolHUD();logMsg('Equipped: Pickaxe','xp');if(tutorialActive)advanceTutorial('switch_tool')}
   if(k==='m'&&!dialogueOpen&&!diceGameOpen){toggleDetailMap()}
   if(k==='`'&&isAdmin()){toggleAdminPanel()}
   if(k==='i'&&!dialogueOpen&&!diceGameOpen){toggleInventory()}
@@ -25529,10 +25672,10 @@ function goHome(){
 }
 function changeZone(zoneId){if(!inDuel)send('rpg_change_zone',{zone:zoneId})}
 
-// ── Tutorial Tips System ──
+// ── Tutorial Tips System (Goal-Based) ──
 function startTutorialTips(){
   if(localStorage.getItem('rpg_tutorial_done'))return;
-  tutorialActive=true;tutorialStep=0;tutorialTimer=0;
+  tutorialActive=true;tutorialStep=0;tutorialGoalMet={};
   showTutorialStep();
 }
 function showTutorialStep(){
@@ -25547,10 +25690,19 @@ function showTutorialStep(){
   const el=document.getElementById('tutorial-tip');
   el.innerHTML=step.text;
   el.classList.add('show');
-  setTimeout(()=>{
-    el.classList.remove('show');
-    setTimeout(()=>{tutorialStep++;showTutorialStep()},400);
-  },step.dur);
+  // 'done' step auto-advances after 4s
+  if(step.goal==='done'){
+    setTimeout(()=>{el.classList.remove('show');setTimeout(()=>{tutorialStep++;showTutorialStep()},400)},4000);
+  }
+}
+function advanceTutorial(goalName){
+  if(!tutorialActive)return;
+  const step=TUTORIAL_STEPS[tutorialStep];
+  if(!step||step.goal!==goalName)return;
+  tutorialGoalMet[goalName]=true;
+  const el=document.getElementById('tutorial-tip');
+  el.classList.remove('show');
+  setTimeout(()=>{tutorialStep++;showTutorialStep()},400);
 }
 
 let logTO;
@@ -25607,6 +25759,7 @@ function refreshInventory(){
 function toggleInventory(){
   const el=document.getElementById('inv-panel');
   if(el.classList.contains('show')){el.classList.remove('show');return}
+  if(tutorialActive)advanceTutorial('open_inventory');
   refreshInventory();
   el.classList.add('show');
 }
@@ -28463,10 +28616,15 @@ function initMobile(){
           if(sx>=sc.x-48&&sx<=sc.x+48&&sy>=ey-12&&sy<=ey+8){
             requestTradeWithPlayer(op.username);e.preventDefault();return;
           }
+          // Duel button region
+          const dly=ey-26;
+          if(sx>=sc.x-48&&sx<=sc.x+48&&sy>=dly-12&&sy<=dly+8){
+            challengePlayerToDuel(op.username);e.preventDefault();return;
+          }
           // Party invite button region
           const inPartyWith=myParty&&myParty.members&&myParty.members.some(m=>m.username===op.username);
           if(!inPartyWith){
-            const py2=ey-26;
+            const py2=ey-52;
             if(sx>=sc.x-60&&sx<=sc.x+60&&sy>=py2-12&&sy<=py2+8){
               partyInvitePlayer(op.username);e.preventDefault();return;
             }

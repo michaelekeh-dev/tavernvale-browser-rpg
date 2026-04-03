@@ -230,6 +230,49 @@ body{font-family:'Segoe UI',sans-serif;background:#0a0a0f;color:#e0e0e0;min-heig
     </div>
   </div>
 
+  <!-- World Events -->
+  <div class="panel">
+    <h2>🌍 World Events</h2>
+    <div id="worldEventStatus" style="padding:8px;background:#1a1a2a;border-radius:6px;margin-bottom:10px;font-size:12px;color:#888">No event active</div>
+    <div class="btn-grid">
+      <button class="btn" onclick="startWorldEvent('mob_invasion')" style="background:linear-gradient(90deg,#dc2626,#991b1b)">💀 Mob Invasion</button>
+      <button class="btn" onclick="startWorldEvent('blood_moon')" style="background:linear-gradient(90deg,#7f1d1d,#450a0a)">🌑 Blood Moon</button>
+      <button class="btn" onclick="startWorldEvent('boss_rush')" style="background:linear-gradient(90deg,#d97706,#92400e)">👹 Boss Rush</button>
+      <button class="btn" onclick="startWorldEvent('gold_rush')" style="background:linear-gradient(90deg,#ca8a04,#713f12)">⛏️ Gold Rush</button>
+      <button class="btn" onclick="startWorldEvent('bounty_hunt')" style="background:linear-gradient(90deg,#7c3aed,#4c1d95)">🎯 Bounty Hunt</button>
+      <button class="btn btn-red" onclick="stopWorldEvent()">🛑 Stop Event</button>
+    </div>
+  </div>
+
+  <!-- Caravan Control -->
+  <div class="panel">
+    <h2>🐪 Caravan Control</h2>
+    <div id="caravanStatus" style="padding:8px;background:#1a1a2a;border-radius:6px;margin-bottom:10px;font-size:12px;color:#888">No caravan active</div>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <div class="input-row">
+        <select id="caravanOre" style="flex:1;padding:8px;background:#1a1a2a;border:1px solid #2a2a3a;border-radius:6px;color:#e0e0e0;font-size:12px">
+          <option value="stone_chunk">🪨 Stone Chunk</option>
+          <option value="copper_ore">🟠 Copper Ore</option>
+          <option value="iron_ore">⚪ Iron Ore</option>
+          <option value="gold_nugget">🟡 Gold Nugget</option>
+          <option value="crystal_shard">💎 Crystal Shard</option>
+          <option value="raw_gem">💠 Raw Gem</option>
+          <option value="ruby_shard">🔴 Ruby Shard</option>
+          <option value="diamond_chunk">💠 Diamond Chunk</option>
+          <option value="void_fragment">🟣 Void Fragment</option>
+        </select>
+      </div>
+      <div class="input-row">
+        <input type="number" id="caravanPrice" placeholder="Price per unit (gold)" value="20" style="flex:1;padding:8px;background:#1a1a2a;border:1px solid #2a2a3a;border-radius:6px;color:#e0e0e0;font-size:12px" min="1">
+        <input type="number" id="caravanDuration" placeholder="Duration (minutes)" value="3" style="flex:1;padding:8px;background:#1a1a2a;border:1px solid #2a2a3a;border-radius:6px;color:#e0e0e0;font-size:12px" min="1">
+      </div>
+      <div class="input-row">
+        <button class="btn btn-green" onclick="startCustomCaravan()" style="flex:1">🐪 Start Caravan</button>
+        <button class="btn btn-red" onclick="stopCaravan()" style="flex:1">🛑 Stop Caravan</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Kick Connection -->
   <div class="panel">
     <h2>📡 Kick Connection</h2>
@@ -1688,7 +1731,7 @@ function adminRemoveCosmetic(username, cosmeticId) {
 }
 
 function softWipe() {
-  if (!confirm('⚠️ CLEAR ALL PROGRESS?\n\nThis will reset ALL players\' gold, items, XP, levels, wearables, cosmetics, achievements, and stats to zero.\n\nAccounts will be kept but empty.\n\nThis CANNOT be undone!')) return;
+  if (!confirm('⚠️ FULL PROGRESS WIPE\n\nThis will reset ALL players to brand new:\n• Gold, Vault Gold, XP, Levels → 0\n• Inventory, Equipment, Wearables → empty\n• Trust, Mining Level, Arena Stats → 0\n• Houses, Mining Gear, Achievements → removed\n• Cosmetics, Quests, Kill Stats → cleared\n\nAccounts kept but completely fresh.\n\nThis CANNOT be undone!')) return;
   if (!confirm('Are you ABSOLUTELY sure? All gold, items, everything — gone.')) return;
   ws.send(JSON.stringify({ type: 'admin_soft_wipe' }));
 }
@@ -1732,8 +1775,69 @@ if (adminToken) {
   loadPayouts();
   loadDiscordWebhook();
   loadDiscordBot();
+  setInterval(refreshWorldEventStatus, 5000);
+  setInterval(refreshCaravanStatus, 5000);
+  setTimeout(() => { refreshWorldEventStatus(); refreshCaravanStatus(); }, 1500);
 } else {
   document.getElementById('loginPassword').focus();
+}
+
+// ── World Event Admin ──
+function startWorldEvent(eventType) {
+  adminFetch('/api/admin/world-event/start', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ eventType })
+  }).then(r => r.json()).then(d => {
+    if (d.success) { addLog('🌍 Started world event: ' + eventType, 'success'); refreshWorldEventStatus(); }
+    else addLog('Failed to start event: ' + (d.error || 'unknown'), 'error');
+  }).catch(e => addLog('Error: ' + e.message, 'error'));
+}
+function stopWorldEvent() {
+  adminFetch('/api/admin/world-event/stop', { method: 'POST' })
+    .then(r => r.json()).then(d => {
+      if (d.success) { addLog('🛑 World event stopped', 'success'); refreshWorldEventStatus(); }
+      else addLog('No event to stop', 'error');
+    }).catch(e => addLog('Error: ' + e.message, 'error'));
+}
+function refreshWorldEventStatus() {
+  adminFetch('/api/admin/world-event').then(r => r.json()).then(d => {
+    const el = document.getElementById('worldEventStatus');
+    if (!d.active) { el.innerHTML = '<span style="color:#888">No event active</span>'; return; }
+    const secs = Math.max(0, Math.floor(d.timeLeft / 1000));
+    const m = Math.floor(secs / 60), s = secs % 60;
+    el.innerHTML = '<span style="color:#a855f7">🌍 ' + d.name + '</span> — <span style="color:#fbbf24">' + m + ':' + String(s).padStart(2, '0') + ' left</span>';
+  }).catch(() => {});
+}
+
+// ── Caravan Admin ──
+function startCustomCaravan() {
+  const oreId = document.getElementById('caravanOre').value;
+  const price = parseInt(document.getElementById('caravanPrice').value) || 20;
+  const durationMin = parseInt(document.getElementById('caravanDuration').value) || 3;
+  adminFetch('/api/admin/caravan/start', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ oreId, price, duration: durationMin * 60000 })
+  }).then(r => r.json()).then(d => {
+    if (d.success) { addLog('🐪 Caravan started: ' + d.ore + ' at ' + d.price + 'g for ' + durationMin + ' min', 'success'); refreshCaravanStatus(); }
+    else addLog('Failed: ' + (d.error || 'unknown'), 'error');
+  }).catch(e => addLog('Error: ' + e.message, 'error'));
+}
+function stopCaravan() {
+  adminFetch('/api/admin/caravan/stop', { method: 'POST' })
+    .then(r => r.json()).then(d => {
+      if (d.success) { addLog('🛑 Caravan stopped', 'success'); refreshCaravanStatus(); }
+    }).catch(e => addLog('Error: ' + e.message, 'error'));
+}
+function refreshCaravanStatus() {
+  adminFetch('/api/admin/caravan').then(r => r.json()).then(d => {
+    const el = document.getElementById('caravanStatus');
+    if (!d.active) { el.innerHTML = '<span style="color:#888">No caravan active</span>'; return; }
+    const secs = Math.max(0, Math.floor((d.expiresAt - Date.now()) / 1000));
+    const m = Math.floor(secs / 60), s = secs % 60;
+    el.innerHTML = '<span style="color:#fbbf24">🐪 ' + d.oreName + '</span> at <span style="color:#4ade80">' + d.caravanPrice + 'g</span> — <span style="color:#888">' + m + ':' + String(s).padStart(2, '0') + ' left</span>';
+  }).catch(() => {});
 }
 </script>
 </body>

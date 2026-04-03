@@ -510,6 +510,66 @@ const CARAVAN_CONFIG = {
 };
 
 // ═══════════════════════════════════════════
+// World Events — automated rotating events
+// ═══════════════════════════════════════════
+const WORLD_EVENTS = {
+  mob_invasion: {
+    name: 'Mob Invasion',
+    icon: '💀',
+    desc: 'A horde of monsters is attacking! Kill them all for bonus rewards!',
+    duration: 300000,      // 5 minutes
+    zones: ['combat', 'underground_mine', 'deep_mine'],
+    mobCountPerPlayer: 8,  // extra mobs spawned per player
+    goldMult: 2.0,         // gold multiplier during event
+    xpMult: 1.5,           // xp multiplier during event
+  },
+  blood_moon: {
+    name: 'Blood Moon',
+    icon: '🌑',
+    desc: 'The Blood Moon rises! Mobs deal 2x damage but drop 3x gold!',
+    duration: 300000,
+    zones: null,           // all zones
+    mobDmgMult: 2.0,
+    goldMult: 3.0,
+    xpMult: 1.5,
+  },
+  boss_rush: {
+    name: 'Boss Rush',
+    icon: '👹',
+    desc: 'Bosses respawn rapidly! Farm them while you can!',
+    duration: 300000,
+    zones: null,
+    bossRespawnMult: 0.15, // 15% of normal respawn time
+    goldMult: 1.5,
+    xpMult: 2.0,
+  },
+  gold_rush: {
+    name: 'Gold Rush',
+    icon: '⛏️',
+    desc: 'Mining yields are doubled! Get to the mines!',
+    duration: 300000,
+    zones: ['hub', 'underground_mine', 'deep_mine'],
+    miningGoldMult: 2.0,
+    miningXPMult: 1.5,
+  },
+  bounty_hunt: {
+    name: 'Bounty Hunt',
+    icon: '🎯',
+    desc: 'An elite bounty target has appeared! First to kill wins big!',
+    duration: 300000,
+    zones: ['combat', 'underground_mine'],
+    bountyGold: 2000,
+    bountyXP: 500,
+    bountyVG: 10,
+  },
+};
+const WORLD_EVENT_CONFIG = {
+  intervalMin: 3600000,   // 1 hour minimum between events
+  intervalMax: 3600000,   // 1 hour max (exactly 1/hour)
+  adminOverride: true,    // admin can force-trigger
+};
+
+// ═══════════════════════════════════════════
 // Mining Gear — Grizzle sells these
 // ═══════════════════════════════════════════
 const MINING_GEAR_SHOP = ['basic_helmet','basic_gloves','basic_boots','iron_helmet','iron_gloves','iron_boots','crystal_helmet','crystal_gloves','crystal_boots'];
@@ -1076,7 +1136,7 @@ class Game {
     if (!p.equipped[slot]) return { error: 'nothing_equipped' };
     p.inventory.push(p.equipped[slot]);
     const item = p.equipped[slot];
-    delete p.equipped[slot];
+    p.equipped[slot] = null;
     this.saveData();
     // Broadcast equip change to all players in zone
     const rp = this.rpgPlayers[username];
@@ -2142,6 +2202,8 @@ class Game {
   handleGift(from, to, amount) {
     const bet = parseInt(amount);
     if (isNaN(bet) || bet < 1) return { error: 'invalid' };
+    if (from === to) return { error: 'self_gift' };
+    if (!this.players[to]) return { error: 'not_found' };
     const pFrom = this.player(from);
     if (bet > pFrom.gold) return { error: 'broke', gold: pFrom.gold };
     const pTo = this.player(to);
@@ -2450,12 +2512,14 @@ class Game {
       p.bossKills = 0; p.dodgeCount = 0; p.tradeCount = 0;
       p.prestigeBonus = 0; p.prestige = 0;
       p.duelsWon = 0; p.duelsLost = 0; p.duelWinStreak = 0; p.bestDuelStreak = 0; p.arenaRating = 1000;
+      p.pvpTokens = 0; p.arenaKills = 0; p.arenaDeaths = 0;
+      p.vaultGold = 0; p.lastVgConvert = 0;
       p.inventory = []; p.equipped = {};
       p.wearables = []; p.activeWearables = { hat: null, cape: null, wrist: null, face: null };
       p.cosmetics = []; p.activeCosmetics = { border: null, title: null, hitEffect: null, badge: null, killEffect: null };
       p.achievements = [];
       p.activityLog = [{ t: Date.now(), a: 'wipe', d: 'Admin wiped all progress' }];
-      p.rpg = { miningLevel: 1, miningXP: 0, totalMined: 0, mobKills: 0, pickaxeTier: 1, trust: 0, buffDef: null, buffAtk: null, goblinChestOpened: false };
+      p.rpg = { miningLevel: 1, miningXP: 0, totalMined: 0, mobKills: 0, pickaxeTier: 1, trust: 0, buffDef: null, buffAtk: null, goblinChestOpened: false, miningGear: { helmet: null, gloves: null, boots: null }, house: null, stats: {} };
       p.ghostDefeated = false;
       p.lastDaily = 0;
       p.appearance = this.randomAppearance();
@@ -2714,6 +2778,9 @@ class Game {
     { id: 'dragons_lair', name: '🐉 Dragon\'s Lair', desc: 'Dragon breathes fire — random bonus hits', bonus: 'dragon' },
   ];
 
+  // ═══ Portal Duel System (player.html REST API — challenge/accept/decline with gold bets) ═══
+  // NOTE: Separate from rpgDuel* queue-based system used by rpg.html WebSocket clients.
+  // Both share the same player stats (arenaRating, duelsWon, duelsLost, etc.)
   challengeDuel(challenger, defender, betAmount) {
     const chal = this.player(challenger);
     const def = this.player(defender);
@@ -2796,10 +2863,10 @@ class Game {
     const winner = hp1 > 0 ? duel.challenger : hp2 > 0 ? duel.defender : (Math.random() < 0.5 ? duel.challenger : duel.defender);
     const loser = winner === duel.challenger ? duel.defender : duel.challenger;
 
-    // Transfer gold
+    // Transfer gold (guard against negative)
     if (duel.bet > 0) {
       this.player(winner).gold += duel.bet;
-      this.player(loser).gold -= duel.bet;
+      this.player(loser).gold = Math.max(0, this.player(loser).gold - duel.bet);
     }
     this.logAction(winner, 'duel_win', 'Beat ' + loser + (duel.bet > 0 ? ' +' + duel.bet + 'g' : ''));
     this.logAction(loser, 'duel_lose', 'Lost to ' + winner + (duel.bet > 0 ? ' -' + duel.bet + 'g' : ''));
@@ -3021,6 +3088,12 @@ class Game {
     // ── Community Milestones ──
     this.communityMilestonesCompleted = []; // array of milestone ids
     this.communityMilestoneData = { bossKills: 0 }; // extra counters
+    // ── World Events ──
+    this.activeWorldEvent = null;  // { id, eventType, config, startedAt, expiresAt, bountyTarget, participants }
+    this.nextWorldEventAt = Date.now() + WORLD_EVENT_CONFIG.intervalMin + Math.random() * (WORLD_EVENT_CONFIG.intervalMax - WORLD_EVENT_CONFIG.intervalMin);
+    this.worldEventId = 0;
+    // ── Duel Challenges (direct player-to-player) ──
+    this.rpgDuelChallenges = {}; // challengeId -> { challenger, defender, timestamp }
     this.rpgSpawnAll();
     // Clear any existing RPG timers to prevent duplicates on re-init
     if (this.rpgTickTimer) clearInterval(this.rpgTickTimer);
@@ -3966,6 +4039,9 @@ class Game {
         // Elite/Champion attack faster
         if (mob.eliteTier === 'champion') atkCD = Math.floor(atkCD * 0.6);
         else if (mob.eliteTier === 'elite') atkCD = Math.floor(atkCD * 0.8);
+        // Blood Moon — scale mob attack
+        const mobDmgMult = this.rpgGetWorldEventMultiplier('mobDmg');
+        const effectiveAtk = Math.floor(mob.atk * mobDmgMult);
         let moved = false;
 
         // ── Find nearest player ──
@@ -4119,7 +4195,7 @@ class Game {
                 const targetRp = target.rp;
                 const p = this.player(target.username);
                 const def = this.armorDefBonus(p) + ((p.rpg && p.rpg.buffDef && now < p.rpg.buffDef.expires) ? p.rpg.buffDef.value : 0);
-                let dmg = Math.max(1, mob.atk - Math.floor(Math.random() * 3) - def);
+                let dmg = Math.max(1, effectiveAtk - Math.floor(Math.random() * 3) - def);
                 // Slow_tank does bonus damage
                 if (behavior === 'slow_tank') dmg = Math.floor(dmg * 1.3);
                 // Block / Parry check
@@ -4243,7 +4319,7 @@ class Game {
           if (ab.name === 'throw_dagger' && nearestDist > 80 && nearestDist < ab.range) {
             const p = this.player(nearestPlayer.username);
             const def = this.armorDefBonus(p);
-            const dmg = Math.max(1, Math.floor(mob.atk * ab.dmgMult) - def);
+            const dmg = Math.max(1, Math.floor(effectiveAtk * ab.dmgMult) - def);
             nearestPlayer.rp.hp = Math.max(0, nearestPlayer.rp.hp - dmg);
             this.rpgSendTo(nearestPlayer.username, { type: 'rpg_mob_attack', data: { mobId: mob.id, dmg, hp: nearestPlayer.rp.hp, maxHP: nearestPlayer.rp.maxHP } });
             this.rpgSendTo(ownerUser, { type: 'rpg_mob_ability', data: { mobId: mob.id, ability: 'throw_dagger', x: mob.x, y: mob.y, tx: nearestPlayer.x, ty: nearestPlayer.y } });
@@ -4272,7 +4348,7 @@ class Game {
             if (afterDist < 55) {
               const p = this.player(nearestPlayer.username);
               const def = this.armorDefBonus(p);
-              const dmg = Math.max(1, Math.floor(mob.atk * ab.dmgMult) - def);
+              const dmg = Math.max(1, Math.floor(effectiveAtk * ab.dmgMult) - def);
               nearestPlayer.rp.hp = Math.max(0, nearestPlayer.rp.hp - dmg);
               this.rpgSendTo(nearestPlayer.username, { type: 'rpg_mob_attack', data: { mobId: mob.id, dmg, hp: nearestPlayer.rp.hp, maxHP: nearestPlayer.rp.maxHP } });
               if (nearestPlayer.rp.hp <= 0) {
@@ -4312,7 +4388,7 @@ class Game {
 
           // ── DEMON FIRE BREATH — cone AoE, hits all nearby players ──
           if (ab.name === 'fire_breath' && nearestDist < ab.range) {
-            const breathDmg = Math.floor(mob.atk * ab.dmgMult);
+            const breathDmg = Math.floor(effectiveAtk * ab.dmgMult);
             for (const pl of playersInZone) {
               const pdx = pl.x - mob.x, pdy = pl.y - mob.y;
               const pDist = Math.sqrt(pdx * pdx + pdy * pdy);
@@ -4357,7 +4433,7 @@ class Game {
               if (pDist < ab.radius) {
                 const p2 = this.player(pl.username);
                 const def2 = this.armorDefBonus(p2);
-                const sdmg = Math.max(1, Math.floor(mob.atk * ab.dmgMult) - def2);
+                const sdmg = Math.max(1, Math.floor(effectiveAtk * ab.dmgMult) - def2);
                 pl.rp.hp = Math.max(0, pl.rp.hp - sdmg);
                 this.rpgSendTo(pl.username, { type: 'rpg_mob_attack', data: { mobId: mob.id, dmg: sdmg, hp: pl.rp.hp, maxHP: pl.rp.maxHP } });
                 // Stun the player
@@ -4700,6 +4776,36 @@ class Game {
     if (this.pendingMines) {
       for (const [u, pm] of Object.entries(this.pendingMines)) {
         if (now - pm.createdAt > 10000) delete this.pendingMines[u];
+      }
+    }
+
+    // ── World Event tick ──
+    if (this.activeWorldEvent && now > this.activeWorldEvent.expiresAt) {
+      this.rpgEndWorldEvent();
+    }
+    if (!this.activeWorldEvent) {
+      if (this.nextWorldEventAt && now >= this.nextWorldEventAt) {
+        this.rpgStartRandomWorldEvent();
+      }
+    }
+
+    // ── Duel queue fallback matching (cross-bracket after 5s) ──
+    if (this.rpgDuelQueue.length >= 2) {
+      const oldest = this.rpgDuelQueue[0];
+      const rp0 = this.rpgPlayers[oldest];
+      if (rp0 && rp0._duelQueuedAt && now - rp0._duelQueuedAt > 5000) {
+        // Match any two players regardless of bracket
+        const u1 = this.rpgDuelQueue.shift();
+        const u2 = this.rpgDuelQueue.shift();
+        if (u1 && u2) this.rpgDuelStart(u1, u2);
+      }
+    }
+
+    // ── Expire stale duel challenges (30s) ──
+    for (const [cId, ch] of Object.entries(this.rpgDuelChallenges)) {
+      if (now - ch.timestamp > 30000) {
+        this.rpgSendTo(ch.challenger, { type: 'rpg_duel_challenge_expired', data: { target: ch.defender } });
+        delete this.rpgDuelChallenges[cId];
       }
     }
   }
@@ -5399,7 +5505,8 @@ class Game {
 
     if (boss.hp <= 0) {
       boss.dead = true;
-      boss.respawnAt = Date.now() + (RPG_ZONES[rp.zone].boss.respawnTime || 120000);
+      const bossRespawnMult = this.rpgGetWorldEventMultiplier('bossRespawn');
+      boss.respawnAt = Date.now() + Math.floor((RPG_ZONES[rp.zone].boss.respawnTime || 120000) * (bossRespawnMult < 1 ? bossRespawnMult : 1));
       this.communityMilestoneData.bossKills = (this.communityMilestoneData.bossKills || 0) + 1;
       if (pb.saplings) pb.saplings.forEach(s => { s.dead = true; });
       const zone = RPG_ZONES[rp.zone];
@@ -5665,6 +5772,7 @@ class Game {
           moveSpeedMult: this.getMiningGearStat(p, 'moveSpeedMult'),
           lightRadius: this.getMiningGearStat(p, 'lightRadius'),
           caravan: this.rpgGetCaravan(), achievements: p.achievements || [],
+          worldEvent: this.activeWorldEvent ? { active: true, type: this.activeWorldEvent.type, name: this.activeWorldEvent.name, desc: this.activeWorldEvent.desc, endsAt: this.activeWorldEvent.endsAt, multipliers: this.activeWorldEvent.multipliers } : null,
           party: _partyData,
           dungeonState: this.rpgGetDungeonState(instId, username),
         };
@@ -5710,6 +5818,7 @@ class Game {
           moveSpeedMult: this.getMiningGearStat(p, 'moveSpeedMult'),
           lightRadius: this.getMiningGearStat(p, 'lightRadius'),
           caravan: this.rpgGetCaravan(), achievements: p.achievements || [],
+          worldEvent: this.activeWorldEvent ? { active: true, type: this.activeWorldEvent.type, name: this.activeWorldEvent.name, desc: this.activeWorldEvent.desc, endsAt: this.activeWorldEvent.endsAt, multipliers: this.activeWorldEvent.multipliers } : null,
           party: _partyData,
           savedZone: savedZone, savedX: savedX, savedY: savedY, savedHP: Math.min(savedHP, maxHP),
         };
@@ -5747,6 +5856,7 @@ class Game {
       moveSpeedMult: this.getMiningGearStat(p, 'moveSpeedMult'),
       lightRadius: this.getMiningGearStat(p, 'lightRadius'),
       caravan: this.rpgGetCaravan(),
+      worldEvent: this.activeWorldEvent ? { active: true, type: this.activeWorldEvent.type, name: this.activeWorldEvent.name, desc: this.activeWorldEvent.desc, endsAt: this.activeWorldEvent.endsAt, multipliers: this.activeWorldEvent.multipliers } : null,
       achievements: p.achievements || [],
       party: _partyData,
     };
@@ -5977,8 +6087,11 @@ class Game {
     // Gold & XP
     const goldMult = grade === 'perfect' ? 2 : grade === 'good' ? 1 : 0.5;
     const xpMult = grade === 'perfect' ? 2 : grade === 'good' ? 1 : 0.5;
-    const goldInt = pending.nodeGold > 0 ? this.addGold(p, Math.floor(pending.nodeGold * goldMult)) : 0;
-    const xpGain = Math.floor(pending.nodeXP * xpMult);
+    // Apply world event mining multipliers
+    const eventGoldMult = this.rpgGetWorldEventMultiplier('miningGold');
+    const eventXPMult = this.rpgGetWorldEventMultiplier('miningXP');
+    const goldInt = pending.nodeGold > 0 ? this.addGold(p, Math.floor(pending.nodeGold * goldMult * eventGoldMult)) : 0;
+    const xpGain = Math.floor(pending.nodeXP * xpMult * eventXPMult);
     p.rpg.miningXP += xpGain;
     p.rpg.totalMined++;
     if (p.rpg.totalMined % 5 === 0) this.addTrust(p, 1);
@@ -6125,10 +6238,16 @@ class Game {
       mob.dead = true;
       const eliteTier = mob.eliteTier || 'normal';
       mob.respawnAt = Date.now() + (eliteTier === 'champion' ? 12000 : eliteTier === 'elite' ? 8000 : 3000);
-      const goldBase = mob.goldMin + Math.floor(Math.random() * (mob.goldMax - mob.goldMin + 1));
+      let goldBase = mob.goldMin + Math.floor(Math.random() * (mob.goldMax - mob.goldMin + 1));
+      let xpBase = mob.xpReward;
+      // World event multipliers
+      goldBase = Math.floor(goldBase * this.rpgGetWorldEventMultiplier('gold'));
+      xpBase = Math.floor(xpBase * this.rpgGetWorldEventMultiplier('xp'));
       const gold = this.addGold(p, goldBase);
-      const leveled = this.addXP(p, mob.xpReward);
+      const leveled = this.addXP(p, xpBase);
       p.rpg.mobKills = (p.rpg.mobKills || 0) + 1;
+      // Track world event participation
+      this.rpgRecordWorldEventParticipation(username, 1, gold, xpBase);
       const newTrust = this.addTrust(p, eliteTier === 'champion' ? 3 : eliteTier === 'elite' ? 2 : 1);
       // Roll loot table — use templateName (mob.name has elite prefix)
       const mobKey = (mob.templateName || mob.name).toLowerCase().replace(/\s+/g, '_');
@@ -6153,9 +6272,9 @@ class Game {
       this.saveData();
       this.emitAchievements(username);
       this.rpgSendTo(username, { type: 'rpg_mob_died', data: { mobId, killer: username, eliteTier } });
-      this.logAction(username, 'mob_kill', mob.name + ' +' + gold + 'g +' + mob.xpReward + 'xp' + (droppedItems.length ? ' drops:' + droppedItems.map(d=>d.name).join(',') : ''));
+      this.logAction(username, 'mob_kill', mob.name + ' +' + gold + 'g +' + xpBase + 'xp' + (droppedItems.length ? ' drops:' + droppedItems.map(d=>d.name).join(',') : ''));
       const _cos = p.activeCosmetics || {};
-      return { killed: true, dmg, crit, gold, xp: mob.xpReward, leveled, level: p.level, currentXP: p.xp, xpNeeded: this.xpNeeded(p), totalGold: p.gold, mobName: mob.name, drops: droppedItems, wearableDrops: droppedWearables, weaponBroke: wepResult && wepResult.broken ? wepResult.name : null, trust: p.rpg.trust, killEffect: _cos.killEffect || null };
+      return { killed: true, dmg, crit, gold, xp: xpBase, leveled, level: p.level, currentXP: p.xp, xpNeeded: this.xpNeeded(p), totalGold: p.gold, mobName: mob.name, drops: droppedItems, wearableDrops: droppedWearables, weaponBroke: wepResult && wepResult.broken ? wepResult.name : null, trust: p.rpg.trust, killEffect: _cos.killEffect || null };
     }
 
     const _cos2 = p.activeCosmetics || {};
@@ -6363,6 +6482,23 @@ class Game {
       expiresAt: Date.now() + CARAVAN_CONFIG.duration,
     };
     // Announce to all RPG players
+    this.rpgBroadcastAll({ type: 'rpg_caravan_arrive', data: this.activeCaravan });
+    return this.activeCaravan;
+  }
+
+  rpgStartCustomCaravan(oreId, price, durationMs) {
+    if (this.activeCaravan) this.rpgEndCaravan();
+    const item = ITEMS[oreId];
+    if (!item) return { error: 'invalid_ore' };
+    this.activeCaravan = {
+      ore: oreId,
+      oreName: item.name,
+      oreIcon: item.icon || '📦',
+      caravanPrice: Math.max(1, Math.floor(price)),
+      basePricePerUnit: item.sellPrice || 1,
+      startedAt: Date.now(),
+      expiresAt: Date.now() + Math.max(60000, Math.floor(durationMs)),
+    };
     this.rpgBroadcastAll({ type: 'rpg_caravan_arrive', data: this.activeCaravan });
     return this.activeCaravan;
   }
@@ -6590,8 +6726,9 @@ class Game {
     const rp = this.rpgPlayers[username];
     if (!rp) return;
     if (rp.sitting) { rp.sitting = null; } // Stand up on move
-    x = Math.max(0, Math.min(2400, x));
-    y = Math.max(0, Math.min(2400, y));
+    const WORLD_BOUND = MAP_W * TILE_SIZE;
+    x = Math.max(0, Math.min(WORLD_BOUND, x));
+    y = Math.max(0, Math.min(WORLD_BOUND, y));
     const dir = ['up','down','left','right'].includes(facing) ? facing : 'down';
     // Check if in party dungeon instance
     const dungInst = this.rpgDungeonInstances[rp.zone];
@@ -6670,7 +6807,8 @@ class Game {
       const dmg = boss.hp;
       boss.hp = 0;
       boss.dead = true;
-      boss.respawnAt = Date.now() + (RPG_ZONES[rp.zone].boss.respawnTime || 120000);
+      const bossRespawnMult2 = this.rpgGetWorldEventMultiplier('bossRespawn');
+      boss.respawnAt = Date.now() + Math.floor((RPG_ZONES[rp.zone].boss.respawnTime || 120000) * (bossRespawnMult2 < 1 ? bossRespawnMult2 : 1));
       this.communityMilestoneData.bossKills = (this.communityMilestoneData.bossKills || 0) + 1;
       if (pb.saplings) pb.saplings.forEach(s => { s.dead = true; });
       const p = this.rpgGetPlayerData(username);
@@ -7227,22 +7365,24 @@ class Game {
           }
           this.saveData();
         }
-      } catch {}
+      } catch (e) { console.error('[Milestone check error]', ms.id, e.message); }
     }
   }
 
   rpgBroadcastZone(zoneId, msg, exclude) {
+    const str = JSON.stringify(msg);
     for (const [u, rp] of Object.entries(this.rpgPlayers)) {
       if (rp.zone === zoneId && u !== exclude && rp.ws) {
-        try { rp.ws.send(JSON.stringify(msg)); } catch {}
+        try { rp.ws.send(str); } catch (e) { console.error(`[WS send error] user=${u}`, e.message); }
       }
     }
   }
 
   rpgBroadcastAll(msg) {
-    for (const [, rp] of Object.entries(this.rpgPlayers)) {
+    const str = JSON.stringify(msg);
+    for (const [u, rp] of Object.entries(this.rpgPlayers)) {
       if (rp.ws) {
-        try { rp.ws.send(JSON.stringify(msg)); } catch {}
+        try { rp.ws.send(str); } catch (e) { console.error(`[WS send error] user=${u}`, e.message); }
       }
     }
   }
@@ -7250,7 +7390,7 @@ class Game {
   rpgSendTo(username, msg) {
     const rp = this.rpgPlayers[username];
     if (rp && rp.ws) {
-      try { rp.ws.send(JSON.stringify(msg)); } catch {}
+      try { rp.ws.send(JSON.stringify(msg)); } catch (e) { console.error(`[WS send error] user=${username}`, e.message); }
     }
   }
 
@@ -7440,7 +7580,8 @@ class Game {
     const p = this.rpgGetPlayerData(username);
     const bracket = this.getPlayerBracket(p.level);
     this.rpgDuelQueue.push(username);
-    // Try to match within same bracket
+    rp._duelQueuedAt = Date.now();
+    // Try to match within same bracket first
     const match = this.rpgDuelQueue.find(u => {
       if (u === username) return false;
       const op = this.rpgGetPlayerData(u);
@@ -7451,6 +7592,18 @@ class Game {
       this.rpgDuelQueue.splice(this.rpgDuelQueue.indexOf(match), 1);
       this.rpgDuelStart(username, match);
       return { matched: true, bracket };
+    }
+    // No same-bracket match — also try anyone who's been waiting 5+ seconds
+    const fallback = this.rpgDuelQueue.find(u => {
+      if (u === username) return false;
+      const urp = this.rpgPlayers[u];
+      return urp && urp._duelQueuedAt && Date.now() - urp._duelQueuedAt > 5000;
+    });
+    if (fallback) {
+      this.rpgDuelQueue.splice(this.rpgDuelQueue.indexOf(username), 1);
+      this.rpgDuelQueue.splice(this.rpgDuelQueue.indexOf(fallback), 1);
+      this.rpgDuelStart(username, fallback);
+      return { matched: true, bracket: 'cross' };
     }
     this.rpgBroadcastAll({ type: 'rpg_duel_queue_update', data: { count: this.rpgDuelQueue.length } });
     return { queued: true, position: this.rpgDuelQueue.length, bracket };
@@ -7687,6 +7840,228 @@ class Game {
   }
 
   // ═══════════════════════════════════════════
+  // Direct Duel Challenges (player-to-player)
+  // ═══════════════════════════════════════════
+  rpgDuelChallenge(challenger, targetUsername) {
+    const rp = this.rpgPlayers[challenger];
+    if (!rp) return { error: 'not_in_rpg' };
+    if (rp.inDuel) return { error: 'already_in_duel' };
+    if (challenger === targetUsername) return { error: 'cannot_challenge_self' };
+    const rpTarget = this.rpgPlayers[targetUsername];
+    if (!rpTarget) return { error: 'target_not_found' };
+    if (rpTarget.inDuel) return { error: 'target_in_duel' };
+    // Check if already has pending challenge to this target
+    for (const ch of Object.values(this.rpgDuelChallenges)) {
+      if (ch.challenger === challenger && ch.defender === targetUsername) return { error: 'already_challenged' };
+    }
+    const id = 'dc_' + (++this.rpgDuelId);
+    this.rpgDuelChallenges[id] = { challenger, defender: targetUsername, timestamp: Date.now() };
+    // Notify the target
+    const p = this.rpgGetPlayerData(challenger);
+    this.rpgSendTo(targetUsername, { type: 'rpg_duel_challenge_received', data: {
+      challengeId: id, challenger, challengerLevel: p ? p.level : 1,
+    }});
+    return { sent: true, challengeId: id };
+  }
+
+  rpgDuelAcceptChallenge(username, challengeId) {
+    const ch = this.rpgDuelChallenges[challengeId];
+    if (!ch) return { error: 'not_found' };
+    if (ch.defender !== username) return { error: 'not_yours' };
+    const rp1 = this.rpgPlayers[ch.challenger];
+    const rp2 = this.rpgPlayers[ch.defender];
+    if (!rp1) return { error: 'challenger_offline' };
+    if (!rp2) return { error: 'not_in_rpg' };
+    if (rp1.inDuel || rp2.inDuel) return { error: 'already_in_duel' };
+    delete this.rpgDuelChallenges[challengeId];
+    // Remove both from queue if they're in it
+    const qi1 = this.rpgDuelQueue.indexOf(ch.challenger);
+    if (qi1 >= 0) this.rpgDuelQueue.splice(qi1, 1);
+    const qi2 = this.rpgDuelQueue.indexOf(ch.defender);
+    if (qi2 >= 0) this.rpgDuelQueue.splice(qi2, 1);
+    this.rpgDuelStart(ch.challenger, ch.defender);
+    return { started: true };
+  }
+
+  rpgDuelDeclineChallenge(username, challengeId) {
+    const ch = this.rpgDuelChallenges[challengeId];
+    if (!ch) return { error: 'not_found' };
+    if (ch.defender !== username) return { error: 'not_yours' };
+    this.rpgSendTo(ch.challenger, { type: 'rpg_duel_challenge_declined', data: { target: ch.defender } });
+    delete this.rpgDuelChallenges[challengeId];
+    return { declined: true };
+  }
+
+  // ═══════════════════════════════════════════
+  // World Events — automated rotating events
+  // ═══════════════════════════════════════════
+  rpgStartRandomWorldEvent() {
+    const eventTypes = Object.keys(WORLD_EVENTS);
+    const type = eventTypes[Math.floor(Math.random() * eventTypes.length)];
+    return this.rpgStartWorldEvent(type);
+  }
+
+  rpgStartWorldEvent(eventType) {
+    if (this.activeWorldEvent) this.rpgEndWorldEvent();
+    const cfg = WORLD_EVENTS[eventType];
+    if (!cfg) return { error: 'invalid_event' };
+    const now = Date.now();
+    const event = {
+      id: ++this.worldEventId,
+      eventType,
+      config: cfg,
+      startedAt: now,
+      expiresAt: now + cfg.duration,
+      participants: {},  // username -> { kills, gold, xp }
+      bountyTarget: null,
+      bountyClaimed: false,
+    };
+
+    // Special setup per event type
+    if (eventType === 'mob_invasion') {
+      // Spawn extra mobs for all players in affected zones
+      for (const [username, rp] of Object.entries(this.rpgPlayers)) {
+        if (rp.disconnected) continue;
+        if (!cfg.zones || cfg.zones.includes(rp.zone)) {
+          this._spawnInvasionMobs(username, rp.zone, cfg.mobCountPerPlayer);
+        }
+      }
+    }
+    if (eventType === 'bounty_hunt') {
+      // Create a bounty elite in a random affected zone
+      const zone = cfg.zones[Math.floor(Math.random() * cfg.zones.length)];
+      const names = ['Shadow Stalker', 'Crimson Reaver', 'Iron Phantom', 'Blood Warden', 'Void Assassin'];
+      event.bountyTarget = {
+        zone,
+        name: names[Math.floor(Math.random() * names.length)],
+        spawned: true,
+      };
+    }
+    if (eventType === 'boss_rush') {
+      // Instantly respawn all dead bosses for all players
+      for (const [zoneId, w] of Object.entries(this.rpgWorld)) {
+        if (w.playerBosses) {
+          for (const [u, pb] of Object.entries(w.playerBosses)) {
+            if (pb.boss && pb.boss.dead) {
+              pb.boss = this.rpgMakeBoss(zoneId);
+              pb.saplings = [];
+              this.rpgSendTo(u, { type: 'rpg_boss_spawn', data: this.rpgGetBossData(pb.boss) });
+            }
+          }
+        }
+      }
+    }
+
+    this.activeWorldEvent = event;
+    // Broadcast to all players
+    this.rpgBroadcastAll({ type: 'rpg_world_event_start', data: {
+      id: event.id, eventType, name: cfg.name, icon: cfg.icon,
+      desc: cfg.desc, duration: cfg.duration, expiresAt: event.expiresAt,
+      bountyTarget: event.bountyTarget,
+    }});
+    return { started: true, event: eventType, name: cfg.name };
+  }
+
+  _spawnInvasionMobs(username, zoneId, count) {
+    const w = this.rpgWorld[zoneId];
+    if (!w || !w.playerMobs) return;
+    if (!w.playerMobs[username]) return;
+    const zone = RPG_ZONES[zoneId];
+    if (!zone || !zone.mobs) return;
+    for (let i = 0; i < count; i++) {
+      const mob = this.rpgMakeMob(zoneId, w.playerMobs[username].length + i, null, null);
+      mob.isInvasion = true; // tag so we can give bonus rewards
+      mob.hp = Math.floor(mob.hp * 1.5); // tougher invasion mobs
+      mob.maxHP = mob.hp;
+      w.playerMobs[username].push(mob);
+      this.rpgSendTo(username, { type: 'rpg_mob_spawn', data: mob });
+    }
+  }
+
+  rpgEndWorldEvent() {
+    if (!this.activeWorldEvent) return;
+    const event = this.activeWorldEvent;
+    const cfg = event.config;
+
+    // Distribute participation rewards
+    const participants = Object.entries(event.participants);
+    if (participants.length > 0) {
+      // Sort by kills for MVP
+      participants.sort((a, b) => (b[1].kills || 0) - (a[1].kills || 0));
+      const mvp = participants[0][0];
+      const mvpBonus = 500; // bonus gold for top participant
+      const mvpP = this.player(mvp);
+      if (mvpP) {
+        mvpP.gold += mvpBonus;
+        this.rpgSendTo(mvp, { type: 'rpg_world_event_mvp', data: { gold: mvpBonus } });
+      }
+    }
+
+    this.rpgBroadcastAll({ type: 'rpg_world_event_end', data: {
+      id: event.id, eventType: event.eventType, name: cfg.name, icon: cfg.icon,
+      participants: participants.length,
+      mvp: participants.length > 0 ? participants[0][0] : null,
+    }});
+    this.activeWorldEvent = null;
+    this.nextWorldEventAt = Date.now() + WORLD_EVENT_CONFIG.intervalMin + Math.random() * (WORLD_EVENT_CONFIG.intervalMax - WORLD_EVENT_CONFIG.intervalMin);
+  }
+
+  rpgGetWorldEventMultiplier(type) {
+    // Returns multiplier for gold/xp/mining during active events
+    if (!this.activeWorldEvent) return 1.0;
+    const cfg = this.activeWorldEvent.config;
+    if (type === 'gold') return cfg.goldMult || 1.0;
+    if (type === 'xp') return cfg.xpMult || 1.0;
+    if (type === 'miningGold') return cfg.miningGoldMult || 1.0;
+    if (type === 'miningXP') return cfg.miningXPMult || 1.0;
+    if (type === 'mobDmg') return cfg.mobDmgMult || 1.0;
+    if (type === 'bossRespawn') return cfg.bossRespawnMult || 1.0;
+    return 1.0;
+  }
+
+  rpgRecordWorldEventParticipation(username, kills, gold, xp) {
+    if (!this.activeWorldEvent) return;
+    if (!this.activeWorldEvent.participants[username]) {
+      this.activeWorldEvent.participants[username] = { kills: 0, gold: 0, xp: 0 };
+    }
+    const p = this.activeWorldEvent.participants[username];
+    p.kills += kills || 0;
+    p.gold += gold || 0;
+    p.xp += xp || 0;
+  }
+
+  rpgClaimBounty(username) {
+    if (!this.activeWorldEvent || this.activeWorldEvent.eventType !== 'bounty_hunt') return { error: 'no_bounty' };
+    if (this.activeWorldEvent.bountyClaimed) return { error: 'already_claimed' };
+    this.activeWorldEvent.bountyClaimed = true;
+    const cfg = this.activeWorldEvent.config;
+    const p = this.player(username);
+    if (!p) return { error: 'not_found' };
+    p.gold += cfg.bountyGold;
+    this.addXP(p, cfg.bountyXP);
+    if (cfg.bountyVG) this.awardVaultGold(username, cfg.bountyVG, 'Bounty Hunt reward');
+    this.saveData();
+    this.rpgBroadcastAll({ type: 'rpg_bounty_claimed', data: {
+      hunter: username, gold: cfg.bountyGold, xp: cfg.bountyXP, vg: cfg.bountyVG || 0,
+      targetName: this.activeWorldEvent.bountyTarget ? this.activeWorldEvent.bountyTarget.name : 'Bounty',
+    }});
+    return { success: true, gold: cfg.bountyGold, xp: cfg.bountyXP, vg: cfg.bountyVG || 0 };
+  }
+
+  rpgAdminStartWorldEvent(username, eventType) {
+    const result = this.rpgStartWorldEvent(eventType);
+    this.logAction(username, 'admin_world_event', 'Started ' + eventType);
+    return result;
+  }
+
+  rpgAdminStopWorldEvent(username) {
+    if (!this.activeWorldEvent) return { error: 'no_active_event' };
+    this.logAction(username, 'admin_world_event', 'Stopped ' + this.activeWorldEvent.eventType);
+    this.rpgEndWorldEvent();
+    return { stopped: true };
+  }
+
+  // ═══════════════════════════════════════════
   // PvP Shop
   // ═══════════════════════════════════════════
   rpgPvpShopBuy(username, itemId) {
@@ -7695,11 +8070,11 @@ class Game {
     const shopItem = PVP_SHOP.find(i => i.id === itemId);
     if (!shopItem) return { error: 'invalid_item' };
     if ((p.arenaTokens || 0) < shopItem.cost) return { error: 'not_enough_tokens', need: shopItem.cost, have: p.arenaTokens || 0 };
-    // Check if already owned
-    if (p.wearables && p.wearables[itemId]) return { error: 'already_owned' };
+    // Check if already owned (wearables is an array)
+    if (!p.wearables) p.wearables = [];
+    if (Array.isArray(p.wearables) && p.wearables.includes(itemId)) return { error: 'already_owned' };
     p.arenaTokens -= shopItem.cost;
-    if (!p.wearables) p.wearables = {};
-    p.wearables[itemId] = true;
+    p.wearables.push(itemId);
     this.saveData();
     return { success: true, item: shopItem, remainingTokens: p.arenaTokens };
   }
@@ -7724,7 +8099,7 @@ class Game {
   }
 
   rpgGetArenaLeaderboard() {
-    const entries = Object.entries(this.gameData).filter(([, p]) => (p.duelsWon || 0) + (p.duelsLost || 0) > 0);
+    const entries = Object.entries(this.players).filter(([, p]) => (p.duelsWon || 0) + (p.duelsLost || 0) > 0);
     entries.sort((a, b) => (b[1].arenaRating || 1000) - (a[1].arenaRating || 1000));
     return entries.slice(0, 20).map(([name, p], i) => {
       const rank = this.getArenaRank(p.arenaRating || 1000);
@@ -7881,9 +8256,9 @@ class Game {
     const template = ITEMS[invItem.id];
     if (!template || template.type !== 'furniture') return { error: 'not_furniture' };
     const placeFloor = (tierCfg.floors && tierCfg.floors >= 2) ? (floor || 1) : 1;
-    // Bounds check
+    // Bounds check (keep 1-tile wall margin, consistent with rpgMoveFurniture)
     const fw = template.w || 1, fh = template.h || 1;
-    if (fx < 0 || fy < 0 || fx + fw > tierCfg.gridW || fy + fh > tierCfg.gridH) return { error: 'out_of_bounds' };
+    if (fx < 1 || fy < 1 || fx + fw > tierCfg.gridW - 1 || fy + fh > tierCfg.gridH - 1) return { error: 'out_of_bounds' };
     // Overlap check (same floor only)
     for (const placed of h.furniture) {
       if ((placed.floor || 1) !== placeFloor) continue;
@@ -7952,7 +8327,7 @@ class Game {
     const furn = h.furniture[furnitureIdx];
     if (furn.id !== 'achievement_plaque') return { error: 'not_plaque' };
     // Verify player has earned this achievement
-    const earned = p.rpg.achievements || [];
+    const earned = p.achievements || [];
     if (!earned.includes(achievementId)) return { error: 'not_earned' };
     furn.achievementId = achievementId;
     this.saveData();
@@ -9367,4 +9742,4 @@ const COMMUNITY_MILESTONES = [
   { id: 'ms_1000_stones',  title: 'Stone by Stone',      desc: '1000 total stones mined by the community.', check: g => { let t = 0; for (const u of Object.keys(g.players)) { const r = g.players[u].rpg; if (r) t += (r.stats?.mined || 0); } return t >= 1000; }, reward: 'Crystal pickaxe available in shop' },
 ];
 
-module.exports = { Game, CONFIG, COSMETICS, WEARABLES, BOSS_LOOT, ITEMS, LOOT_TABLES, RECIPES, NPC_SHOP, ACHIEVEMENTS, RARITY_COLOR, VENDOR_PRICE, RANK_BADGES, getRankBadge, RPG_ZONES, RPG_PICKAXES, ORE_TIER_REQ, TAVERN_QUESTS, COMMUNITY_MILESTONES, TILE, TILE_PROPS, TILE_SIZE, MAP_W, MAP_H, GRIZZLE_QUESTS, ENCHANTMENTS, REFINE_RECIPES, ORE_QUALITY, ARENA_CONFIG, PVP_SHOP, PARTY_DUNGEON_CONFIG };
+module.exports = { Game, CONFIG, COSMETICS, WEARABLES, BOSS_LOOT, ITEMS, LOOT_TABLES, RECIPES, NPC_SHOP, ACHIEVEMENTS, RARITY_COLOR, VENDOR_PRICE, RANK_BADGES, getRankBadge, RPG_ZONES, RPG_PICKAXES, ORE_TIER_REQ, TAVERN_QUESTS, COMMUNITY_MILESTONES, TILE, TILE_PROPS, TILE_SIZE, MAP_W, MAP_H, GRIZZLE_QUESTS, ENCHANTMENTS, REFINE_RECIPES, ORE_QUALITY, ARENA_CONFIG, PVP_SHOP, PARTY_DUNGEON_CONFIG, WORLD_EVENTS, WORLD_EVENT_CONFIG };

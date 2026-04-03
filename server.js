@@ -11,7 +11,8 @@ const { Game, CONFIG, COSMETICS, WEARABLES, BOSS_LOOT, ITEMS, LOOT_TABLES, RECIP
 // ═══════════════════════════════════════════
 const KICK_CHANNEL = 'mikeydamike';
 const PORT = process.env.PORT || 3000;
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'kickstream2026';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+if (!ADMIN_PASSWORD) { console.error('⚠️  ADMIN_PASSWORD env var is not set! Admin panel will be inaccessible.'); }
 
 // ═══════════════════════════════════════════
 // Admin Session Auth (no password in URLs)
@@ -78,7 +79,7 @@ const STRIPE_SECRET = (process.env.STRIPE_SECRET_KEY || '').trim();
 const STRIPE_WEBHOOK_SECRET = (process.env.STRIPE_WEBHOOK_SECRET || '').trim();
 const stripe = STRIPE_SECRET ? require('stripe')(STRIPE_SECRET) : null;
 console.log(`💳 Stripe: ${stripe ? 'ENABLED' : 'DISABLED (no STRIPE_SECRET_KEY)'} | Webhook: ${STRIPE_WEBHOOK_SECRET ? 'SET' : 'NOT SET'} | PubKey: ${process.env.STRIPE_PUBLISHABLE_KEY ? 'SET' : 'NOT SET'}`);
-if (STRIPE_SECRET) console.log(`🔑 SK length=${STRIPE_SECRET.length} first8=${STRIPE_SECRET.slice(0,8)} last4=${STRIPE_SECRET.slice(-4)} charCodes=[${[...STRIPE_SECRET.slice(0,12)].map(c=>c.charCodeAt(0)).join(',')}]`);
+if (STRIPE_SECRET) console.log(`🔑 Stripe SK configured (length=${STRIPE_SECRET.length})`);
 
 const GOLD_PACKAGES = [
   { id: 'gold_500',   gold: 500,    price: 100,  label: '500 Gold',    emoji: '🪙' },
@@ -133,8 +134,10 @@ app.post('/api/stripe-webhook', express.raw({ type: 'application/json' }), (req,
 app.use(express.json());
 app.use('/audio', express.static(path.join(__dirname, 'audio')));
 app.use('/overlay', (req, res, next) => {
-  if (req.query.pw !== ADMIN_PASSWORD) return res.status(403).send('Access denied.');
-  next();
+  // Check Bearer token from header (preferred), or admin session cookie
+  const token = (req.headers.authorization || '').replace('Bearer ', '');
+  if (validateAdminToken(token)) return next();
+  return res.status(403).send('Access denied. Authenticate via admin panel first.');
 }, express.static(path.join(__dirname, 'Overlay')));
 app.get('/', (req, res) => res.redirect('/play'));
 app.get('/play', (req, res) => res.sendFile(path.join(__dirname, 'player.html')));
@@ -247,9 +250,6 @@ app.post('/api/create-checkout', (req, res) => {
 function requireAdminAuth(req, res, next) {
   const token = (req.headers.authorization || '').replace('Bearer ', '');
   if (validateAdminToken(token)) return next();
-  // Legacy fallback for overlay (OBS browser source can't set headers)
-  const pw = req.query.pw;
-  if (pw === ADMIN_PASSWORD) return next();
   return res.status(403).json({ error: 'Access denied' });
 }
 
@@ -533,6 +533,38 @@ app.post('/api/admin/fullreset', requireAdminAuth, (req, res) => {
   res.json({ success: true });
 });
 
+// Admin: World Event controls
+app.post('/api/admin/world-event/start', requireAdminAuth, (req, res) => {
+  const { eventType } = req.body;
+  game.rpgAdminStartWorldEvent('_admin_', eventType);
+  res.json({ success: true, eventType });
+});
+app.post('/api/admin/world-event/stop', requireAdminAuth, (req, res) => {
+  game.rpgAdminStopWorldEvent('_admin_');
+  res.json({ success: true });
+});
+app.get('/api/admin/world-event', requireAdminAuth, (req, res) => {
+  const evt = game.activeWorldEvent;
+  if (!evt) return res.json({ active: false });
+  res.json({ active: true, type: evt.type, name: evt.name, endsAt: evt.endsAt, timeLeft: Math.max(0, evt.endsAt - Date.now()) });
+});
+
+// Admin: Caravan controls
+app.post('/api/admin/caravan/start', requireAdminAuth, (req, res) => {
+  const { oreId, price, duration } = req.body;
+  if (!oreId || !price) return res.status(400).json({ error: 'oreId and price required' });
+  const result = game.rpgStartCustomCaravan(oreId, Number(price), Number(duration) || 180000);
+  if (result.error) return res.status(400).json(result);
+  res.json({ success: true, ore: result.oreName, price: result.caravanPrice, expiresAt: result.expiresAt });
+});
+app.post('/api/admin/caravan/stop', requireAdminAuth, (req, res) => {
+  game.rpgEndCaravan();
+  res.json({ success: true });
+});
+app.get('/api/admin/caravan', requireAdminAuth, (req, res) => {
+  res.json(game.rpgGetCaravan());
+});
+
 // Admin: set discord webhook (events channel)
 app.post('/api/admin/discord-webhook', requireAdminAuth, (req, res) => {
   const url = (req.body.url || '').trim();
@@ -785,6 +817,7 @@ wss.on('connection', (ws) => {
   ws.on('message', (raw) => {
     try {
       const msg = JSON.parse(raw.toString());
+      if (!msg || typeof msg.type !== 'string') return;
       if (msg.type === 'wheel_spin') game.spinWheel();
       if (msg.type === 'reward_effect' && msg.effect) game.applyRewardEffect(msg.effect);
       if (msg.type === 'start_game') game.resetForNewStream();
@@ -835,7 +868,7 @@ wss.on('connection', (ws) => {
         activeChatroomId = msg.id;
         broadcast('admin_chatroom_set', { id: msg.id });
         // Disconnect existing Kick connection and reconnect
-        if (kickWs) { try { kickWs.close(); } catch {} }
+        if (kickWs) { try { kickWs.close(); } catch (e) { console.error('[Kick WS close error]', e.message); } }
         connectToKick(msg.id);
       }
       if (msg.type === 'admin_get_market') {
@@ -1068,6 +1101,21 @@ wss.on('connection', (ws) => {
       }
       if (msg.type === 'rpg_block' && ws.isRPG && ws.rpgUser) {
         game.rpgSetBlock(ws.rpgUser, msg.active);
+      }
+      // ── Direct Duel Challenge ──
+      if (msg.type === 'rpg_duel_challenge' && ws.isRPG && ws.rpgUser) {
+        game.rpgDuelChallenge(ws.rpgUser, msg.target);
+      }
+      if (msg.type === 'rpg_duel_accept_challenge' && ws.isRPG && ws.rpgUser) {
+        game.rpgDuelAcceptChallenge(ws.rpgUser, msg.challengeId);
+      }
+      if (msg.type === 'rpg_duel_decline_challenge' && ws.isRPG && ws.rpgUser) {
+        game.rpgDuelDeclineChallenge(ws.rpgUser, msg.challengeId);
+      }
+      // ── World Event Admin ──
+      if (msg.type === 'rpg_admin_world_event' && ws.isRPG && ws.rpgUser) {
+        if (msg.action === 'start') game.rpgAdminStartWorldEvent(ws.rpgUser, msg.eventType);
+        else if (msg.action === 'stop') game.rpgAdminStopWorldEvent(ws.rpgUser);
       }
       // ── PvP Arena ──
       if (msg.type === 'rpg_pvp_shop_buy' && ws.isRPG && ws.rpgUser) {
