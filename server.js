@@ -542,8 +542,13 @@ app.post('/api/admin/fullreset', requireAdminAuth, (req, res) => {
 
 // Admin: World Event controls
 app.post('/api/admin/world-event/start', requireAdminAuth, (req, res) => {
-  const { eventType } = req.body;
-  game.rpgAdminStartWorldEvent('_admin_', eventType);
+  const { eventType, goldPool } = req.body;
+  const result = game.rpgAdminStartWorldEvent('_admin_', eventType);
+  if (result.error) return res.status(400).json(result);
+  // Override gold pool if provided for horde events
+  if (goldPool && game.activeWorldEvent && game.activeWorldEvent.eventType === 'mob_invasion') {
+    game.activeWorldEvent.hordeGoldPool = Number(goldPool);
+  }
   res.json({ success: true, eventType });
 });
 app.post('/api/admin/world-event/stop', requireAdminAuth, (req, res) => {
@@ -553,7 +558,7 @@ app.post('/api/admin/world-event/stop', requireAdminAuth, (req, res) => {
 app.get('/api/admin/world-event', requireAdminAuth, (req, res) => {
   const evt = game.activeWorldEvent;
   if (!evt) return res.json({ active: false });
-  res.json({ active: true, type: evt.type, name: evt.name, endsAt: evt.endsAt, timeLeft: Math.max(0, evt.endsAt - Date.now()) });
+  res.json({ active: true, type: evt.eventType, name: evt.config.name, endsAt: evt.expiresAt, timeLeft: Math.max(0, evt.expiresAt - Date.now()), hordeMobsAlive: evt.hordeMobsAlive || 0, hordeGoldPool: evt.hordeGoldPool || 0, participants: Object.keys(evt.participants).length });
 });
 
 // Admin: Caravan controls

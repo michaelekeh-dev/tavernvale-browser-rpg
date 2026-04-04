@@ -234,8 +234,12 @@ body{font-family:'Segoe UI',sans-serif;background:#0a0a0f;color:#e0e0e0;min-heig
   <div class="panel">
     <h2>🌍 World Events</h2>
     <div id="worldEventStatus" style="padding:8px;background:#1a1a2a;border-radius:6px;margin-bottom:10px;font-size:12px;color:#888">No event active</div>
+    <div style="margin-bottom:10px;display:flex;gap:8px;align-items:center">
+      <label style="color:#ccc;font-size:12px">Horde Gold Pool:</label>
+      <input id="hordeGoldPool" type="number" value="5000" min="100" step="500" style="width:90px;padding:4px 8px;background:#1a1a2a;color:#fbbf24;border:1px solid #333;border-radius:4px;font-size:12px">
+    </div>
     <div class="btn-grid">
-      <button class="btn" onclick="startWorldEvent('mob_invasion')" style="background:linear-gradient(90deg,#dc2626,#991b1b)">💀 Mob Invasion</button>
+      <button class="btn" onclick="startWorldEvent('mob_invasion')" style="background:linear-gradient(90deg,#dc2626,#991b1b)">👹 Horde Attack</button>
       <button class="btn" onclick="startWorldEvent('blood_moon')" style="background:linear-gradient(90deg,#7f1d1d,#450a0a)">🌑 Blood Moon</button>
       <button class="btn" onclick="startWorldEvent('boss_rush')" style="background:linear-gradient(90deg,#d97706,#92400e)">👹 Boss Rush</button>
       <button class="btn" onclick="startWorldEvent('gold_rush')" style="background:linear-gradient(90deg,#ca8a04,#713f12)">⛏️ Gold Rush</button>
@@ -1784,12 +1788,16 @@ if (adminToken) {
 
 // ── World Event Admin ──
 function startWorldEvent(eventType) {
+  const body = { eventType };
+  if (eventType === 'mob_invasion') {
+    body.goldPool = parseInt(document.getElementById('hordeGoldPool').value) || 5000;
+  }
   adminFetch('/api/admin/world-event/start', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ eventType })
+    body: JSON.stringify(body)
   }).then(r => r.json()).then(d => {
-    if (d.success) { addLog('🌍 Started world event: ' + eventType, 'success'); refreshWorldEventStatus(); }
+    if (d.success) { addLog('🌍 Started world event: ' + eventType + (body.goldPool ? ' (Gold Pool: ' + body.goldPool + ')' : ''), 'success'); refreshWorldEventStatus(); }
     else addLog('Failed to start event: ' + (d.error || 'unknown'), 'error');
   }).catch(e => addLog('Error: ' + e.message, 'error'));
 }
@@ -1806,7 +1814,9 @@ function refreshWorldEventStatus() {
     if (!d.active) { el.innerHTML = '<span style="color:#888">No event active</span>'; return; }
     const secs = Math.max(0, Math.floor(d.timeLeft / 1000));
     const m = Math.floor(secs / 60), s = secs % 60;
-    el.innerHTML = '<span style="color:#a855f7">🌍 ' + d.name + '</span> — <span style="color:#fbbf24">' + m + ':' + String(s).padStart(2, '0') + ' left</span>';
+    let extra = '';
+    if (d.type === 'mob_invasion') extra = ' | Mobs: ' + (d.hordeMobsAlive || 0) + ' alive | Pool: ' + (d.hordeGoldPool || 0) + 'g | Players: ' + (d.participants || 0);
+    el.innerHTML = '<span style="color:#a855f7">🌍 ' + d.name + '</span> — <span style="color:#fbbf24">' + m + ':' + String(s).padStart(2, '0') + ' left</span>' + extra;
   }).catch(() => {});
 }
 

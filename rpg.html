@@ -2560,8 +2560,11 @@ function handleMessage(msg){
     // ── World Events ──
     case'rpg_world_event_start':onWorldEventStart(d);break;
     case'rpg_world_event_end':onWorldEventEnd(d);break;
-    case'rpg_world_event_mvp':logMsg('🏆 '+d.mvp+' was the MVP! (+'+d.bonus+'g bonus)','loot');break;
-    case'rpg_bounty_claimed':logMsg('🎯 '+d.username+' slew the bounty target '+d.target+'!','loot');break;
+    case'rpg_world_event_mvp':logMsg('🏆 MVP! +'+d.gold+'g bonus','loot');break;
+    case'rpg_bounty_claimed':logMsg('🎯 '+d.hunter+' slew the bounty target!','loot');break;
+    case'rpg_horde_progress':onHordeProgress(d);break;
+    case'rpg_horde_reward':logMsg('💰 Horde cleared! You earned '+d.gold+'g ('+d.kills+'/'+d.totalKills+' kills)','loot');addFloat(px,py-60,'+'+d.gold+'g','#fbbf24',true);break;
+    case'rpg_horde_end':mobs=mobs.filter(m=>!m.isHorde);break;
     case'rpg_error':
       // Token invalid — stop reconnecting, show error, but keep localStorage token
       // (another tab may have refreshed it)
@@ -4715,8 +4718,20 @@ function onWorldEventStart(d){
 function onWorldEventEnd(d){
   activeWorldEvent=null;
   hideWorldEventBanner();
-  logMsg('🌍 World event ended! Kills: '+(d.totalKills||0)+', Gold earned: '+(d.totalGold||0),'xp');
+  if(d.type==='mob_invasion'){
+    logMsg('👹 Horde defeated! '+d.totalKills+' kills, '+d.totalGold+'g shared among '+d.participants+' players','xp');
+    mobs=mobs.filter(m=>!m.isHorde);
+  } else {
+    logMsg('🌍 World event ended!','xp');
+  }
   document.getElementById('game-canvas').style.filter='';
+}
+function onHordeProgress(d){
+  if(activeWorldEvent&&activeWorldEvent.type==='mob_invasion'){
+    activeWorldEvent.hordeMobsAlive=d.alive;
+    activeWorldEvent.hordeMobsTotal=d.total;
+  }
+  logMsg('👹 '+d.killer+' killed '+d.mobName+'! ('+d.alive+'/'+d.total+' remaining)','xp');
 }
 function showWorldEventBanner(){
   if(!activeWorldEvent)return;
@@ -4737,12 +4752,19 @@ function showWorldEventBanner(){
     const col=colors[activeWorldEvent.type]||'#a855f7';
     // Build multiplier tags
     let mults='';
-    const mp=activeWorldEvent.multipliers;
+    const mp=activeWorldEvent.multipliers||{};
     if(mp.gold&&mp.gold>1)mults+=' <span style="color:#fbbf24">'+mp.gold+'x Gold</span>';
     if(mp.xp&&mp.xp>1)mults+=' <span style="color:#60a5fa">'+mp.xp+'x XP</span>';
     if(mp.mobDmg&&mp.mobDmg>1)mults+=' <span style="color:#ef4444">'+mp.mobDmg+'x Mob Dmg</span>';
     if(mp.miningGold&&mp.miningGold>1)mults+=' <span style="color:#4ade80">'+mp.miningGold+'x Mining</span>';
-    el.innerHTML=icon+' <span style="color:'+col+'">'+activeWorldEvent.name+'</span> '+mults+' <span style="color:#888;font-size:7px">('+m+':'+String(s).padStart(2,'0')+')</span>';
+    let hordeInfo='';
+    if(activeWorldEvent.type==='mob_invasion'&&activeWorldEvent.hordeMobsTotal){
+      const alive=activeWorldEvent.hordeMobsAlive||0;
+      const total=activeWorldEvent.hordeMobsTotal||0;
+      hordeInfo=' <span style="color:#f87171">'+alive+'/'+total+' mobs</span>';
+      if(activeWorldEvent.hordeGoldPool)hordeInfo+=' <span style="color:#fbbf24">'+activeWorldEvent.hordeGoldPool+'g pool</span>';
+    }
+    el.innerHTML=icon+' <span style="color:'+col+'">'+activeWorldEvent.name+'</span> '+mults+hordeInfo+' <span style="color:#888;font-size:7px">('+m+':'+String(s).padStart(2,'0')+')</span>';
     el.style.display='block';
   }
   updateBanner();

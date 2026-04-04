@@ -514,14 +514,20 @@ const CARAVAN_CONFIG = {
 // ═══════════════════════════════════════════
 const WORLD_EVENTS = {
   mob_invasion: {
-    name: 'Mob Invasion',
-    icon: '💀',
-    desc: 'A horde of monsters is attacking! Kill them all for bonus rewards!',
+    name: 'Horde Attack',
+    icon: '👹',
+    desc: 'Monsters are attacking Tavernvale! Fight them together for a shared gold reward!',
     duration: 300000,      // 5 minutes
-    zones: ['combat', 'underground_mine', 'deep_mine'],
-    mobCountPerPlayer: 8,  // extra mobs spawned per player
-    goldMult: 2.0,         // gold multiplier during event
-    xpMult: 1.5,           // xp multiplier during event
+    zones: ['hub'],        // hub zone only — shared mobs
+    hordeGoldPool: 5000,   // default shared gold pool (admin can override)
+    hordeMobCount: 15,     // total horde mobs
+    hordeMobs: [
+      { name: 'Cave Spider',  maxHP: 120, atk: 8,  color: '#884422', moveSpeed: 1.2, atkCD: 1800 },
+      { name: 'Skeleton',     maxHP: 200, atk: 12, color: '#ffffff', moveSpeed: 0.7, atkCD: 2200 },
+      { name: 'Zombie',       maxHP: 300, atk: 14, color: '#6b8e23', moveSpeed: 0.5, atkCD: 2800 },
+      { name: 'Wraith',       maxHP: 430, atk: 18, color: '#8844cc', moveSpeed: 0.4, atkCD: 2000 },
+    ],
+    xpMult: 1.5,
   },
   blood_moon: {
     name: 'Blood Moon',
@@ -4540,6 +4546,92 @@ class Game {
       }
       } // end per-player mob loop
     }
+
+    // ═══ HORDE MOB AI — shared mobs for mob_invasion event ═══
+    if (this.activeWorldEvent && this.activeWorldEvent.eventType === 'mob_invasion' && this.activeWorldEvent.hordeMobs) {
+      const now2 = Date.now();
+      const dt2 = 0.2;
+      const hordeMobs = this.activeWorldEvent.hordeMobs;
+      // Gather all players in hub
+      const hubPlayers = [];
+      for (const [u, urp] of Object.entries(this.rpgPlayers)) {
+        if (urp.disconnected || urp.zone !== 'hub' || urp.hp <= 0 || urp.godMode) continue;
+        hubPlayers.push({ username: u, x: urp.x || 400, y: urp.y || 200, rp: urp });
+      }
+      const hordeMovedMobs = [];
+      for (const mob of hordeMobs) {
+        if (mob.dead) continue;
+        const chaseSpd = (mob.chaseSpeed || 1.0) * 40 * dt2;
+        const aggroR = mob.aggroRange || 150;
+        let moved = false;
+        // Find nearest hub player
+        let nearest = null, nearDist = Infinity;
+        for (const pl of hubPlayers) {
+          const dx = pl.x - mob.x, dy = pl.y - mob.y;
+          const d = Math.sqrt(dx * dx + dy * dy);
+          if (d < nearDist) { nearDist = d; nearest = pl; }
+        }
+        // Chase nearest player
+        if (nearest && nearDist < aggroR && nearDist > 40) {
+          const dx = nearest.x - mob.x, dy = nearest.y - mob.y;
+          const d = nearDist || 1;
+          mob.x += (dx / d) * chaseSpd;
+          mob.y += (dy / d) * chaseSpd;
+          mob.facing = dx > 0 ? 1 : -1;
+          mob.state = 'chase';
+          moved = true;
+        }
+        // Attack if close enough
+        if (nearest && nearDist <= 50 && now2 >= (mob.lastAtk || 0)) {
+          const p = this.player(nearest.username);
+          const def = this.armorDefBonus(p) + ((p.rpg && p.rpg.buffDef && now2 < p.rpg.buffDef.expires) ? p.rpg.buffDef.value : 0);
+          let dmg = Math.max(1, mob.atk - Math.floor(Math.random() * 3) - def);
+          let blocked = false, parried = false;
+          if (nearest.rp.blocking) {
+            if (now2 - nearest.rp.blockStart < 250) {
+              parried = true; dmg = 0;
+              mob.lastAtk = now2 + 1500;
+            } else {
+              blocked = true; dmg = Math.max(1, Math.floor(dmg * 0.5));
+            }
+          }
+          nearest.rp.hp = Math.max(0, nearest.rp.hp - dmg);
+          this.rpgSendTo(nearest.username, { type: 'rpg_mob_attack', data: { mobId: mob.id, dmg, hp: nearest.rp.hp, maxHP: nearest.rp.maxHP, blocked, parried } });
+          mob.lastAtk = now2 + (mob.atkCD || 2000);
+          mob.state = 'attack';
+          if (nearest.rp.hp <= 0) {
+            const lost = Math.floor(p.gold * 0.02);
+            p.gold = Math.max(0, p.gold - lost); this.saveData();
+            this.rpgSendTo(nearest.username, { type: 'rpg_death', data: { goldLost: lost, gold: p.gold } });
+            nearest.rp.zone = 'hub'; nearest.rp.hp = nearest.rp.maxHP;
+          }
+        }
+        // Random wander if no targets
+        if (!nearest || nearDist >= aggroR) {
+          if (!mob.wanderTarget || now2 > (mob.nextWander || 0)) {
+            mob.wanderTarget = { x: mob.homeX + (Math.random() - 0.5) * 200, y: mob.homeY + (Math.random() - 0.5) * 200 };
+            mob.nextWander = now2 + 3000 + Math.random() * 3000;
+          }
+          const wdx = mob.wanderTarget.x - mob.x, wdy = mob.wanderTarget.y - mob.y;
+          const wd = Math.sqrt(wdx * wdx + wdy * wdy);
+          if (wd > 5) {
+            const step = Math.min((mob.moveSpeed || 0.5) * 40 * dt2, wd);
+            mob.x += (wdx / wd) * step; mob.y += (wdy / wd) * step;
+            mob.facing = wdx > 0 ? 1 : -1;
+            mob.state = 'idle';
+            moved = true;
+          }
+        }
+        if (moved) hordeMovedMobs.push({ id: mob.id, x: Math.round(mob.x), y: Math.round(mob.y), s: mob.state, f: mob.facing });
+      }
+      // Broadcast horde mob movements to ALL hub players
+      if (hordeMovedMobs.length > 0) {
+        for (const [u, urp] of Object.entries(this.rpgPlayers)) {
+          if (urp.disconnected || urp.zone !== 'hub') continue;
+          this.rpgSendTo(u, { type: 'rpg_mob_move', data: hordeMovedMobs });
+        }
+      }
+    }
   }
 
   rpgMakeMob(zoneId, idx, preferName, questBias) {
@@ -5772,7 +5864,7 @@ class Game {
           moveSpeedMult: this.getMiningGearStat(p, 'moveSpeedMult'),
           lightRadius: this.getMiningGearStat(p, 'lightRadius'),
           caravan: this.rpgGetCaravan(), achievements: p.achievements || [],
-          worldEvent: this.activeWorldEvent ? { active: true, type: this.activeWorldEvent.type, name: this.activeWorldEvent.name, desc: this.activeWorldEvent.desc, endsAt: this.activeWorldEvent.endsAt, multipliers: this.activeWorldEvent.multipliers } : null,
+          worldEvent: this.rpgGetWorldEventClientData(),
           party: _partyData,
           dungeonState: this.rpgGetDungeonState(instId, username),
         };
@@ -5818,7 +5910,7 @@ class Game {
           moveSpeedMult: this.getMiningGearStat(p, 'moveSpeedMult'),
           lightRadius: this.getMiningGearStat(p, 'lightRadius'),
           caravan: this.rpgGetCaravan(), achievements: p.achievements || [],
-          worldEvent: this.activeWorldEvent ? { active: true, type: this.activeWorldEvent.type, name: this.activeWorldEvent.name, desc: this.activeWorldEvent.desc, endsAt: this.activeWorldEvent.endsAt, multipliers: this.activeWorldEvent.multipliers } : null,
+          worldEvent: this.rpgGetWorldEventClientData(),
           party: _partyData,
           savedZone: savedZone, savedX: savedX, savedY: savedY, savedHP: Math.min(savedHP, maxHP),
         };
@@ -5856,7 +5948,7 @@ class Game {
       moveSpeedMult: this.getMiningGearStat(p, 'moveSpeedMult'),
       lightRadius: this.getMiningGearStat(p, 'lightRadius'),
       caravan: this.rpgGetCaravan(),
-      worldEvent: this.activeWorldEvent ? { active: true, type: this.activeWorldEvent.type, name: this.activeWorldEvent.name, desc: this.activeWorldEvent.desc, endsAt: this.activeWorldEvent.endsAt, multipliers: this.activeWorldEvent.multipliers } : null,
+      worldEvent: this.rpgGetWorldEventClientData(),
       achievements: p.achievements || [],
       party: _partyData,
     };
@@ -6010,7 +6102,16 @@ class Game {
         id: m.id, name: m.name, hp: m.hp, maxHP: m.maxHP, atk: m.atk, x: m.x, y: m.y,
         color: m.color, state: m.state || 'idle', facing: m.facing || 1,
         goldMin: m.goldMin, goldMax: m.goldMax, xpReward: m.xpReward, templateName: m.templateName,
-      })).concat(playerSaplings),
+      })).concat(playerSaplings).concat(
+        // Include horde mobs if mob_invasion is active and player is in hub
+        (zoneId === 'hub' && this.activeWorldEvent && this.activeWorldEvent.eventType === 'mob_invasion')
+          ? this.activeWorldEvent.hordeMobs.filter(m => !m.dead).map(m => ({
+              id: m.id, name: m.name, hp: m.hp, maxHP: m.maxHP, atk: m.atk, x: m.x, y: m.y,
+              color: m.color, state: m.state || 'idle', facing: m.facing || 1,
+              goldMin: 0, goldMax: 0, xpReward: m.xpReward, templateName: m.templateName, isHorde: true,
+            }))
+          : []
+      ),
       players,
       boss: bossData,
       secondaryBosses: sbData.length > 0 ? sbData : null,
@@ -6166,8 +6267,17 @@ class Game {
     if (rp.hp <= 0) return { error: 'dead' };
     const w = this.rpgWorld[rp.zone];
     if (!w) return { error: 'invalid_zone' };
-    const playerMobs = (w.playerMobs && w.playerMobs[username]) || [];
-    const mob = playerMobs.find(m => m.id === mobId && !m.dead);
+    // Check horde mobs first (shared across all players)
+    let mob = null;
+    let isHordeMob = false;
+    if (this.activeWorldEvent && this.activeWorldEvent.eventType === 'mob_invasion' && this.activeWorldEvent.hordeMobs) {
+      mob = this.activeWorldEvent.hordeMobs.find(m => m.id === mobId && !m.dead);
+      if (mob) isHordeMob = true;
+    }
+    if (!mob) {
+      const playerMobs = (w.playerMobs && w.playerMobs[username]) || [];
+      mob = playerMobs.find(m => m.id === mobId && !m.dead);
+    }
     if (!mob) return { error: 'mob_gone' };
 
     const p = this.rpgGetPlayerData(username);
@@ -6237,7 +6347,42 @@ class Game {
     if (mob.hp <= 0) {
       mob.dead = true;
       const eliteTier = mob.eliteTier || 'normal';
-      mob.respawnAt = Date.now() + (eliteTier === 'champion' ? 12000 : eliteTier === 'elite' ? 8000 : 3000);
+      mob.respawnAt = isHordeMob ? null : Date.now() + (eliteTier === 'champion' ? 12000 : eliteTier === 'elite' ? 8000 : 3000);
+
+      // Horde mobs: no individual gold, just XP + participation tracking
+      if (isHordeMob) {
+        const xpBase = Math.floor(mob.xpReward * this.rpgGetWorldEventMultiplier('xp'));
+        this.addXP(p, xpBase);
+        p.rpg.mobKills = (p.rpg.mobKills || 0) + 1;
+        this.rpgRecordWorldEventParticipation(username, 1, 0, xpBase);
+        this.addTrust(p, 1);
+        // Decrement alive counter
+        if (this.activeWorldEvent) {
+          this.activeWorldEvent.hordeMobsAlive = Math.max(0, (this.activeWorldEvent.hordeMobsAlive || 0) - 1);
+        }
+        // Broadcast kill to ALL hub players
+        for (const [u, urp] of Object.entries(this.rpgPlayers)) {
+          if (urp.disconnected) continue;
+          if (urp.zone === 'hub') {
+            this.rpgSendTo(u, { type: 'rpg_mob_died', data: { mobId, killer: username, eliteTier, isHorde: true } });
+          }
+        }
+        // Broadcast horde progress
+        this.rpgBroadcastAll({ type: 'rpg_horde_progress', data: {
+          alive: this.activeWorldEvent ? this.activeWorldEvent.hordeMobsAlive : 0,
+          total: this.activeWorldEvent ? this.activeWorldEvent.hordeMobs.length : 0,
+          killer: username, mobName: mob.name,
+        }});
+        // If all horde mobs dead, end event early and distribute gold
+        if (this.activeWorldEvent && this.activeWorldEvent.hordeMobsAlive <= 0) {
+          this.rpgEndWorldEvent();
+        }
+        this.saveData();
+        const _cos = p.activeCosmetics || {};
+        return { killed: true, dmg, crit, gold: 0, xp: xpBase, leveled: false, level: p.level, currentXP: p.xp, xpNeeded: this.xpNeeded(p), totalGold: p.gold, mobName: mob.name, drops: [], wearableDrops: [], weaponBroke: wepResult && wepResult.broken ? wepResult.name : null, trust: p.rpg.trust, killEffect: _cos.killEffect || null, isHorde: true };
+      }
+
+      // Normal mob kill
       let goldBase = mob.goldMin + Math.floor(Math.random() * (mob.goldMax - mob.goldMin + 1));
       let xpBase = mob.xpReward;
       // World event multipliers
@@ -7912,18 +8057,64 @@ class Game {
       config: cfg,
       startedAt: now,
       expiresAt: now + cfg.duration,
-      participants: {},  // username -> { kills, gold, xp }
+      participants: {},  // username -> { kills, gold, xp, dmgDealt }
       bountyTarget: null,
       bountyClaimed: false,
+      hordeGoldPool: cfg.hordeGoldPool || 0, // admin can override
+      hordeMobs: [],     // shared horde mobs (mob_invasion only)
+      hordeMobsAlive: 0,
     };
 
     // Special setup per event type
     if (eventType === 'mob_invasion') {
-      // Spawn extra mobs for all players in affected zones
+      // Spawn shared horde mobs in hub zone visible to ALL players
+      const count = cfg.hordeMobCount || 15;
+      const templates = cfg.hordeMobs || [];
+      const hubZone = RPG_ZONES.hub;
+      // Spawn mobs in the combat region of hub (right side) 
+      const combatRegion = hubZone.regions ? hubZone.regions.combat : null;
+      const spawnMinX = combatRegion ? combatRegion.x1 * 40 : 1700;
+      const spawnMaxX = combatRegion ? combatRegion.x2 * 40 : 2200;
+      const spawnMinY = combatRegion ? combatRegion.y1 * 40 : 200;
+      const spawnMaxY = combatRegion ? combatRegion.y2 * 40 : 1200;
+      for (let i = 0; i < count; i++) {
+        const tmpl = templates[Math.floor(Math.random() * templates.length)];
+        const mob = {
+          id: 'horde_' + event.id + '_' + i,
+          name: tmpl.name,
+          templateName: tmpl.name,
+          hp: tmpl.maxHP,
+          maxHP: tmpl.maxHP,
+          atk: tmpl.atk,
+          color: tmpl.color,
+          x: spawnMinX + Math.random() * (spawnMaxX - spawnMinX),
+          y: spawnMinY + Math.random() * (spawnMaxY - spawnMinY),
+          homeX: 0, homeY: 0,
+          moveSpeed: tmpl.moveSpeed || 0.5,
+          chaseSpeed: (tmpl.moveSpeed || 0.5) * 2,
+          aggroRange: 150,
+          leashRange: 9999, // don't leash — they're invaders
+          atkCD: tmpl.atkCD || 2000,
+          lastAtk: 0,
+          dead: false,
+          isHorde: true,
+          eliteTier: 'normal',
+          facing: -1,
+          behavior: 'aggressive',
+          goldMin: 0, goldMax: 0, // no individual gold — gold comes from pool
+          xpReward: Math.floor(tmpl.maxHP / 10),
+        };
+        mob.homeX = mob.x; mob.homeY = mob.y;
+        event.hordeMobs.push(mob);
+      }
+      event.hordeMobsAlive = count;
+      // Send horde mobs to all players currently in hub
       for (const [username, rp] of Object.entries(this.rpgPlayers)) {
         if (rp.disconnected) continue;
-        if (!cfg.zones || cfg.zones.includes(rp.zone)) {
-          this._spawnInvasionMobs(username, rp.zone, cfg.mobCountPerPlayer);
+        if (rp.zone === 'hub') {
+          for (const mob of event.hordeMobs) {
+            this.rpgSendTo(username, { type: 'rpg_mob_spawn', data: mob });
+          }
         }
       }
     }
@@ -7954,10 +8145,17 @@ class Game {
 
     this.activeWorldEvent = event;
     // Broadcast to all players
+    const multipliers = {};
+    if (cfg.goldMult && cfg.goldMult > 1) multipliers.gold = cfg.goldMult;
+    if (cfg.xpMult && cfg.xpMult > 1) multipliers.xp = cfg.xpMult;
+    if (cfg.mobDmgMult && cfg.mobDmgMult > 1) multipliers.mobDmg = cfg.mobDmgMult;
+    if (cfg.miningGoldMult && cfg.miningGoldMult > 1) multipliers.miningGold = cfg.miningGoldMult;
     this.rpgBroadcastAll({ type: 'rpg_world_event_start', data: {
-      id: event.id, eventType, name: cfg.name, icon: cfg.icon,
-      desc: cfg.desc, duration: cfg.duration, expiresAt: event.expiresAt,
-      bountyTarget: event.bountyTarget,
+      id: event.id, type: eventType, name: cfg.name, icon: cfg.icon,
+      desc: cfg.desc, duration: cfg.duration, endsAt: event.expiresAt,
+      multipliers, bountyTarget: event.bountyTarget,
+      hordeGoldPool: event.hordeGoldPool || 0,
+      hordeMobsAlive: event.hordeMobsAlive || 0,
     }});
     return { started: true, event: eventType, name: cfg.name };
   }
@@ -7985,6 +8183,25 @@ class Game {
 
     // Distribute participation rewards
     const participants = Object.entries(event.participants);
+
+    // Horde event: distribute shared gold pool among all participants who got kills
+    if (event.eventType === 'mob_invasion' && event.hordeGoldPool > 0 && participants.length > 0) {
+      const totalKills = participants.reduce((sum, [, p]) => sum + (p.kills || 0), 0);
+      if (totalKills > 0) {
+        for (const [username, pData] of participants) {
+          const share = Math.floor(event.hordeGoldPool * (pData.kills / totalKills));
+          if (share > 0) {
+            const pp = this.player(username);
+            if (pp) {
+              pp.gold += share;
+              pData.gold += share;
+              this.rpgSendTo(username, { type: 'rpg_horde_reward', data: { gold: share, kills: pData.kills, totalKills } });
+            }
+          }
+        }
+      }
+    }
+
     if (participants.length > 0) {
       // Sort by kills for MVP
       participants.sort((a, b) => (b[1].kills || 0) - (a[1].kills || 0));
@@ -7997,13 +8214,44 @@ class Game {
       }
     }
 
+    // Clean up horde mobs from client
+    if (event.eventType === 'mob_invasion') {
+      for (const [u, urp] of Object.entries(this.rpgPlayers)) {
+        if (urp.disconnected) continue;
+        if (urp.zone === 'hub') {
+          this.rpgSendTo(u, { type: 'rpg_horde_end', data: {} });
+        }
+      }
+    }
+
     this.rpgBroadcastAll({ type: 'rpg_world_event_end', data: {
-      id: event.id, eventType: event.eventType, name: cfg.name, icon: cfg.icon,
+      id: event.id, type: event.eventType, name: cfg.name, icon: cfg.icon,
       participants: participants.length,
       mvp: participants.length > 0 ? participants[0][0] : null,
+      totalKills: participants.reduce((s, [, p]) => s + (p.kills || 0), 0),
+      totalGold: event.hordeGoldPool || 0,
     }});
     this.activeWorldEvent = null;
+    this.saveData();
     this.nextWorldEventAt = Date.now() + WORLD_EVENT_CONFIG.intervalMin + Math.random() * (WORLD_EVENT_CONFIG.intervalMax - WORLD_EVENT_CONFIG.intervalMin);
+  }
+
+  rpgGetWorldEventClientData() {
+    if (!this.activeWorldEvent) return null;
+    const evt = this.activeWorldEvent;
+    const cfg = evt.config;
+    const multipliers = {};
+    if (cfg.goldMult && cfg.goldMult > 1) multipliers.gold = cfg.goldMult;
+    if (cfg.xpMult && cfg.xpMult > 1) multipliers.xp = cfg.xpMult;
+    if (cfg.mobDmgMult && cfg.mobDmgMult > 1) multipliers.mobDmg = cfg.mobDmgMult;
+    if (cfg.miningGoldMult && cfg.miningGoldMult > 1) multipliers.miningGold = cfg.miningGoldMult;
+    return {
+      active: true, type: evt.eventType, name: cfg.name, desc: cfg.desc,
+      endsAt: evt.expiresAt, multipliers,
+      hordeGoldPool: evt.hordeGoldPool || 0,
+      hordeMobsAlive: evt.hordeMobsAlive || 0,
+      hordeMobsTotal: evt.hordeMobs ? evt.hordeMobs.length : 0,
+    };
   }
 
   rpgGetWorldEventMultiplier(type) {
