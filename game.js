@@ -565,16 +565,16 @@ const WORLD_EVENTS = {
     duration: 600000,      // 10 minutes
     zones: ['forest'],     // default zone, admin can override
     bountyBossHP: 15000,
-    bountyBossAtk: 25,
+    bountyBossAtk: 15,
     bountyKillVG: 50,      // VG for last-hit killer
     bountyShareVG: 100,    // VG split among ALL damage-dealers
     bountyGold: 5000,      // gold reward for killer
     bountyXP: 2000,
     attacks: [
-      { name: 'Gold Toss',     type: 'aoe',   radius: 100, dmg: 30, cd: 3000, telegraph: 800 },
-      { name: 'Gem Shower',    type: 'spread', count: 5,  range: 200, dmg: 20, cd: 4000, telegraph: 600 },
-      { name: 'Treasure Slam', type: 'aoe',   radius: 150, dmg: 45, cd: 6000, telegraph: 1200 },
-      { name: 'Coin Storm',    type: 'aoe',   radius: 200, dmg: 35, cd: 8000, telegraph: 1000 },
+      { name: 'Gold Toss',     type: 'aoe',   radius: 100, dmg: 15, cd: 4000, telegraph: 1000 },
+      { name: 'Gem Shower',    type: 'spread', count: 5,  range: 200, dmg: 10, cd: 5000, telegraph: 800 },
+      { name: 'Treasure Slam', type: 'aoe',   radius: 150, dmg: 25, cd: 7000, telegraph: 1500 },
+      { name: 'Coin Storm',    type: 'aoe',   radius: 200, dmg: 18, cd: 9000, telegraph: 1200 },
     ],
   },
 };

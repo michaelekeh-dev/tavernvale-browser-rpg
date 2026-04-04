@@ -5483,7 +5483,7 @@ function update(dt){
         else{attackTarget=null;updateActionInfo()}
       }
     } else if(!inDuel && (zoneType==='combat'||zoneType==='mine'||(zoneType==='hub'&&activeWorldEvent&&(activeWorldEvent.type==='mob_invasion'||(activeWorldEvent.type==='bounty_hunt'&&bountyBoss&&bountyBoss.zone===currentZone)))) && activeTool==='sword'){
-      let best=null,bestD=100;
+      let best=null,bestD=130;
       for(const m of mobs){const d=Math.sqrt((px-m.x)**2+(py-m.y)**2);if(d<bestD){bestD=d;best=m}}
       if(boss&&!boss.sleeping&&!boss.waking&&!boss.burrowed){const d=Math.sqrt((px-boss.x)**2+(py-boss.y)**2);if(d<bestD){bestD=d;best=boss}}
       for(const sb of secondaryBosses){if(!sb.sleeping){const d=Math.sqrt((px-sb.x)**2+(py-sb.y)**2);if(d<bestD){bestD=d;best=sb}}}
