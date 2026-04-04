@@ -2918,7 +2918,8 @@ function onJoined(d){
   // Caravan
   if(d.caravan&&d.caravan.active){activeCaravan=d.caravan;setTimeout(showCaravanBanner,1000)}
   // World event
-  if(d.worldEvent&&d.worldEvent.active){activeWorldEvent=d.worldEvent;setTimeout(showWorldEventBanner,1200)}
+  if(d.worldEvent&&d.worldEvent.active){activeWorldEvent=d.worldEvent;setTimeout(showWorldEventBanner,1200);
+    if(d.worldEvent.type==='mob_invasion')setTimeout(()=>{if(zoneType==='hub')activeTool='sword'},1500);}
   // Restore party state on reconnect
   if(d.party){myParty=d.party;updateHUD()}else{myParty=null}
   // Dungeon reconnect: restore dungeon state if player was in a dungeon
@@ -2985,11 +2986,13 @@ function onZoneState(z){
   if(z.type!=='hub'){playerInBasement=false;playerInDungeon=false;secretRoomDimAlpha=0;tavernDimAlpha=0}
   document.getElementById('hud-zone-name').textContent=z.name;
   const isGameZone=zoneType==='mine'||zoneType==='combat';
-  document.getElementById('hud-overlay').style.display=isGameZone?'block':'none';
+  const isHordeHub=zoneType==='hub'&&activeWorldEvent&&activeWorldEvent.type==='mob_invasion';
+  document.getElementById('hud-overlay').style.display=(isGameZone||isHordeHub)?'block':'none';
   // Hub is now a playable town — don't auto-show zone overlay
   document.getElementById('zone-overlay').classList.remove('show');
   // Auto-select tool
   if(zoneType==='mine'){activeTool='pickaxe'}else if(zoneType==='combat'){activeTool='sword'}
+  else if(isHordeHub){activeTool='sword'}
   updateToolHUD();updateActionInfo();updateWorldMap();
 }
 
@@ -4709,13 +4712,18 @@ function hideDuelChallengePopup(){
 
 // ── World Events HUD ──
 function onWorldEventStart(d){
-  activeWorldEvent={type:d.type,name:d.name,desc:d.desc,endsAt:d.endsAt,multipliers:d.multipliers||{}};
+  activeWorldEvent={type:d.type,name:d.name,desc:d.desc,endsAt:d.endsAt,multipliers:d.multipliers||{},
+    hordeMobsAlive:d.hordeMobsAlive||0,hordeMobsTotal:d.hordeMobsTotal||0,hordeGoldPool:d.hordeGoldPool||0};
   logMsg('🌍 WORLD EVENT: '+d.name+' — '+d.desc,'loot');
   showWorldEventBanner();
+  // Horde event — auto-equip sword in hub so player can fight
+  if(d.type==='mob_invasion'&&zoneType==='hub')activeTool='sword';
   // Blood Moon visual tint
   if(d.type==='blood_moon')document.getElementById('game-canvas').style.filter='saturate(1.3) hue-rotate(-10deg)';
 }
 function onWorldEventEnd(d){
+  // Horde event ending — revert sword back to default hub tool
+  if(d.type==='mob_invasion'&&zoneType==='hub'){activeTool='';attackTarget=null;swingAnim=0;swingCD=0;}
   activeWorldEvent=null;
   hideWorldEventBanner();
   if(d.type==='mob_invasion'){
@@ -5453,7 +5461,7 @@ function update(dt){
         if(d<100){if(attackTarget!=='duel_opponent'){attackTarget='duel_opponent';miningTarget=null;updateActionInfo()}}
         else{attackTarget=null;updateActionInfo()}
       }
-    } else if(!inDuel && (zoneType==='combat'||zoneType==='mine') && activeTool==='sword'){
+    } else if(!inDuel && (zoneType==='combat'||zoneType==='mine'||(zoneType==='hub'&&activeWorldEvent&&activeWorldEvent.type==='mob_invasion')) && activeTool==='sword'){
       let best=null,bestD=100;
       for(const m of mobs){const d=Math.sqrt((px-m.x)**2+(py-m.y)**2);if(d<bestD){bestD=d;best=m}}
       if(boss&&!boss.sleeping&&!boss.waking&&!boss.burrowed){const d=Math.sqrt((px-boss.x)**2+(py-boss.y)**2);if(d<bestD){bestD=d;best=boss}}
@@ -5494,7 +5502,7 @@ function update(dt){
       if(attackTarget==='duel_opponent'&&inDuel){send('rpg_duel_attack',{})}
       else if(miningTarget&&zoneType==='mine')send('rpg_mine',{nodeId:miningTarget.id});
       else if(attackTarget==='ghost_boss'){hitGhostBoss();}
-      else if(attackTarget&&(zoneType==='combat'||zoneType==='mine')){
+      else if(attackTarget&&(zoneType==='combat'||zoneType==='mine'||(zoneType==='hub'&&activeWorldEvent&&activeWorldEvent.type==='mob_invasion'))){
         if(inPartyDungeon){
           if(boss&&attackTarget===boss.id)send('rpg_dungeon_attack_boss',{});
           else send('rpg_dungeon_attack_mob',{mobId:attackTarget});
