@@ -561,12 +561,21 @@ const WORLD_EVENTS = {
   bounty_hunt: {
     name: 'Bounty Hunt',
     icon: '🎯',
-    desc: 'An elite bounty target has appeared! First to kill wins big!',
-    duration: 300000,
-    zones: ['combat', 'underground_mine'],
-    bountyGold: 2000,
-    bountyXP: 500,
-    bountyVG: 10,
+    desc: 'The Gilded Hoarder has appeared! Slay this golden beast for massive Vault Gold!',
+    duration: 600000,      // 10 minutes
+    zones: ['forest'],     // default zone, admin can override
+    bountyBossHP: 15000,
+    bountyBossAtk: 25,
+    bountyKillVG: 50,      // VG for last-hit killer
+    bountyShareVG: 100,    // VG split among ALL damage-dealers
+    bountyGold: 5000,      // gold reward for killer
+    bountyXP: 2000,
+    attacks: [
+      { name: 'Gold Toss',     type: 'aoe',   radius: 100, dmg: 30, cd: 3000, telegraph: 800 },
+      { name: 'Gem Shower',    type: 'spread', count: 5,  range: 200, dmg: 20, cd: 4000, telegraph: 600 },
+      { name: 'Treasure Slam', type: 'aoe',   radius: 150, dmg: 45, cd: 6000, telegraph: 1200 },
+      { name: 'Coin Storm',    type: 'aoe',   radius: 200, dmg: 35, cd: 8000, telegraph: 1000 },
+    ],
   },
 };
 const WORLD_EVENT_CONFIG = {
@@ -4632,6 +4641,157 @@ class Game {
         }
       }
     }
+
+    // ═══ BOUNTY BOSS AI — Gilded Hoarder ═══
+    if (this.activeWorldEvent && this.activeWorldEvent.eventType === 'bounty_hunt' && this.activeWorldEvent.bountyBoss) {
+      const bb = this.activeWorldEvent.bountyBoss;
+      if (!bb.dead) {
+        const now2 = Date.now();
+        const dt2 = 0.2;
+        const cfg = this.activeWorldEvent.config;
+        const attacks = cfg.attacks || [];
+        // Gather all players in boss zone
+        const zonePlayers = [];
+        for (const [u, urp] of Object.entries(this.rpgPlayers)) {
+          if (urp.disconnected || urp.zone !== bb.zone || urp.hp <= 0 || urp.godMode) continue;
+          zonePlayers.push({ username: u, x: urp.x || 400, y: urp.y || 200, rp: urp });
+        }
+        // Phase speed multipliers
+        const spdMult = bb.phase === 'desperate' ? 1.6 : bb.phase === 'enraged' ? 1.3 : 1.0;
+        const cdMult = bb.phase === 'desperate' ? 0.6 : bb.phase === 'enraged' ? 0.8 : 1.0;
+        // Find nearest player
+        let nearest = null, nearDist = Infinity;
+        for (const pl of zonePlayers) {
+          const dx = pl.x - bb.x, dy = pl.y - bb.y;
+          const d = Math.sqrt(dx * dx + dy * dy);
+          if (d < nearDist) { nearDist = d; nearest = pl; }
+        }
+        let moved = false;
+        // Currently telegraphing an attack
+        if (bb.currentAttack) {
+          const atk = bb.currentAttack;
+          if (now2 >= atk.telegraphEnd) {
+            // Execute the attack — damage all players in range
+            for (const pl of zonePlayers) {
+              const pdx = pl.x - atk.targetX, pdy = pl.y - atk.targetY;
+              const pd = Math.sqrt(pdx * pdx + pdy * pdy);
+              const r = atk.radius || 120;
+              if (pd <= r) {
+                const pData = this.player(pl.username);
+                const def = this.armorDefBonus(pData) + ((pData.rpg && pData.rpg.buffDef && now2 < pData.rpg.buffDef.expires) ? pData.rpg.buffDef.value : 0);
+                let admg = Math.max(1, atk.dmg - def);
+                let blocked = false, parried = false;
+                if (pl.rp.blocking) {
+                  if (now2 - pl.rp.blockStart < 250) { parried = true; admg = 0; }
+                  else { blocked = true; admg = Math.max(1, Math.floor(admg * 0.5)); }
+                }
+                if (bb.phase === 'enraged') admg = Math.floor(admg * 1.3);
+                if (bb.phase === 'desperate') admg = Math.floor(admg * 1.6);
+                pl.rp.hp = Math.max(0, pl.rp.hp - admg);
+                this.rpgSendTo(pl.username, { type: 'rpg_bounty_boss_attack', data: {
+                  bossId: bb.id, attack: atk.name, dmg: admg, hp: pl.rp.hp, maxHP: pl.rp.maxHP,
+                  blocked, parried, type: atk.type, bossX: Math.round(bb.x), bossY: Math.round(bb.y),
+                  targetX: Math.round(atk.targetX), targetY: Math.round(atk.targetY), radius: r,
+                }});
+                if (pl.rp.hp <= 0) {
+                  const lost = Math.floor(pData.gold * 0.02);
+                  pData.gold = Math.max(0, pData.gold - lost); this.saveData();
+                  this.rpgSendTo(pl.username, { type: 'rpg_death', data: { goldLost: lost, gold: pData.gold } });
+                  pl.rp.zone = 'hub'; pl.rp.hp = pl.rp.maxHP;
+                }
+              }
+            }
+            // Broadcast attack land to all in zone for VFX
+            for (const [u, urp] of Object.entries(this.rpgPlayers)) {
+              if (urp.disconnected || urp.zone !== bb.zone) continue;
+              this.rpgSendTo(u, { type: 'rpg_bounty_boss_attack_land', data: {
+                bossId: bb.id, attack: atk.name, type: atk.type,
+                bossX: Math.round(bb.x), bossY: Math.round(bb.y),
+                targetX: Math.round(atk.targetX), targetY: Math.round(atk.targetY),
+                radius: atk.radius || 120, count: atk.count || 0, range: atk.range || 0,
+              }});
+            }
+            bb.currentAttack = null;
+          }
+        }
+        // Choose next attack
+        else if (nearest && nearDist < bb.aggroRange && now2 >= (bb.lastAtk || 0)) {
+          // Pick a random available attack
+          const available = attacks.filter(a => {
+            const lastUsed = bb.lastAbility[a.name] || 0;
+            return now2 >= lastUsed + (a.cd * cdMult);
+          });
+          if (available.length > 0) {
+            const atk = available[Math.floor(Math.random() * available.length)];
+            bb.lastAbility[atk.name] = now2;
+            bb.lastAtk = now2 + atk.telegraph + 500;
+            bb.currentAttack = {
+              name: atk.name, type: atk.type,
+              targetX: nearest.x, targetY: nearest.y,
+              radius: atk.radius || 120, dmg: atk.dmg || bb.atk,
+              startedAt: now2, telegraphEnd: now2 + atk.telegraph,
+              count: atk.count || 0, range: atk.range || 0,
+            };
+            // Send telegraph to all players in zone
+            for (const [u, urp] of Object.entries(this.rpgPlayers)) {
+              if (urp.disconnected || urp.zone !== bb.zone) continue;
+              this.rpgSendTo(u, { type: 'rpg_bounty_boss_telegraph', data: {
+                bossId: bb.id, attack: atk.name, type: atk.type,
+                targetX: Math.round(nearest.x), targetY: Math.round(nearest.y),
+                radius: atk.radius || 120, duration: atk.telegraph,
+                count: atk.count || 0, range: atk.range || 0,
+              }});
+            }
+            bb.state = 'attack';
+          }
+        }
+        // Chase nearest player when not attacking
+        if (!bb.currentAttack && nearest && nearDist < bb.aggroRange && nearDist > 60) {
+          const chaseSpd = (bb.chaseSpeed * spdMult) * 40 * dt2;
+          const dx = nearest.x - bb.x, dy = nearest.y - bb.y;
+          const d = nearDist || 1;
+          bb.x += (dx / d) * chaseSpd;
+          bb.y += (dy / d) * chaseSpd;
+          bb.facing = dx > 0 ? 1 : -1;
+          bb.state = 'chase';
+          moved = true;
+        }
+        // Wander when no targets
+        if (!nearest || nearDist >= bb.aggroRange) {
+          if (!bb.currentAttack) {
+            if (!bb.wanderTarget || now2 > (bb.nextWander || 0)) {
+              bb.wanderTarget = { x: bb.homeX + (Math.random() - 0.5) * 300, y: bb.homeY + (Math.random() - 0.5) * 300 };
+              bb.nextWander = now2 + 3000 + Math.random() * 3000;
+            }
+            const wdx = bb.wanderTarget.x - bb.x, wdy = bb.wanderTarget.y - bb.y;
+            const wd = Math.sqrt(wdx * wdx + wdy * wdy);
+            if (wd > 5) {
+              const step = Math.min(bb.moveSpeed * 40 * dt2, wd);
+              bb.x += (wdx / wd) * step; bb.y += (wdy / wd) * step;
+              bb.facing = wdx > 0 ? 1 : -1;
+              bb.state = 'idle';
+              moved = true;
+            }
+          }
+        }
+        // Burn/poison DOT
+        if (bb.burnEnd && now2 < bb.burnEnd && now2 >= (bb.lastBurnTick || 0) + 1000) {
+          bb.hp -= (bb.burnDmg || 8); bb.lastBurnTick = now2;
+        }
+        if (bb.poisonEnd && now2 < bb.poisonEnd && now2 >= (bb.lastPoisonTick || 0) + 1000) {
+          bb.hp -= (bb.poisonDmg || 5); bb.lastPoisonTick = now2;
+        }
+        // Broadcast movement to all players in zone
+        if (moved || bb.currentAttack) {
+          for (const [u, urp] of Object.entries(this.rpgPlayers)) {
+            if (urp.disconnected || urp.zone !== bb.zone) continue;
+            this.rpgSendTo(u, { type: 'rpg_bounty_boss_move', data: {
+              id: bb.id, x: Math.round(bb.x), y: Math.round(bb.y), s: bb.state, f: bb.facing, phase: bb.phase,
+            }});
+          }
+        }
+      }
+    }
   }
 
   rpgMakeMob(zoneId, idx, preferName, questBias) {
@@ -8119,14 +8279,50 @@ class Game {
       }
     }
     if (eventType === 'bounty_hunt') {
-      // Create a bounty elite in a random affected zone
-      const zone = cfg.zones[Math.floor(Math.random() * cfg.zones.length)];
-      const names = ['Shadow Stalker', 'Crimson Reaver', 'Iron Phantom', 'Blood Warden', 'Void Assassin'];
-      event.bountyTarget = {
-        zone,
-        name: names[Math.floor(Math.random() * names.length)],
-        spawned: true,
+      // Spawn the Gilded Hoarder — a shared bounty boss visible to ALL players in the zone
+      const zone = cfg._adminZone || event.bountyZone || cfg.zones[0] || 'forest';
+      // Spawn coords based on zone — center of combat area
+      const spawnCoords = {
+        hub: { x: 2000, y: 600 },
+        forest: { x: 1200, y: 600 },
+        quarry: { x: 1200, y: 600 },
+        underground_mine: { x: 1200, y: 600 },
+        deep_mine: { x: 1200, y: 600 },
+        dungeon: { x: 1200, y: 600 },
       };
+      const sp = spawnCoords[zone] || { x: 1200, y: 600 };
+      event.bountyBoss = {
+        id: 'bounty_boss_' + event.id,
+        name: 'Gilded Hoarder',
+        hp: cfg.bountyBossHP || 15000,
+        maxHP: cfg.bountyBossHP || 15000,
+        atk: cfg.bountyBossAtk || 25,
+        x: sp.x, y: sp.y,
+        homeX: sp.x, homeY: sp.y,
+        zone: zone,
+        dead: false,
+        isBountyBoss: true,
+        facing: -1,
+        state: 'idle',
+        moveSpeed: 0.6,
+        chaseSpeed: 1.5,
+        aggroRange: 250,
+        atkCD: 3000,
+        lastAtk: 0,
+        lastAbility: {},       // ability name → last use timestamp
+        damageDealers: {},     // username → total damage dealt
+        currentAttack: null,   // { name, type, targetX, targetY, radius, startedAt, telegraphEnd }
+        phase: 'normal',       // normal, enraged (below 50%), desperate (below 20%)
+        phaseChanged: 0,
+        color: '#ffd700',
+        eliteTier: 'champion',
+      };
+      event.bountyTarget = { zone, name: 'Gilded Hoarder', spawned: true };
+      // Send boss to all players in the zone
+      for (const [u, rp] of Object.entries(this.rpgPlayers)) {
+        if (rp.disconnected || rp.zone !== zone) continue;
+        this.rpgSendTo(u, { type: 'rpg_bounty_boss_spawn', data: this._getBountyBossClientData(event.bountyBoss) });
+      }
     }
     if (eventType === 'boss_rush') {
       // Instantly respawn all dead bosses for all players
@@ -8251,6 +8447,8 @@ class Game {
       hordeGoldPool: evt.hordeGoldPool || 0,
       hordeMobsAlive: evt.hordeMobsAlive || 0,
       hordeMobsTotal: evt.hordeMobs ? evt.hordeMobs.length : 0,
+      bountyBoss: evt.bountyBoss ? this._getBountyBossClientData(evt.bountyBoss) : null,
+      bountyTarget: evt.bountyTarget || null,
     };
   }
 
@@ -8276,6 +8474,121 @@ class Game {
     p.kills += kills || 0;
     p.gold += gold || 0;
     p.xp += xp || 0;
+  }
+
+  // ═══ BOUNTY BOSS — Gilded Hoarder ═══
+  _getBountyBossClientData(bb) {
+    return {
+      id: bb.id, name: bb.name, hp: bb.hp, maxHP: bb.maxHP,
+      x: Math.round(bb.x), y: Math.round(bb.y), zone: bb.zone,
+      facing: bb.facing, state: bb.state, phase: bb.phase,
+      isBountyBoss: true, color: bb.color, eliteTier: bb.eliteTier,
+      currentAttack: bb.currentAttack,
+    };
+  }
+
+  rpgAttackBountyBoss(username) {
+    const rp = this.rpgPlayers[username];
+    if (!rp || rp.hp <= 0) return { error: 'dead' };
+    const evt = this.activeWorldEvent;
+    if (!evt || evt.eventType !== 'bounty_hunt' || !evt.bountyBoss || evt.bountyBoss.dead) return { error: 'boss_gone' };
+    const bb = evt.bountyBoss;
+    if (rp.zone !== bb.zone) return { error: 'wrong_zone' };
+    const dx = (rp.x || 400) - bb.x, dy = (rp.y || 400) - bb.y;
+    if (Math.sqrt(dx * dx + dy * dy) > 120) return { error: 'too_far' };
+
+    const p = this.rpgGetPlayerData(username);
+    let dmg = Math.floor(Math.random() * (this.maxDmg(p) - this.minDmg(p) + 1)) + this.minDmg(p);
+    let crit = false;
+    if (Math.random() < this.critChance(p)) {
+      dmg = Math.floor(dmg * (CONFIG.critMultiplier + this.equipStat(p, 'critMult')));
+      crit = true;
+    }
+    if (rp.adminDmgMult > 1) dmg = Math.floor(dmg * rp.adminDmgMult);
+
+    bb.hp -= dmg;
+    // Track damage dealers for shared VG reward
+    bb.damageDealers[username] = (bb.damageDealers[username] || 0) + dmg;
+
+    // Enchantment effects
+    let burn = false, poison = false, holy = false;
+    const wepItem = (p.rpg.equipped && p.rpg.equipped.weapon) || {};
+    const weaponId = wepItem.id || '';
+    const wepDef = ITEMS[weaponId] || {};
+    let activeEnchant = '';
+    if (wepDef.enchant) activeEnchant = wepDef.enchant;
+    else if (wepItem.enchantments) {
+      for (const ench of wepItem.enchantments) {
+        const def = typeof ENCHANTMENTS !== 'undefined' && ENCHANTMENTS[ench.id];
+        if (def && Math.random() < (ench.chance || 0.2)) { activeEnchant = def.type; break; }
+      }
+    }
+    if (activeEnchant === 'fire') { bb.burnDmg = 8; bb.burnEnd = Date.now() + 3000; burn = true; }
+    if (activeEnchant === 'poison') { bb.poisonDmg = 5; bb.poisonEnd = Date.now() + 4000; poison = true; }
+    let holyDmg = 0;
+    if (activeEnchant === 'holy') { holyDmg = Math.max(3, Math.floor(dmg * 0.15)); bb.hp -= holyDmg; holy = true; bb.damageDealers[username] += holyDmg; }
+
+    // Weapon durability
+    const wepResult = this.degradeEquipped(p, 'weapon', 3);
+    const lifesteal = this.equipStat(p, 'lifesteal');
+    let lifestealAmt = 0;
+    if (lifesteal > 0) { lifestealAmt = Math.floor(dmg * lifesteal); rp.hp = Math.min(rp.maxHP, rp.hp + lifestealAmt); }
+
+    // Phase transitions
+    const hpPct = bb.hp / bb.maxHP;
+    if (hpPct <= 0.2 && bb.phase !== 'desperate') { bb.phase = 'desperate'; bb.phaseChanged = Date.now(); }
+    else if (hpPct <= 0.5 && bb.phase === 'normal') { bb.phase = 'enraged'; bb.phaseChanged = Date.now(); }
+
+    // Broadcast hit to all players in zone
+    const hitData = { bossId: bb.id, attacker: username, dmg, crit, bossHP: bb.hp, bossMaxHP: bb.maxHP, phase: bb.phase, burn, poison, holy: holyDmg || false };
+    for (const [u, urp] of Object.entries(this.rpgPlayers)) {
+      if (urp.disconnected || urp.zone !== bb.zone) continue;
+      this.rpgSendTo(u, { type: 'rpg_bounty_boss_hit', data: hitData });
+    }
+
+    // Boss killed
+    if (bb.hp <= 0) {
+      bb.dead = true;
+      const cfg = evt.config;
+      // Killer gets last-hit VG + gold + XP
+      const killVG = evt.bountyKillVG || cfg.bountyKillVG || 50;
+      const shareVG = evt.bountyShareVG || cfg.bountyShareVG || 100;
+      const goldReward = cfg.bountyGold || 5000;
+      const xpReward = cfg.bountyXP || 2000;
+      this.awardVaultGold(username, killVG, 'Bounty Boss last hit');
+      const killerP = this.player(username);
+      if (killerP) killerP.gold += goldReward;
+      this.addXP(p, xpReward);
+
+      // Distribute shared VG among all damage dealers proportional to damage
+      const totalDmg = Object.values(bb.damageDealers).reduce((s, d) => s + d, 0);
+      const participantRewards = [];
+      for (const [u, dmgDealt] of Object.entries(bb.damageDealers)) {
+        const share = Math.max(1, Math.floor(shareVG * (dmgDealt / totalDmg)));
+        this.awardVaultGold(u, share, 'Bounty Boss participation');
+        participantRewards.push({ username: u, vg: share, dmg: dmgDealt });
+        this.rpgRecordWorldEventParticipation(u, 0, 0, 0);
+      }
+
+      // Broadcast kill to all players
+      const killData = {
+        bossId: bb.id, killer: username, killVG, shareVG, goldReward, xpReward,
+        participants: participantRewards,
+        totalParticipants: Object.keys(bb.damageDealers).length,
+      };
+      this.rpgBroadcastAll({ type: 'rpg_bounty_boss_killed', data: killData });
+
+      // End the event shortly after boss dies
+      setTimeout(() => { if (this.activeWorldEvent && this.activeWorldEvent.id === evt.id) this.rpgEndWorldEvent(); }, 5000);
+      this.saveData();
+    }
+
+    return {
+      hit: true, dmg, crit, bossHP: Math.max(0, bb.hp), bossMaxHP: bb.maxHP, phase: bb.phase,
+      burn, poison, holy: holyDmg || false, lifesteal: lifestealAmt,
+      hp: rp.hp, weaponBroke: wepResult && wepResult.broke ? wepResult.name : null,
+      killed: bb.dead,
+    };
   }
 
   rpgClaimBounty(username) {

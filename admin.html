@@ -238,6 +238,20 @@ body{font-family:'Segoe UI',sans-serif;background:#0a0a0f;color:#e0e0e0;min-heig
       <label style="color:#ccc;font-size:12px">Horde Gold Pool:</label>
       <input id="hordeGoldPool" type="number" value="5000" min="100" step="500" style="width:90px;padding:4px 8px;background:#1a1a2a;color:#fbbf24;border:1px solid #333;border-radius:4px;font-size:12px">
     </div>
+    <div style="margin-bottom:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <label style="color:#ccc;font-size:12px">Bounty Zone:</label>
+      <select id="bountyZone" style="padding:4px 8px;background:#1a1a2a;color:#a855f7;border:1px solid #333;border-radius:4px;font-size:12px">
+        <option value="forest">Forest</option>
+        <option value="hub">Hub</option>
+        <option value="quarry">Quarry</option>
+        <option value="underground_mine">Underground Mine</option>
+        <option value="deep_mine">Deep Mine</option>
+      </select>
+      <label style="color:#ccc;font-size:12px">Kill VG:</label>
+      <input id="bountyKillVG" type="number" value="50" min="1" step="5" style="width:70px;padding:4px 8px;background:#1a1a2a;color:#60a5fa;border:1px solid #333;border-radius:4px;font-size:12px">
+      <label style="color:#ccc;font-size:12px">Shared VG:</label>
+      <input id="bountyShareVG" type="number" value="100" min="1" step="10" style="width:70px;padding:4px 8px;background:#1a1a2a;color:#60a5fa;border:1px solid #333;border-radius:4px;font-size:12px">
+    </div>
     <div class="btn-grid">
       <button class="btn" onclick="startWorldEvent('mob_invasion')" style="background:linear-gradient(90deg,#dc2626,#991b1b)">👹 Horde Attack</button>
       <button class="btn" onclick="startWorldEvent('blood_moon')" style="background:linear-gradient(90deg,#7f1d1d,#450a0a)">🌑 Blood Moon</button>
@@ -1792,12 +1806,22 @@ function startWorldEvent(eventType) {
   if (eventType === 'mob_invasion') {
     body.goldPool = parseInt(document.getElementById('hordeGoldPool').value) || 5000;
   }
+  if (eventType === 'bounty_hunt') {
+    body.bountyZone = document.getElementById('bountyZone').value;
+    body.bountyKillVG = parseInt(document.getElementById('bountyKillVG').value) || 50;
+    body.bountyShareVG = parseInt(document.getElementById('bountyShareVG').value) || 100;
+  }
   adminFetch('/api/admin/world-event/start', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   }).then(r => r.json()).then(d => {
-    if (d.success) { addLog('🌍 Started world event: ' + eventType + (body.goldPool ? ' (Gold Pool: ' + body.goldPool + ')' : ''), 'success'); refreshWorldEventStatus(); }
+    if (d.success) {
+      let info = eventType;
+      if (body.goldPool) info += ' (Gold Pool: ' + body.goldPool + ')';
+      if (body.bountyZone) info += ' (Zone: ' + body.bountyZone + ', Kill VG: ' + body.bountyKillVG + ', Shared VG: ' + body.bountyShareVG + ')';
+      addLog('🌍 Started world event: ' + info, 'success'); refreshWorldEventStatus();
+    }
     else addLog('Failed to start event: ' + (d.error || 'unknown'), 'error');
   }).catch(e => addLog('Error: ' + e.message, 'error'));
 }
@@ -1816,6 +1840,7 @@ function refreshWorldEventStatus() {
     const m = Math.floor(secs / 60), s = secs % 60;
     let extra = '';
     if (d.type === 'mob_invasion') extra = ' | Mobs: ' + (d.hordeMobsAlive || 0) + ' alive | Pool: ' + (d.hordeGoldPool || 0) + 'g | Players: ' + (d.participants || 0);
+    if (d.type === 'bounty_hunt') extra = ' | Boss HP: ' + (d.bountyBossHP || 0) + '/' + (d.bountyBossMaxHP || 0) + ' | Zone: ' + (d.bountyBossZone || '?') + ' | Kill VG: ' + (d.bountyKillVG || 0) + ' | Shared VG: ' + (d.bountyShareVG || 0) + ' | Fighters: ' + (d.bountyDealers || 0);
     el.innerHTML = '<span style="color:#a855f7">🌍 ' + d.name + '</span> — <span style="color:#fbbf24">' + m + ':' + String(s).padStart(2, '0') + ' left</span>' + extra;
   }).catch(() => {});
 }

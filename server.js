@@ -542,13 +542,24 @@ app.post('/api/admin/fullreset', requireAdminAuth, (req, res) => {
 
 // Admin: World Event controls
 app.post('/api/admin/world-event/start', requireAdminAuth, (req, res) => {
-  const { eventType, goldPool } = req.body;
+  const { eventType, goldPool, bountyZone, bountyKillVG, bountyShareVG } = req.body;
+  // Pre-set bounty zone override before starting
+  if (eventType === 'bounty_hunt' && bountyZone) {
+    // Temporarily patch zones config so startup uses the admin-chosen zone
+    WORLD_EVENTS.bounty_hunt._adminZone = bountyZone;
+  }
   const result = game.rpgAdminStartWorldEvent('_admin_', eventType);
   if (result.error) return res.status(400).json(result);
   // Override gold pool if provided for horde events
   if (goldPool && game.activeWorldEvent && game.activeWorldEvent.eventType === 'mob_invasion') {
     game.activeWorldEvent.hordeGoldPool = Number(goldPool);
   }
+  // Override bounty hunt settings
+  if (game.activeWorldEvent && game.activeWorldEvent.eventType === 'bounty_hunt') {
+    if (bountyKillVG) game.activeWorldEvent.bountyKillVG = Number(bountyKillVG);
+    if (bountyShareVG) game.activeWorldEvent.bountyShareVG = Number(bountyShareVG);
+  }
+  delete WORLD_EVENTS.bounty_hunt._adminZone;
   res.json({ success: true, eventType });
 });
 app.post('/api/admin/world-event/stop', requireAdminAuth, (req, res) => {
@@ -558,7 +569,8 @@ app.post('/api/admin/world-event/stop', requireAdminAuth, (req, res) => {
 app.get('/api/admin/world-event', requireAdminAuth, (req, res) => {
   const evt = game.activeWorldEvent;
   if (!evt) return res.json({ active: false });
-  res.json({ active: true, type: evt.eventType, name: evt.config.name, endsAt: evt.expiresAt, timeLeft: Math.max(0, evt.expiresAt - Date.now()), hordeMobsAlive: evt.hordeMobsAlive || 0, hordeGoldPool: evt.hordeGoldPool || 0, participants: Object.keys(evt.participants).length });
+  res.json({ active: true, type: evt.eventType, name: evt.config.name, endsAt: evt.expiresAt, timeLeft: Math.max(0, evt.expiresAt - Date.now()), hordeMobsAlive: evt.hordeMobsAlive || 0, hordeGoldPool: evt.hordeGoldPool || 0, participants: Object.keys(evt.participants).length,
+    bountyBossHP: evt.bountyBoss ? evt.bountyBoss.hp : 0, bountyBossMaxHP: evt.bountyBoss ? evt.bountyBoss.maxHP : 0, bountyBossZone: evt.bountyBoss ? evt.bountyBoss.zone : '', bountyKillVG: evt.bountyKillVG || evt.config.bountyKillVG || 0, bountyShareVG: evt.bountyShareVG || evt.config.bountyShareVG || 0, bountyDealers: evt.bountyBoss ? Object.keys(evt.bountyBoss.damageDealers).length : 0 });
 });
 
 // Admin: Caravan controls
@@ -988,6 +1000,10 @@ wss.on('connection', (ws) => {
       if (msg.type === 'rpg_attack_boss' && ws.isRPG && ws.rpgUser) {
         const r = game.rpgAttackBoss(ws.rpgUser, msg.bossId);
         ws.send(JSON.stringify({ type: 'rpg_boss_attack_result', data: r }));
+      }
+      if (msg.type === 'rpg_attack_bounty_boss' && ws.isRPG && ws.rpgUser) {
+        const r = game.rpgAttackBountyBoss(ws.rpgUser);
+        ws.send(JSON.stringify({ type: 'rpg_bounty_boss_attack_result', data: r }));
       }
       if (msg.type === 'rpg_attack_sboss' && ws.isRPG && ws.rpgUser) {
         const r = game.rpgAttackSecondaryBoss(ws.rpgUser, msg.bossId);

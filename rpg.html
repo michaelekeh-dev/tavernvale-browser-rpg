@@ -1931,6 +1931,8 @@ let duelChallenge=null; // {challengeId, from, timer}
 // World Event state
 let activeWorldEvent=null; // {type, name, desc, endsAt, multipliers}
 let worldEventBannerTimer=null;
+let bountyBoss=null; // Gilded Hoarder bounty boss
+let bountyBossTelegraph=null; // {attack, type, targetX, targetY, radius, duration, startedAt}
 
 // Trade state
 let tradeOpen=false,tradeId=null,tradePartner=null,tradeAmP1=false;
@@ -2565,6 +2567,15 @@ function handleMessage(msg){
     case'rpg_horde_progress':onHordeProgress(d);break;
     case'rpg_horde_reward':logMsg('💰 Horde cleared! You earned '+d.gold+'g ('+d.kills+'/'+d.totalKills+' kills)','loot');addFloat(px,py-60,'+'+d.gold+'g','#fbbf24',true);break;
     case'rpg_horde_end':mobs=mobs.filter(m=>!m.isHorde);break;
+    // ── Bounty Boss ──
+    case'rpg_bounty_boss_spawn':bountyBoss=d;bountyBoss.flash=0;logMsg('💰 The Gilded Hoarder has appeared in '+d.zone+'!','loot');break;
+    case'rpg_bounty_boss_move':if(bountyBoss&&bountyBoss.id===d.id){bountyBoss.x=d.x;bountyBoss.y=d.y;bountyBoss.state=d.s;bountyBoss.facing=d.f;bountyBoss.phase=d.phase}break;
+    case'rpg_bounty_boss_hit':if(bountyBoss&&bountyBoss.id===d.bossId){bountyBoss.hp=d.bossHP;bountyBoss.maxHP=d.bossMaxHP;bountyBoss.phase=d.phase;bountyBoss.flash=1;if(d.attacker!==username){const col=d.crit?'#ffd700':'#ffaa00';addFloat(bountyBoss.x+(Math.random()-.5)*30,bountyBoss.y-50,(d.crit?'CRIT ':'')+d.dmg,col,d.crit);spawnParticles(bountyBoss.x,bountyBoss.y,'#ffd700',d.crit?10:4)}}break;
+    case'rpg_bounty_boss_attack':onBountyBossAttack(d);break;
+    case'rpg_bounty_boss_attack_land':onBountyBossAttackLand(d);break;
+    case'rpg_bounty_boss_telegraph':bountyBossTelegraph={attack:d.attack,type:d.type,targetX:d.targetX,targetY:d.targetY,radius:d.radius||120,duration:d.duration||800,startedAt:Date.now(),count:d.count||0,range:d.range||0};break;
+    case'rpg_bounty_boss_killed':onBountyBossKilled(d);break;
+    case'rpg_bounty_boss_attack_result':onBountyBossAttackResult(d);break;
     case'rpg_error':
       // Token invalid — stop reconnecting, show error, but keep localStorage token
       // (another tab may have refreshed it)
@@ -2919,7 +2930,8 @@ function onJoined(d){
   if(d.caravan&&d.caravan.active){activeCaravan=d.caravan;setTimeout(showCaravanBanner,1000)}
   // World event
   if(d.worldEvent&&d.worldEvent.active){activeWorldEvent=d.worldEvent;setTimeout(showWorldEventBanner,1200);
-    if(d.worldEvent.type==='mob_invasion')setTimeout(()=>{if(zoneType==='hub')activeTool='sword'},1500);}
+    if(d.worldEvent.type==='mob_invasion')setTimeout(()=>{if(zoneType==='hub')activeTool='sword'},1500);
+    if(d.worldEvent.type==='bounty_hunt'&&d.worldEvent.bountyBoss){bountyBoss=d.worldEvent.bountyBoss;bountyBoss.flash=0}}
   // Restore party state on reconnect
   if(d.party){myParty=d.party;updateHUD()}else{myParty=null}
   // Dungeon reconnect: restore dungeon state if player was in a dungeon
@@ -2987,12 +2999,13 @@ function onZoneState(z){
   document.getElementById('hud-zone-name').textContent=z.name;
   const isGameZone=zoneType==='mine'||zoneType==='combat';
   const isHordeHub=zoneType==='hub'&&activeWorldEvent&&activeWorldEvent.type==='mob_invasion';
-  document.getElementById('hud-overlay').style.display=(isGameZone||isHordeHub)?'block':'none';
+  const isBountyZone=bountyBoss&&!bountyBoss.dead&&bountyBoss.zone===currentZone;
+  document.getElementById('hud-overlay').style.display=(isGameZone||isHordeHub||isBountyZone)?'block':'none';
   // Hub is now a playable town — don't auto-show zone overlay
   document.getElementById('zone-overlay').classList.remove('show');
   // Auto-select tool
   if(zoneType==='mine'){activeTool='pickaxe'}else if(zoneType==='combat'){activeTool='sword'}
-  else if(isHordeHub){activeTool='sword'}
+  else if(isHordeHub||isBountyZone){activeTool='sword'}
   updateToolHUD();updateActionInfo();updateWorldMap();
 }
 
@@ -4718,12 +4731,16 @@ function onWorldEventStart(d){
   showWorldEventBanner();
   // Horde event — auto-equip sword in hub so player can fight
   if(d.type==='mob_invasion'&&zoneType==='hub')activeTool='sword';
+  // Bounty boss — restore boss from event data on join
+  if(d.type==='bounty_hunt'&&d.bountyBoss){bountyBoss=d.bountyBoss;bountyBoss.flash=0;if(bountyBoss.zone===currentZone)activeTool='sword'}
   // Blood Moon visual tint
   if(d.type==='blood_moon')document.getElementById('game-canvas').style.filter='saturate(1.3) hue-rotate(-10deg)';
 }
 function onWorldEventEnd(d){
   // Horde event ending — revert sword back to default hub tool
   if(d.type==='mob_invasion'&&zoneType==='hub'){activeTool='';attackTarget=null;swingAnim=0;swingCD=0;}
+  // Bounty boss cleanup
+  if(d.type==='bounty_hunt'){bountyBoss=null;bountyBossTelegraph=null;if(zoneType==='hub'){activeTool='';attackTarget=null;swingAnim=0;swingCD=0}}
   activeWorldEvent=null;
   hideWorldEventBanner();
   if(d.type==='mob_invasion'){
@@ -4771,6 +4788,10 @@ function showWorldEventBanner(){
       const total=activeWorldEvent.hordeMobsTotal||0;
       hordeInfo=' <span style="color:#f87171">'+alive+'/'+total+' mobs</span>';
       if(activeWorldEvent.hordeGoldPool)hordeInfo+=' <span style="color:#fbbf24">'+activeWorldEvent.hordeGoldPool+'g pool</span>';
+    }
+    if(activeWorldEvent.type==='bounty_hunt'&&bountyBoss&&!bountyBoss.dead){
+      hordeInfo=' <span style="color:#ffd700">Boss: '+bountyBoss.hp+'/'+bountyBoss.maxHP+' HP</span> <span style="color:#fbbf24">'+bountyBoss.zone+'</span>';
+      if(bountyBoss.phase!=='normal')hordeInfo+=' <span style="color:#ff4444">['+bountyBoss.phase.toUpperCase()+']</span>';
     }
     el.innerHTML=icon+' <span style="color:'+col+'">'+activeWorldEvent.name+'</span> '+mults+hordeInfo+' <span style="color:#888;font-size:7px">('+m+':'+String(s).padStart(2,'0')+')</span>';
     el.style.display='block';
@@ -5461,11 +5482,12 @@ function update(dt){
         if(d<100){if(attackTarget!=='duel_opponent'){attackTarget='duel_opponent';miningTarget=null;updateActionInfo()}}
         else{attackTarget=null;updateActionInfo()}
       }
-    } else if(!inDuel && (zoneType==='combat'||zoneType==='mine'||(zoneType==='hub'&&activeWorldEvent&&activeWorldEvent.type==='mob_invasion')) && activeTool==='sword'){
+    } else if(!inDuel && (zoneType==='combat'||zoneType==='mine'||(zoneType==='hub'&&activeWorldEvent&&(activeWorldEvent.type==='mob_invasion'||(activeWorldEvent.type==='bounty_hunt'&&bountyBoss&&bountyBoss.zone===currentZone)))) && activeTool==='sword'){
       let best=null,bestD=100;
       for(const m of mobs){const d=Math.sqrt((px-m.x)**2+(py-m.y)**2);if(d<bestD){bestD=d;best=m}}
       if(boss&&!boss.sleeping&&!boss.waking&&!boss.burrowed){const d=Math.sqrt((px-boss.x)**2+(py-boss.y)**2);if(d<bestD){bestD=d;best=boss}}
       for(const sb of secondaryBosses){if(!sb.sleeping){const d=Math.sqrt((px-sb.x)**2+(py-sb.y)**2);if(d<bestD){bestD=d;best=sb}}}
+      if(bountyBoss&&!bountyBoss.dead&&bountyBoss.zone===currentZone){const d=Math.sqrt((px-bountyBoss.x)**2+(py-bountyBoss.y)**2);if(d<120&&d<bestD){bestD=d;best={id:'bounty_boss',isBountyBoss:true}}}
       if(zoneType==='hub'&&playerInDungeon&&ghostBoss&&!ghostBoss.dead&&ghostJumpscare<=0){
         const d=Math.sqrt((px-ghostBoss.x)**2+(py-ghostBoss.y)**2);if(d<120&&d<bestD){bestD=d;best={id:'ghost_boss'}}}
       if(best){if(attackTarget!==best.id){attackTarget=best.id;miningTarget=null;updateActionInfo()}}
@@ -5502,7 +5524,8 @@ function update(dt){
       if(attackTarget==='duel_opponent'&&inDuel){send('rpg_duel_attack',{})}
       else if(miningTarget&&zoneType==='mine')send('rpg_mine',{nodeId:miningTarget.id});
       else if(attackTarget==='ghost_boss'){hitGhostBoss();}
-      else if(attackTarget&&(zoneType==='combat'||zoneType==='mine'||(zoneType==='hub'&&activeWorldEvent&&activeWorldEvent.type==='mob_invasion'))){
+      else if(attackTarget==='bounty_boss'){send('rpg_attack_bounty_boss',{})}
+      else if(attackTarget&&(zoneType==='combat'||zoneType==='mine'||(zoneType==='hub'&&activeWorldEvent&&(activeWorldEvent.type==='mob_invasion'||activeWorldEvent.type==='bounty_hunt')))){
         if(inPartyDungeon){
           if(boss&&attackTarget===boss.id)send('rpg_dungeon_attack_boss',{});
           else send('rpg_dungeon_attack_mob',{mobId:attackTarget});
@@ -5767,6 +5790,7 @@ function render(){
   if(boss)entities.push({type:'boss',obj:boss,y:boss.y});
   for(const sb of secondaryBosses)entities.push({type:'sboss',obj:sb,y:sb.y});
   if(ghostBoss&&!ghostBoss.dead)entities.push({type:'ghost',obj:ghostBoss,y:ghostBoss.y});
+  if(bountyBoss&&!bountyBoss.dead&&bountyBoss.zone===currentZone)entities.push({type:'bountyboss',obj:bountyBoss,y:bountyBoss.y});
   for(const p of otherPlayers)entities.push({type:'other',obj:p,y:p.y});
   entities.push({type:'player',y:py});
   // Treant grave trees depth-sorted with entities
@@ -5783,6 +5807,7 @@ function render(){
       case'boss':drawBoss(e.obj);break;
       case'sboss':drawSecondaryBoss(e.obj);break;
       case'ghost':drawGhostBoss(e.obj);break;
+      case'bountyboss':drawBountyBoss(e.obj);break;
       case'other':drawOtherPlayer(e.obj);break;
       case'player':drawPlayer();if(carryingFurniture)drawCarriedFurniture();break;
       case'deco':drawDecoration(e.obj);break;
@@ -7496,6 +7521,7 @@ function render(){
   }
 
   if(!playerInsideGoblinHut&&boss&&!boss.sleeping&&!boss.waking)drawBossHPBar();
+  if(bountyBoss&&!bountyBoss.dead&&bountyBoss.zone===currentZone)drawBountyBossHPBar();
   drawMinimap();
   if(detailMapOpen)drawDetailMap();
   // Carrying furniture HUD
@@ -18407,6 +18433,296 @@ function drawBossHPBar(){
   ctx.fillText('\u2620 '+boss.name+' \u2620',W/2,barY-6);
   ctx.font='bold 11px sans-serif';ctx.fillStyle='#fff';
   ctx.fillText(boss.hp+' / '+boss.maxHP,W/2,barY+15);
+}
+
+// ═══════════════════════════════════════════════
+// BOUNTY BOSS — Gilded Hoarder
+// ═══════════════════════════════════════════════
+function drawBountyBossHPBar(){
+  if(!bountyBoss||bountyBoss.dead)return;
+  const barW=400,barH=20,barX=(W-barW)/2,barY=boss&&!boss.sleeping?82:56;
+  ctx.fillStyle='rgba(0,0,0,0.8)';ctx.fillRect(barX-2,barY-2,barW+4,barH+4);
+  const pct=Math.max(0,bountyBoss.hp/bountyBoss.maxHP);
+  const grad=ctx.createLinearGradient(barX,barY,barX+barW*pct,barY);
+  grad.addColorStop(0,'#ffd700');grad.addColorStop(1,pct>.5?'#ffaa00':'#ff4400');
+  ctx.fillStyle=grad;ctx.fillRect(barX,barY,barW*pct,barH);
+  // Phase indicator border
+  const bCol=bountyBoss.phase==='desperate'?'#ff2222':bountyBoss.phase==='enraged'?'#ff8800':'#ffd700';
+  ctx.strokeStyle=bCol;ctx.lineWidth=2;ctx.strokeRect(barX-2,barY-2,barW+4,barH+4);ctx.lineWidth=1;
+  ctx.font='bold 14px sans-serif';ctx.textAlign='center';
+  ctx.fillStyle='#ffd700';
+  const phaseTag=bountyBoss.phase!=='normal'?' ['+bountyBoss.phase.toUpperCase()+']':'';
+  ctx.fillText('💰 '+bountyBoss.name+phaseTag+' 💰',W/2,barY-6);
+  ctx.font='bold 11px sans-serif';ctx.fillStyle='#fff';
+  ctx.fillText(Math.max(0,bountyBoss.hp)+' / '+bountyBoss.maxHP,W/2,barY+15);
+}
+
+function drawBountyBoss(bb){
+  const s=worldToScreen(bb.x,bb.y);
+  if(s.x<-100||s.x>W+100||s.y<-100||s.y>H+100)return;
+  const isTarget=attackTarget==='bounty_boss';
+  const t=Date.now();
+  const S=3.2; // big boss scale
+  const face=bb.facing||1;
+  const mx=s.x,my=s.y;
+  const phase=bb.phase||'normal';
+
+  // ── Telegraph warning circle ──
+  if(bountyBossTelegraph){
+    const elapsed=t-bountyBossTelegraph.startedAt;
+    const prog=Math.min(1,elapsed/bountyBossTelegraph.duration);
+    const ts=worldToScreen(bountyBossTelegraph.targetX,bountyBossTelegraph.targetY);
+    const rad=bountyBossTelegraph.radius*ISO_S*0.6;
+    ctx.save();
+    const pulse=0.5+Math.sin(t*0.015)*0.3;
+    const grd=ctx.createRadialGradient(ts.x,ts.y,0,ts.x,ts.y,rad);
+    grd.addColorStop(0,'rgba(255,215,0,'+(0.15+prog*0.3+pulse*0.1)+')');
+    grd.addColorStop(0.6,'rgba(255,170,0,'+(0.1+prog*0.2)+')');
+    grd.addColorStop(1,'rgba(255,215,0,0)');
+    ctx.fillStyle=grd;ctx.beginPath();ctx.ellipse(ts.x,ts.y,rad,rad*0.5,0,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='rgba(255,215,0,'+(0.4+prog*0.5)+')';ctx.lineWidth=1.5+prog*2;
+    ctx.beginPath();ctx.ellipse(ts.x,ts.y,rad*0.85,rad*0.42,0,0,Math.PI*2);ctx.stroke();
+    // Gold sparkle particles in telegraph
+    for(let i=0;i<6;i++){
+      const a=(i/6)*Math.PI*2+t*0.005;
+      const sr=rad*0.7*(0.4+Math.sin(i*3+t*0.008)*0.3);
+      const sx=ts.x+Math.cos(a)*sr,sy=ts.y+Math.sin(a)*sr*0.5;
+      ctx.fillStyle='rgba(255,215,0,'+(0.5+prog*0.5)+')';
+      ctx.fillRect(sx-1.5,sy-1.5,3,3);
+    }
+    ctx.restore();
+    if(elapsed>bountyBossTelegraph.duration+800)bountyBossTelegraph=null;
+  }
+
+  // ── GOLDEN AURA — massive radiating glow ──
+  ctx.save();
+  const auraPulse=0.6+Math.sin(t*0.003)*0.2;
+  const auraR=phase==='desperate'?55*S:phase==='enraged'?45*S:38*S;
+  const aGrd=ctx.createRadialGradient(mx,my,0,mx,my,auraR);
+  aGrd.addColorStop(0,'rgba(255,215,0,'+auraPulse*0.25+')');
+  aGrd.addColorStop(0.4,'rgba(255,180,0,'+auraPulse*0.12+')');
+  aGrd.addColorStop(0.7,'rgba(255,150,0,'+auraPulse*0.06+')');
+  aGrd.addColorStop(1,'rgba(255,120,0,0)');
+  ctx.fillStyle=aGrd;ctx.beginPath();ctx.arc(mx,my,auraR,0,Math.PI*2);ctx.fill();
+  // Orbiting gold coins
+  for(let i=0;i<6;i++){
+    const a=t*0.002+Math.PI*2*(i/6);
+    const r=28*S;
+    const ox=mx+Math.cos(a)*r,oy=my+Math.sin(a)*r*0.4-10;
+    ctx.globalAlpha=0.6+Math.sin(t*0.006+i)*0.3;
+    ctx.fillStyle='#ffd700';ctx.beginPath();ctx.arc(ox,oy,3,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#ffaa00';ctx.beginPath();ctx.arc(ox+1,oy+1,1.5,0,Math.PI*2);ctx.fill();
+  }
+  ctx.globalAlpha=1;
+  // Phase rage effects
+  if(phase==='enraged'||phase==='desperate'){
+    const rPulse=phase==='desperate'?0.5+Math.sin(t*0.008)*0.3:0.3+Math.sin(t*0.005)*0.15;
+    ctx.strokeStyle='rgba(255,'+(phase==='desperate'?'50,0':'140,0')+','+rPulse+')';
+    ctx.lineWidth=2;
+    ctx.beginPath();ctx.ellipse(mx,my+8,30*S,12*S,0,0,Math.PI*2);ctx.stroke();
+  }
+  ctx.restore();
+
+  // Shadow
+  ctx.save();
+  const shGrd=ctx.createRadialGradient(mx,my+15,0,mx,my+15,22*S);
+  shGrd.addColorStop(0,'rgba(0,0,0,0.5)');shGrd.addColorStop(0.5,'rgba(0,0,0,0.2)');shGrd.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=shGrd;ctx.beginPath();ctx.ellipse(mx,my+15,22*S,8*S,0,0,Math.PI*2);ctx.fill();
+  ctx.restore();
+
+  // ── PIXEL ART BODY — Golden Armored Hoarder ──
+  ctx.save();
+  ctx.translate(mx,my);ctx.scale(face,1);ctx.translate(-mx,-my);
+  function p(x,y,w,h,col){ctx.fillStyle=col;ctx.fillRect(mx-12*S+x*S,my-38*S+y*S,w*S,h*S)}
+
+  // Hit flash overlay
+  const doFlash=bb.flash>0;
+  if(doFlash){ctx.save();ctx.globalAlpha=1}
+
+  // Crown (gold with gems)
+  p(7,4,10,3,'#ffd700');p(6,2,2,3,'#ffd700');p(11,1,2,3,'#ffd700');p(16,2,2,3,'#ffd700');
+  p(8,2,1,1,'#ff2222');p(12,1,1,1,'#22ff44');p(15,2,1,1,'#4488ff'); // gems on crown
+
+  // Head (golden skin)
+  p(7,7,10,9,'#e8b830');p(6,8,12,7,'#d4a020');
+  // Eyes — glowing amber
+  p(8,11,3,2,'#fff');p(13,11,3,2,'#fff');
+  p(9,11,2,2,'#ff8800');p(14,11,2,2,'#ff8800');
+  // Grin
+  p(9,15,6,1,'#8b5e00');p(10,15,1,1,'#ffd700');p(12,15,1,1,'#ffd700');p(14,15,1,1,'#ffd700');
+
+  // Gold armor chest plate
+  p(5,16,14,12,'#daa520');p(6,17,12,10,'#cd9b1d');p(7,18,10,3,'#ffd700');
+  // Armor detail — diamond pattern
+  p(10,20,4,4,'#ffd700');p(11,21,2,2,'#ffee88');
+  // Belt with gem buckle
+  p(5,28,14,2,'#8b6914');p(10,28,4,2,'#22ffaa');
+
+  // Gem sack on back (left side) — overflowing with gems
+  p(0,18,5,10,'#8b4513');p(1,17,3,2,'#6b3410');p(0,16,4,2,'#8b4513');
+  // Gems spilling out
+  p(0,16,2,1,'#ff2222');p(2,15,1,1,'#22ff44');p(1,17,1,1,'#4488ff');p(3,16,1,1,'#ff44ff');
+
+  // Gold sack on back (right side) — stuffed with coins
+  p(19,18,5,10,'#c8a82e');p(20,17,3,2,'#a08622');p(19,16,4,2,'#c8a82e');
+  // Coins spilling
+  p(20,15,2,1,'#ffd700');p(22,16,1,1,'#ffd700');p(19,17,1,1,'#ffaa00');
+
+  // Arms — gold gauntlets
+  p(1,18,4,9,'#e8b830');p(19,18,4,9,'#e8b830');
+  p(1,27,4,2,'#ffd700');p(19,27,4,2,'#ffd700');
+  // Fist gems
+  p(2,25,2,2,'#ff4444');p(20,25,2,2,'#ff4444');
+
+  // Legs — gold greaves
+  p(6,30,4,6,'#b8860b');p(14,30,4,6,'#b8860b');
+  p(6,30,4,1,'#daa520');p(14,30,4,1,'#daa520');
+  // Boots
+  p(5,36,5,2,'#ffd700');p(14,36,5,2,'#ffd700');
+
+  // Dripping gold chains
+  const chainY=Math.sin(t*0.003)*1;
+  p(5,16+chainY,1,3,'#ffd700');p(8,17+chainY,1,4,'#ffd700');p(15,17+chainY,1,4,'#ffd700');p(18,16+chainY,1,3,'#ffd700');
+
+  if(doFlash){
+    ctx.fillStyle='rgba(255,255,255,0.7)';
+    ctx.fillRect(mx-12*S,my-38*S,24*S,40*S);
+    ctx.restore();
+    bb.flash-=0.04;if(bb.flash<0)bb.flash=0;
+  }
+  ctx.restore();
+
+  // ── Sparkle particles around boss ──
+  ctx.save();
+  for(let i=0;i<8;i++){
+    const a=t*0.001+Math.PI*2*(i/8);
+    const dist=20*S+Math.sin(t*0.004+i*1.7)*8*S;
+    const sx=mx+Math.cos(a)*dist,sy=my-15+Math.sin(a)*dist*0.4;
+    const sparkAlpha=0.4+Math.sin(t*0.01+i*2.3)*0.4;
+    ctx.globalAlpha=sparkAlpha;
+    ctx.fillStyle=i%3===0?'#ffffff':i%3===1?'#ffd700':'#ffaa00';
+    const sz=1.5+Math.sin(t*0.008+i)*1;
+    ctx.fillRect(sx-sz/2,sy-sz/2,sz,sz);
+  }
+  ctx.restore();
+
+  // ── Target indicator ──
+  if(isTarget){
+    ctx.save();
+    ctx.strokeStyle='#ffd700';ctx.lineWidth=2;ctx.setLineDash([4,4]);
+    ctx.lineDashOffset=-t*0.01;
+    ctx.beginPath();ctx.ellipse(mx,my+12,24*S,10*S,0,0,Math.PI*2);ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
+  // ── Name tag ──
+  ctx.save();ctx.font='bold 10px monospace';ctx.textAlign='center';
+  ctx.fillStyle='rgba(0,0,0,0.6)';ctx.fillText(bb.name,mx+1,my-42*S+1);
+  ctx.fillStyle='#ffd700';ctx.fillText(bb.name,mx,my-42*S);
+  ctx.restore();
+}
+
+function onBountyBossAttack(d){
+  // Player takes damage from bounty boss
+  playerHP=d.hp;playerMaxHP=d.maxHP;updateHPBar();
+  if(d.parried){
+    addFloat(px,py-40,'PARRY!','#fbbf24',true);shakeTimer=2;playCombatSound('parry');
+    for(let i=0;i<8;i++){const a=Math.random()*Math.PI*2;particles.push({x:px+Math.cos(a)*15,y:py-15+Math.sin(a)*15,vx:Math.cos(a)*3,vy:Math.sin(a)*3-1,color:i%2?'#ffd700':'#fff',life:400,maxLife:400})}
+    return;
+  }
+  if(d.blocked){
+    addFloat(px+(Math.random()-.5)*20,py-10,'-'+d.dmg+' (blocked)','#ffaa44');shakeTimer=2;damageFlash=0.5;playCombatSound('block');
+    for(let i=0;i<3;i++){particles.push({x:px+(Math.random()-.5)*20,y:py-10,vx:(Math.random()-.5)*2,vy:-1-Math.random()*1.5,color:'#ffd700',life:300,maxLife:300})}
+    return;
+  }
+  addFloat(px+(Math.random()-.5)*20,py-10,'-'+d.dmg,'#ff4444');
+  shakeTimer=5;damageFlash=2;playCombatSound('playerHit');
+  // Gold coin burst impact particles
+  for(let i=0;i<6;i++){
+    particles.push({x:px+(Math.random()-.5)*20,y:py-10,vx:(Math.random()-.5)*4,vy:-2-Math.random()*3,color:i%2?'#ffd700':'#ff4444',life:500+Math.random()*200,maxLife:700});
+  }
+}
+
+function onBountyBossAttackLand(d){
+  // VFX for bounty boss attacks — all players in zone see this
+  const ts=worldToScreen(d.targetX,d.targetY);
+  const bs=worldToScreen(d.bossX,d.bossY);
+  const t=Date.now();
+  if(d.type==='aoe'){
+    // Gold explosion ring
+    const rad=d.radius*ISO_S*0.5;
+    for(let i=0;i<20;i++){
+      const a=Math.random()*Math.PI*2;const r=Math.random()*rad;
+      particles.push({x:ts.x+Math.cos(a)*r,y:ts.y+Math.sin(a)*r*0.5,vx:Math.cos(a)*3,vy:-2+Math.sin(a)*2,color:i%3===0?'#fff':i%3===1?'#ffd700':'#ffaa00',life:600+Math.random()*300,maxLife:900});
+    }
+    shakeTimer=3;
+  } else if(d.type==='spread'){
+    // Gem shower — scatter gem-colored particles
+    const colors=['#ff2222','#22ff44','#4488ff','#ff44ff','#ffd700'];
+    for(let g=0;g<(d.count||5);g++){
+      const gx=ts.x+(Math.random()-.5)*(d.range||200)*ISO_S;
+      const gy=ts.y+(Math.random()-.5)*(d.range||200)*ISO_S*0.5;
+      for(let i=0;i<4;i++){
+        particles.push({x:gx,y:gy,vx:(Math.random()-.5)*3,vy:-3-Math.random()*2,color:colors[Math.floor(Math.random()*colors.length)],life:500+Math.random()*300,maxLife:800});
+      }
+    }
+    shakeTimer=2;
+  }
+  bountyBossTelegraph=null; // Clear telegraph after attack lands
+}
+
+function onBountyBossKilled(d){
+  bountyBossTelegraph=null;
+  // Epic kill celebration
+  logMsg('💰 '+d.killer+' slew the Gilded Hoarder!','loot');
+  if(d.killer===username){
+    addFloat(px,py-70,'BOUNTY KILL! +'+d.killVG+' VG','#ffd700',true);
+    logMsg('🏆 Last Hit Bonus: +'+d.killVG+' Vault Gold!','loot');
+    shakeTimer=15;
+  }
+  // Find own participation reward
+  if(d.participants){
+    const me=d.participants.find(p=>p.username===username);
+    if(me){
+      addFloat(px,py-90,'+'+me.vg+' VG (shared)','#60a5fa',true);
+      logMsg('💎 Participation Reward: +'+me.vg+' VG ('+me.dmg+' damage dealt)','loot');
+    }
+  }
+  // Massive gold explosion particles at boss location
+  if(bountyBoss){
+    const bs=worldToScreen(bountyBoss.x,bountyBoss.y);
+    for(let i=0;i<50;i++){
+      const a=Math.random()*Math.PI*2;const spd=2+Math.random()*6;
+      particles.push({x:bs.x+Math.cos(a)*10,y:bs.y+Math.sin(a)*10-20,vx:Math.cos(a)*spd,vy:Math.sin(a)*spd-3,color:i%4===0?'#fff':i%4===1?'#ffd700':i%4===2?'#ffaa00':'#ff8800',life:800+Math.random()*600,maxLife:1400});
+    }
+    shakeTimer=12;
+  }
+  // Mark boss dead with delay to let VFX play
+  if(bountyBoss)bountyBoss.dead=true;
+  setTimeout(()=>{bountyBoss=null;bountyBossTelegraph=null},3000);
+}
+
+function onBountyBossAttackResult(d){
+  if(d.error){attackTarget=null;return}
+  if(!bountyBoss)return;
+  if(d.hit){
+    bountyBoss.hp=d.bossHP;bountyBoss.maxHP=d.bossMaxHP;bountyBoss.phase=d.phase;bountyBoss.flash=1;
+    playCombatSound('slash');
+    const col=d.crit?'#ffd700':'#ffcc00';
+    addFloat(bountyBoss.x+(Math.random()-.5)*30,bountyBoss.y-50,(d.crit?'CRIT ':'')+d.dmg,col,d.crit);
+    spawnParticles(bountyBoss.x,bountyBoss.y,col,d.crit?12:5);
+    {const _hw=((myEquipped.weapon&&myEquipped.weapon.name)||'').toLowerCase();const _hvy=_hw.includes('hammer')||_hw.includes('mace')||_hw.includes('bludgeon')||_hw.includes('axe')||_hw.includes('cleaver');shakeTimer=d.crit?(_hvy?10:6):(_hvy?5:2)}
+    const ang=Math.atan2(bountyBoss.y-py,bountyBoss.x-px);
+    slashEffects.push({x:bountyBoss.x,y:bountyBoss.y,angle:ang,life:250,maxLife:250,crit:d.crit,facing:facing});
+    playCombatSound('hit');
+    if(d.burn){bountyBoss.burning=true;bountyBoss.burnEnd=Date.now()+3000;addFloat(bountyBoss.x,bountyBoss.y-55,'🔥 BURN!','#ff6600',true);for(let i=0;i<6;i++)particles.push({x:bountyBoss.x+(Math.random()-.5)*20,y:bountyBoss.y-10,vx:(Math.random()-.5)*3,vy:-2-Math.random()*3,color:i%2?'#ff4400':'#ff8800',life:400,maxLife:400})}
+    if(d.poison){bountyBoss.poisoned=true;bountyBoss.poisonEnd=Date.now()+4000;addFloat(bountyBoss.x,bountyBoss.y-55,'☠️ POISON!','#44ff44',true);for(let i=0;i<6;i++)particles.push({x:bountyBoss.x+(Math.random()-.5)*20,y:bountyBoss.y-10,vx:(Math.random()-.5)*3,vy:-2-Math.random()*3,color:'#44ff44',life:400,maxLife:400})}
+    if(d.holy){addFloat(bountyBoss.x,bountyBoss.y-55,'✨ '+d.holy,'#ffd700',true);for(let i=0;i<8;i++){const a3=Math.random()*Math.PI*2;particles.push({x:bountyBoss.x,y:bountyBoss.y-15,vx:Math.cos(a3)*4,vy:Math.sin(a3)*4-2,color:'#ffd700',life:500,maxLife:500})}}
+    if(d.lifesteal&&d.lifesteal>0){addFloat(px,py-40,'+'+d.lifesteal+' HP','#44ff44',false);for(let li=0;li<5;li++){const la=Math.random()*Math.PI*2;particles.push({x:px+(Math.random()-.5)*12,y:py-20+(Math.random()-.5)*12,vx:Math.cos(la)*1.5,vy:-2-Math.random()*2,color:li%2===0?'#44ff44':'#22cc22',life:400+Math.random()*200,maxLife:600})}if(d.hp!==undefined){playerHP=d.hp;updateHPBar()}}
+    if(d.killed){logMsg('💀 You delivered the killing blow!','loot')}
+  }
+  if(d.weaponBroke){logMsg('⚠️ Your '+d.weaponBroke+' broke!','dmg');addFloat(px,py-55,'🔨 '+d.weaponBroke+' BROKE!','#ff4444',true);refreshInventory()}
 }
 
 function drawGroundLoot(gl){
