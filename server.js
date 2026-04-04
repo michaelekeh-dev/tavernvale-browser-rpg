@@ -4,7 +4,7 @@ const WebSocket = require('ws');
 const crypto = require('crypto');
 const path = require('path');
 require('dotenv').config();
-const { Game, CONFIG, COSMETICS, WEARABLES, BOSS_LOOT, ITEMS, LOOT_TABLES, RECIPES, NPC_SHOP, ACHIEVEMENTS, RARITY_COLOR, VENDOR_PRICE, RANK_BADGES, getRankBadge, RPG_ZONES, RPG_PICKAXES, TAVERN_QUESTS, GRIZZLE_QUESTS, ENCHANTMENTS, REFINE_RECIPES, ORE_QUALITY } = require('./game');
+const { Game, CONFIG, COSMETICS, WEARABLES, BOSS_LOOT, ITEMS, LOOT_TABLES, RECIPES, NPC_SHOP, ACHIEVEMENTS, RARITY_COLOR, VENDOR_PRICE, RANK_BADGES, getRankBadge, RPG_ZONES, RPG_PICKAXES, TAVERN_QUESTS, GRIZZLE_QUESTS, ENCHANTMENTS, REFINE_RECIPES, ORE_QUALITY, WORLD_EVENTS } = require('./game');
 
 // ═══════════════════════════════════════════
 // CONFIGURATION — Edit these values
@@ -558,8 +558,8 @@ app.post('/api/admin/world-event/start', requireAdminAuth, (req, res) => {
   if (game.activeWorldEvent && game.activeWorldEvent.eventType === 'bounty_hunt') {
     if (bountyKillVG) game.activeWorldEvent.bountyKillVG = Number(bountyKillVG);
     if (bountyShareVG) game.activeWorldEvent.bountyShareVG = Number(bountyShareVG);
+    delete WORLD_EVENTS.bounty_hunt._adminZone;
   }
-  delete WORLD_EVENTS.bounty_hunt._adminZone;
   res.json({ success: true, eventType });
 });
 app.post('/api/admin/world-event/stop', requireAdminAuth, (req, res) => {

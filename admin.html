@@ -1842,7 +1842,7 @@ function refreshWorldEventStatus() {
     if (d.type === 'mob_invasion') extra = ' | Mobs: ' + (d.hordeMobsAlive || 0) + ' alive | Pool: ' + (d.hordeGoldPool || 0) + 'g | Players: ' + (d.participants || 0);
     if (d.type === 'bounty_hunt') extra = ' | Boss HP: ' + (d.bountyBossHP || 0) + '/' + (d.bountyBossMaxHP || 0) + ' | Zone: ' + (d.bountyBossZone || '?') + ' | Kill VG: ' + (d.bountyKillVG || 0) + ' | Shared VG: ' + (d.bountyShareVG || 0) + ' | Fighters: ' + (d.bountyDealers || 0);
     el.innerHTML = '<span style="color:#a855f7">🌍 ' + d.name + '</span> — <span style="color:#fbbf24">' + m + ':' + String(s).padStart(2, '0') + ' left</span>' + extra;
-  }).catch(() => {});
+  }).catch(e => { console.warn('refreshWorldEventStatus error:', e); });
 }
 
 // ── Caravan Admin ──
