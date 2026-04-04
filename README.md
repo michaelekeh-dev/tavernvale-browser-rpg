@@ -26,7 +26,9 @@ A browser-based RPG prototype built as an experimental game project. The game in
 - Node.js / npm 
 - Docker / deployment config
 - Railway (used for website hosting)
-> **Note:** Most Of The Front-end Were AI-Assisted, However alot of models,music, sfx and backend was done by in me vs code, blender, photoshop ext.
+  
+> **Note:** Most of the front-end for this project were AI-assisted. However, a large portion of the project was still completed and directed by me, including backend work, project structure, gameplay iteration, asset integration, music and SFX handling, 3D model work, visual editing, testing, and refinement. I used tools such as VS Code, Blender, Photoshop, and other supporting development and design software throughout the project.
+
 ## Project Structure
 
 - `rpg.html` - main RPG/game page
