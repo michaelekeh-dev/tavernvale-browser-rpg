@@ -12,7 +12,7 @@ A browser-based RPG prototype built as an experimental game project. The game in
 - Admin/testing pages
 - Ongoing feature iteration and balancing
 
-## Tech Stack
+## What I Used
 
 - HTML
 - CSS
