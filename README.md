@@ -40,7 +40,7 @@ A browser-based RPG prototype built as an experimental game project. The game in
 
 ## Live Demo
 
-tavernvale.com (currently running on railway.com)
+tavernvale.com (currently running on railway.com) 
 
 ## How to Run
 
