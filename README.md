@@ -42,6 +42,8 @@ tavernvale.com (currently running on railway.com)
 
 ## How to Run
 
+> **Note:** This project was originally built around my own streaming/community setup, so some features are integrated with platform-specific systems such as multiplayer/community tools, admin functionality, bots, APIs, and Kick/Discord-related connections. Because of that, the project may not work fully out of the box for other users without removing or replacing those integrations and configuration details.
+
 1. Clone the repository
 2. Open the project folder
 3. Install dependencies if needed:
