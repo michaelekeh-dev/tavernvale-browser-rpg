@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>⚔️ KickStream MMO — Admin Dashboard</title>
+<title>⚔️ TavernVale RPG — Admin Dashboard</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Segoe UI',sans-serif;background:#0a0a0f;color:#e0e0e0;min-height:100vh}
@@ -159,7 +159,7 @@ body{font-family:'Segoe UI',sans-serif;background:#0a0a0f;color:#e0e0e0;min-heig
 <div id="loginOverlay" style="position:fixed;inset:0;background:#0a0a0f;z-index:9999;display:flex;align-items:center;justify-content:center">
   <div style="background:#12121a;border:1px solid #e94560;border-radius:12px;padding:30px 40px;max-width:360px;width:90%;text-align:center">
     <h1 style="color:#e94560;font-size:20px;margin-bottom:6px">⚔️ Admin Login</h1>
-    <p style="color:#666;font-size:12px;margin-bottom:20px">KickStream MMO Dashboard</p>
+    <p style="color:#666;font-size:12px;margin-bottom:20px">TavernVale RPG Dashboard</p>
     <input type="password" id="loginPassword" placeholder="Admin password" autocomplete="current-password"
       style="width:100%;padding:10px 14px;background:#1a1a2a;border:1px solid #2a2a3a;border-radius:6px;color:#fff;font-size:14px;margin-bottom:12px;text-align:center"
       onkeydown="if(event.key==='Enter')doLogin()">
@@ -169,7 +169,7 @@ body{font-family:'Segoe UI',sans-serif;background:#0a0a0f;color:#e0e0e0;min-heig
 </div>
 
 <div class="header">
-  <h1>⚔️ KickStream MMO — Admin Dashboard</h1>
+  <h1>⚔️ TavernVale RPG — Admin Dashboard</h1>
   <div style="display:flex;align-items:center;gap:10px">
     <span class="status disconnected" id="wsStatus">● Disconnected</span>
     <button onclick="doLogout()" style="padding:4px 10px;background:#4b5563;border:none;border-radius:4px;color:#ccc;font-size:11px;cursor:pointer">Logout</button>
@@ -1176,7 +1176,7 @@ function testDiscordWebhook() {
   fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ content: '🎮 **Kickstream Boss Game** — Webhook test successful! Game events will appear here.' })
+    body: JSON.stringify({ content: '🎮 **TavernVale RPG** — Webhook test successful! Game events will appear here.' })
   }).then(r => {
     if (r.ok || r.status === 204) { toast('Test message sent to Discord!'); }
     else { toast('Webhook returned error: ' + r.status, true); }

@@ -1,7 +1,7 @@
 @echo off
-title KickStream MMO Server
+title TavernVale RPG Server
 echo ========================================
-echo   KICKSTREAM MMO SERVER
+echo   TAVERNVALE RPG SERVER
 echo ========================================
 echo.
 echo Starting server...

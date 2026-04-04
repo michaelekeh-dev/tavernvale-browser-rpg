@@ -685,7 +685,7 @@ async function discordNotify(content) {
     await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content, username: '⚔️ KickStream MMO', avatar_url: '' }),
+      body: JSON.stringify({ content, username: '⚔️ TavernVale RPG', avatar_url: '' }),
     });
   } catch (e) { console.error('Discord webhook error:', e.message); }
 }
@@ -697,7 +697,7 @@ async function discordEmbed(embed) {
     await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: '⚔️ KickStream MMO', avatar_url: '', embeds: [embed] }),
+      body: JSON.stringify({ username: '⚔️ TavernVale RPG', avatar_url: '', embeds: [embed] }),
     });
   } catch (e) { console.error('Discord webhook error:', e.message); }
 }
@@ -738,7 +738,7 @@ function initDiscordBot(token, chatChannelId) {
         if (channel) {
           console.log(`✅ Found chat channel: #${channel.name} in ${channel.guild?.name}`);
           discordChatSend = (msg) => channel.send(msg).catch(e => console.error('Discord send error:', e.message));
-          discordChatSend('🎮 **KickStream MMO** bot connected! Two-way chat is live 🔥');
+          discordChatSend('🎮 **TavernVale RPG** bot connected! Two-way chat is live 🔥');
         } else {
           console.error('❌ Discord chat channel not found for ID:', chatChannelId);
           console.error('   Right-click the channel in Discord (Developer Mode on) → Copy Channel ID');
@@ -1744,7 +1744,7 @@ async function start() {
     const lanIP = lanIPs[lanIPs.length - 1] || 'YOUR_IP';
     console.log('');
     console.log('========================================');
-    console.log('  ⚔️  KICKSTREAM MMO SERVER  ⚔️');
+    console.log('  ⚔️  TAVERNVALE RPG SERVER  ⚔️');
     console.log('========================================');
     console.log(`  Overlay:  http://localhost:${PORT}`);
     console.log(`  Admin:    http://localhost:${PORT}/admin`);

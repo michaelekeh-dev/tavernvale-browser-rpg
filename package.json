@@ -1,7 +1,7 @@
 {
-  "name": "kickstream-mmo",
+  "name": "tavernvale-browser-rpg",
   "version": "1.0.0",
-  "description": "Interactive Kick stream MMO boss game",
+  "description": "Real-time multiplayer browser RPG built with Node.js, WebSockets & HTML5 Canvas",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
