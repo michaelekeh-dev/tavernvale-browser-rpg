@@ -29,6 +29,13 @@ A browser-based RPG prototype built as an experimental game project. The game in
 - `game.js` - main gameplay logic
 - `Overlay/` - overlay/UI-related assets
 - `audio/` - music and sound assets
+  
+<img width="1906" height="939" alt="image" src="https://github.com/user-attachments/assets/d0dad3c9-a821-4509-a3f3-1fea51c38167" />
+
+<img width="1919" height="951" alt="image" src="https://github.com/user-attachments/assets/0ad7c662-d26e-4c69-b153-7daba38a6eb6" />
+
+<img width="1910" height="945" alt="image" src="https://github.com/user-attachments/assets/05409656-1e89-4288-8769-3855abd3ea70" />
+
 
 ## How to Run
 
