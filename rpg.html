@@ -26281,6 +26281,7 @@ function interactNearest(){
     const nearStall=getNearestStall();
     if(nearStall){
       if(marketStallData[nearStall.stallId]&&marketStallData[nearStall.stallId].owner===username){
+        stallGuideTarget=null;stallGuideTimer=0;
         openMyStallPanel();
       }else{
         openBrowseStallPanel(nearStall.stallId);
@@ -26379,7 +26380,12 @@ function updateActionInfo(){
             el.innerHTML='<span class="key">[E]</span> <b style="color:var(--dim)">Empty Stall (FOR RENT)</b>';
           }
         } else {
-          el.innerHTML='Explore the Marketplace &middot; <span class="key">WASD</span> Move &middot; <span class="key">[M]</span> Map';
+          const _ms=typeof getMyStall==='function'?getMyStall():null;
+          if(_ms){
+            el.innerHTML='Explore the Marketplace &middot; <span class="key">WASD</span> Move &middot; <span style="color:#4ade80;cursor:pointer;text-decoration:underline" onclick="stallGuideTarget=getStallWorldPos(getMyStall().id);stallGuideTimer=Date.now()+20000;logMsg(\'Follow the green arrow to your stall!\',\'xp\')">📍 Find My Stall</span>';
+          } else {
+            el.innerHTML='Explore the Marketplace &middot; <span class="key">WASD</span> Move &middot; <span class="key">[M]</span> Map';
+          }
         }
       }
     }

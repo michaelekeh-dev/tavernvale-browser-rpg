@@ -2724,6 +2724,7 @@ class Game {
       p.appearance = this.randomAppearance();
     }
     this.market = []; this.marketIdCounter = 1;
+    this.marketStalls = {};
     this.tradeLog = [];
     // Reset all RPG world state (respawn mobs, bosses, nodes)
     this.rpgSpawnAll();
