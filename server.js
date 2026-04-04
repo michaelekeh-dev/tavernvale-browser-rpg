@@ -1221,6 +1221,44 @@ wss.on('connection', (ws) => {
         ws.send(JSON.stringify({ type: 'rpg_market_cancel_result', data: r }));
         if (r && !r.error) broadcast('market_cancelled', r);
       }
+      // ── Player-owned stall handlers ──
+      if (msg.type === 'rpg_rent_stall' && ws.isRPG && ws.rpgUser) {
+        const r = game.handleRentStall(ws.rpgUser, msg.stallId);
+        ws.send(JSON.stringify({ type: 'rpg_rent_stall_result', data: r }));
+        if (r && !r.error) game.rpgBroadcastZone('market', { type: 'rpg_stalls_update', data: game.getMarketStalls() });
+      }
+      if (msg.type === 'rpg_release_stall' && ws.isRPG && ws.rpgUser) {
+        const r = game.handleReleaseStall(ws.rpgUser);
+        ws.send(JSON.stringify({ type: 'rpg_release_stall_result', data: r }));
+        if (r && !r.error) game.rpgBroadcastZone('market', { type: 'rpg_stalls_update', data: game.getMarketStalls() });
+      }
+      if (msg.type === 'rpg_stall_set_color' && ws.isRPG && ws.rpgUser) {
+        const r = game.handleStallSetColor(ws.rpgUser, msg.color);
+        ws.send(JSON.stringify({ type: 'rpg_stall_set_color_result', data: r }));
+        if (r && !r.error) game.rpgBroadcastZone('market', { type: 'rpg_stalls_update', data: game.getMarketStalls() });
+      }
+      if (msg.type === 'rpg_stall_stock' && ws.isRPG && ws.rpgUser) {
+        const r = game.handleStallStock(ws.rpgUser, msg.itemUid, msg.itemId, msg.qty, msg.price);
+        ws.send(JSON.stringify({ type: 'rpg_stall_stock_result', data: r }));
+        if (r && !r.error) game.rpgBroadcastZone('market', { type: 'rpg_stalls_update', data: game.getMarketStalls() });
+      }
+      if (msg.type === 'rpg_stall_unstock' && ws.isRPG && ws.rpgUser) {
+        const r = game.handleStallUnstock(ws.rpgUser, msg.slotIndex);
+        ws.send(JSON.stringify({ type: 'rpg_stall_unstock_result', data: r }));
+        if (r && !r.error) game.rpgBroadcastZone('market', { type: 'rpg_stalls_update', data: game.getMarketStalls() });
+      }
+      if (msg.type === 'rpg_stall_buy' && ws.isRPG && ws.rpgUser) {
+        const r = game.handleStallBuy(ws.rpgUser, msg.stallId, msg.slotIndex);
+        ws.send(JSON.stringify({ type: 'rpg_stall_buy_result', data: r }));
+        if (r && !r.error) {
+          game.rpgBroadcastZone('market', { type: 'rpg_stalls_update', data: game.getMarketStalls() });
+          // Notify seller if online
+          game.rpgBroadcastToPlayer(r.seller, { type: 'rpg_stall_sale_notify', data: { buyer: r.buyer, item: r.item, price: r.price, tax: r.tax } });
+        }
+      }
+      if (msg.type === 'rpg_get_stalls' && ws.isRPG && ws.rpgUser) {
+        ws.send(JSON.stringify({ type: 'rpg_stalls_update', data: game.getMarketStalls() }));
+      }
       // Wearable handlers
       if (msg.type === 'rpg_wearables' && ws.isRPG && ws.rpgUser) {
         const r = game.getWearables(ws.rpgUser);

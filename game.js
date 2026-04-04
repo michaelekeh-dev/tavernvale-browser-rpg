@@ -861,6 +861,8 @@ class Game {
     this.market = [];
     this.marketIdCounter = 1;
     this.tradeLog = [];
+    // Player-owned stalls in the Marketplace zone
+    this.marketStalls = {}; // { stallId: { owner, color, tier, items: [{id,qty?,uid?,price},...] } }
 
     // Pending direct trades
     this.pendingTrades = {};
@@ -890,6 +892,8 @@ class Game {
 
     this.loadData();
     this.saveTimer = setInterval(() => this._flushSave(), CONFIG.saveInterval);
+    // Expire panel marketplace listings older than 24h (check every 5 min)
+    this.marketExpiryTimer = setInterval(() => this._expireMarketListings(), 300000);
     this.initRPG();
   }
 
@@ -922,6 +926,7 @@ class Game {
         this.communityMilestoneData = d.communityMilestoneData || { bossKills: 0 };
         this.housingStreets = d.housingStreets || [];
         this.purchaseLog = d.purchaseLog || [];
+        this.marketStalls = d.marketStalls || {};
       }
     } catch (e) {
       console.error('⚠️ loadData failed:', e.message);
@@ -969,6 +974,7 @@ class Game {
       communityMilestoneData: this.communityMilestoneData,
       housingStreets: this.housingStreets || [],
       purchaseLog: this.purchaseLog || [],
+      marketStalls: this.marketStalls || {},
     }, null, 2);
     const tmpFile = DATA_FILE + '.tmp';
     try {
@@ -1743,15 +1749,15 @@ class Game {
     const p = this.player(username);
     const priceNum = parseInt(price);
     if (isNaN(priceNum) || priceNum < 1) return { error: 'invalid_price' };
-    // Max 5 listings per player
+    // Max 3 listings per player (panel marketplace)
     const myListings = this.market.filter(l => l.seller === username);
-    if (myListings.length >= 5) return { error: 'max_listings', message: 'Max 5 active listings' };
+    if (myListings.length >= 3) return { error: 'max_listings', message: 'Max 3 active listings (rent a stall for more!)' };
     const idx = p.inventory.findIndex(i => i.uid === itemUid);
     if (idx === -1) return { error: 'not_found' };
     // Block quest items from being sold
     if (p.inventory[idx].id === 'goblin_key') return { error: 'quest_item', message: 'Quest items cannot be sold.' };
-    // 2% listing fee
-    const listFee = Math.max(1, Math.floor(priceNum * 0.02));
+    // 5% listing fee
+    const listFee = Math.max(1, Math.floor(priceNum * 0.05));
     if (p.gold < listFee) return { error: 'cant_afford_fee', fee: listFee, gold: p.gold };
     p.gold -= listFee;
     const item = p.inventory.splice(idx, 1)[0];
@@ -1769,13 +1775,13 @@ class Game {
     if (isNaN(priceNum) || priceNum < 1) return { error: 'invalid_price' };
     if (isNaN(qtyNum) || qtyNum < 1) return { error: 'invalid_qty' };
     const myListings = this.market.filter(l => l.seller === username);
-    if (myListings.length >= 5) return { error: 'max_listings', message: 'Max 5 active listings' };
+    if (myListings.length >= 3) return { error: 'max_listings', message: 'Max 3 active listings (rent a stall for more!)' };
     if (this.getStackCount(p, itemId) < qtyNum) return { error: 'not_enough', have: this.getStackCount(p, itemId) };
     const template = ITEMS[itemId];
     if (!template) return { error: 'invalid_item' };
     // Block quest items from being sold
     if (itemId === 'goblin_key') return { error: 'quest_item', message: 'Quest items cannot be sold.' };
-    const listFee = Math.max(1, Math.floor(priceNum * 0.02));
+    const listFee = Math.max(1, Math.floor(priceNum * 0.05));
     if (p.gold < listFee) return { error: 'cant_afford_fee', fee: listFee, gold: p.gold };
     p.gold -= listFee;
     this.removeStackable(p, itemId, qtyNum);
@@ -1795,11 +1801,11 @@ class Game {
     const priceNum = parseInt(price);
     if (isNaN(priceNum) || priceNum < 1) return { error: 'invalid_price' };
     const myListings = this.market.filter(l => l.seller === username);
-    if (myListings.length >= 5) return { error: 'max_listings', message: 'Max 5 active listings' };
+    if (myListings.length >= 3) return { error: 'max_listings', message: 'Max 3 active listings (rent a stall for more!)' };
     const key = (cosmeticKey || '').toLowerCase();
     if (!p.cosmetics.includes(key)) return { error: 'not_owned' };
     for (const v of Object.values(p.activeCosmetics)) { if (v === key) return { error: 'unequip_first' }; }
-    const listFee = Math.max(1, Math.floor(priceNum * 0.02));
+    const listFee = Math.max(1, Math.floor(priceNum * 0.05));
     if (p.gold < listFee) return { error: 'cant_afford_fee', fee: listFee, gold: p.gold };
     p.gold -= listFee;
     p.cosmetics = p.cosmetics.filter(c => c !== key);
@@ -1838,11 +1844,11 @@ class Game {
     const priceNum = parseInt(price);
     if (isNaN(priceNum) || priceNum < 1) return { error: 'invalid_price' };
     const myListings = this.market.filter(l => l.seller === username);
-    if (myListings.length >= 5) return { error: 'max_listings', message: 'Max 5 active listings' };
+    if (myListings.length >= 3) return { error: 'max_listings', message: 'Max 3 active listings (rent a stall for more!)' };
     const key = (wearableKey || '').toLowerCase();
     if (!p.wearables.includes(key)) return { error: 'not_owned' };
     for (const v of Object.values(p.activeWearables)) { if (v === key) return { error: 'unequip_first' }; }
-    const listFee = Math.max(1, Math.floor(priceNum * 0.02));
+    const listFee = Math.max(1, Math.floor(priceNum * 0.05));
     if (p.gold < listFee) return { error: 'cant_afford_fee', fee: listFee, gold: p.gold };
     p.gold -= listFee;
     p.wearables = p.wearables.filter(w => w !== key);
@@ -1889,8 +1895,8 @@ class Game {
     listing._buying = true; // lock to prevent double-buy race condition
     buyer.gold -= listing.price;
     const seller = this.player(listing.seller);
-    // 7% sale tax taken from seller's proceeds
-    const tax = Math.max(1, Math.floor(listing.price * 0.07));
+    // 10% sale tax taken from seller's proceeds (panel marketplace)
+    const tax = Math.max(1, Math.floor(listing.price * 0.10));
     seller.gold += listing.price - tax;
     if (listing.type === 'equipment') buyer.inventory.push(listing.itemData);
     else if (listing.type === 'material') this.addItemToInventory(buyer, listing.itemData.id, listing.itemData.qty || 1);
@@ -1921,6 +1927,184 @@ class Game {
     else if (listing.type === 'wearable') { if (!p.wearables.includes(listing.itemData.key)) p.wearables.push(listing.itemData.key); }
     this.saveData();
     return { username, cancelled: listing.itemData.name };
+  }
+
+  // ── Listing expiry (24h) ─────────────────
+  _expireMarketListings() {
+    const now = Date.now();
+    const expired = [];
+    this.market = this.market.filter(l => {
+      if (now - (l.listedAt || 0) > 86400000) { expired.push(l); return false; }
+      return true;
+    });
+    for (const l of expired) {
+      const p = this.player(l.seller);
+      if (l.type === 'equipment') p.inventory.push(l.itemData);
+      else if (l.type === 'material') this.addItemToInventory(p, l.itemData.id, l.itemData.qty || 1);
+      else if (l.type === 'cosmetic') p.cosmetics.push(l.itemData.key);
+      else if (l.type === 'wearable') { if (!p.wearables.includes(l.itemData.key)) p.wearables.push(l.itemData.key); }
+      this.logAction(l.seller, 'market_expired', (l.itemData.icon||'') + ' ' + l.itemData.name + ' listing expired — item returned');
+    }
+    if (expired.length) this.saveData();
+  }
+
+  // ── Player-Owned Stalls ──────────────────
+  _getStallTier(stallId) {
+    if (stallId.startsWith('sm')) return 'small';
+    if (stallId.startsWith('md')) return 'medium';
+    if (stallId.startsWith('lg')) return 'large';
+    return null;
+  }
+  _getStallMaxItems(tier) {
+    return tier === 'small' ? 4 : tier === 'medium' ? 8 : tier === 'large' ? 16 : 0;
+  }
+  _getStallCost(tier) {
+    return tier === 'small' ? 1500 : tier === 'medium' ? 5000 : tier === 'large' ? 20000 : 0;
+  }
+  _getPlayerStall(username) {
+    for (const [id, stall] of Object.entries(this.marketStalls)) {
+      if (stall && stall.owner === username) return { id, ...stall };
+    }
+    return null;
+  }
+
+  handleRentStall(username, stallId) {
+    const p = this.player(username);
+    const tier = this._getStallTier(stallId);
+    if (!tier) return { error: 'invalid_stall' };
+    // Check stall exists in zone config
+    const zone = RPG_ZONES.market;
+    if (!zone) return { error: 'invalid_zone' };
+    const allSlots = [...zone.stallSlots.small, ...zone.stallSlots.medium, ...zone.stallSlots.large];
+    if (!allSlots.find(s => s.id === stallId)) return { error: 'invalid_stall' };
+    // Check not already rented
+    if (this.marketStalls[stallId]) return { error: 'already_rented', owner: this.marketStalls[stallId].owner };
+    // Max 1 stall per player
+    const existing = this._getPlayerStall(username);
+    if (existing) return { error: 'already_own', message: 'You already own stall ' + existing.id + '. Release it first.' };
+    const cost = this._getStallCost(tier);
+    if (p.gold < cost) return { error: 'cant_afford', cost, gold: p.gold };
+    p.gold -= cost;
+    this.marketStalls[stallId] = { owner: username, color: '#aa3333', tier, items: [], rentedAt: Date.now() };
+    this.logAction(username, 'stall_rent', 'Rented ' + tier + ' stall ' + stallId + ' for ' + cost + 'g');
+    this.saveData();
+    return { username, stallId, tier, cost, gold: p.gold, stall: this.marketStalls[stallId] };
+  }
+
+  handleReleaseStall(username) {
+    const existing = this._getPlayerStall(username);
+    if (!existing) return { error: 'no_stall', message: 'You don\'t own a stall.' };
+    const p = this.player(username);
+    // Return stocked items to inventory
+    for (const si of existing.items) {
+      if (si.uid) { p.inventory.push(si.itemData); } // equipment
+      else { this.addItemToInventory(p, si.id, si.qty || 1); } // stackable
+    }
+    // 50% refund
+    const refund = Math.floor(this._getStallCost(existing.tier) * 0.5);
+    p.gold += refund;
+    delete this.marketStalls[existing.id];
+    this.logAction(username, 'stall_release', 'Released stall ' + existing.id + ', refund ' + refund + 'g, ' + existing.items.length + ' items returned');
+    this.saveData();
+    return { username, stallId: existing.id, refund, gold: p.gold, itemsReturned: existing.items.length };
+  }
+
+  handleStallSetColor(username, color) {
+    const existing = this._getPlayerStall(username);
+    if (!existing) return { error: 'no_stall' };
+    const validColors = ['#aa3333','#3333aa','#33aa33','#aa8833','#8833aa','#33aaaa'];
+    if (!validColors.includes(color)) return { error: 'invalid_color' };
+    this.marketStalls[existing.id].color = color;
+    this.saveData();
+    return { username, stallId: existing.id, color };
+  }
+
+  handleStallStock(username, itemUid, itemId, qty, price) {
+    const existing = this._getPlayerStall(username);
+    if (!existing) return { error: 'no_stall', message: 'Rent a stall first!' };
+    const p = this.player(username);
+    const priceNum = parseInt(price);
+    if (isNaN(priceNum) || priceNum < 1) return { error: 'invalid_price' };
+    const maxItems = this._getStallMaxItems(existing.tier);
+    if (existing.items.length >= maxItems) return { error: 'stall_full', max: maxItems };
+
+    if (itemUid) {
+      // Equipment / non-stackable
+      const idx = p.inventory.findIndex(i => i.uid === itemUid);
+      if (idx === -1) return { error: 'not_found' };
+      if (p.inventory[idx].id === 'goblin_key') return { error: 'quest_item' };
+      const item = p.inventory.splice(idx, 1)[0];
+      const stallItem = { uid: item.uid, id: item.id, itemData: item, price: priceNum, name: item.name || (ITEMS[item.id]||{}).name, icon: item.icon || (ITEMS[item.id]||{}).icon, rarity: item.rarity || (ITEMS[item.id]||{}).rarity };
+      this.marketStalls[existing.id].items.push(stallItem);
+    } else if (itemId) {
+      // Stackable material / consumable
+      const qtyNum = parseInt(qty) || 1;
+      if (this.getStackCount(p, itemId) < qtyNum) return { error: 'not_enough' };
+      if (itemId === 'goblin_key') return { error: 'quest_item' };
+      const template = ITEMS[itemId];
+      if (!template) return { error: 'invalid_item' };
+      this.removeStackable(p, itemId, qtyNum);
+      const stallItem = { id: itemId, qty: qtyNum, price: priceNum, name: template.name, icon: template.icon, rarity: template.rarity };
+      this.marketStalls[existing.id].items.push(stallItem);
+    } else {
+      return { error: 'no_item' };
+    }
+    this.saveData();
+    return { username, stallId: existing.id, stall: this.marketStalls[existing.id], gold: p.gold };
+  }
+
+  handleStallUnstock(username, slotIndex) {
+    const existing = this._getPlayerStall(username);
+    if (!existing) return { error: 'no_stall' };
+    const idx = parseInt(slotIndex);
+    if (isNaN(idx) || idx < 0 || idx >= existing.items.length) return { error: 'invalid_slot' };
+    const p = this.player(username);
+    const stallItem = this.marketStalls[existing.id].items.splice(idx, 1)[0];
+    if (stallItem.uid) { p.inventory.push(stallItem.itemData); }
+    else { this.addItemToInventory(p, stallItem.id, stallItem.qty || 1); }
+    this.saveData();
+    return { username, stallId: existing.id, stall: this.marketStalls[existing.id], returned: stallItem.name };
+  }
+
+  handleStallBuy(buyerName, stallId, slotIndex) {
+    const stall = this.marketStalls[stallId];
+    if (!stall) return { error: 'stall_not_found' };
+    const idx = parseInt(slotIndex);
+    if (isNaN(idx) || idx < 0 || idx >= stall.items.length) return { error: 'invalid_slot' };
+    if (stall.owner === buyerName) return { error: 'own_stall', message: 'Use unstock to remove your own items.' };
+    const buyer = this.player(buyerName);
+    const stallItem = stall.items[idx];
+    if (buyer.gold < stallItem.price) return { error: 'broke', gold: buyer.gold, cost: stallItem.price };
+    // Process purchase — 3% stall tax (much lower than 10% panel tax)
+    buyer.gold -= stallItem.price;
+    const tax = Math.max(1, Math.floor(stallItem.price * 0.03));
+    const seller = this.player(stall.owner);
+    seller.gold += stallItem.price - tax;
+    // Give item to buyer
+    if (stallItem.uid) { buyer.inventory.push(stallItem.itemData); }
+    else { this.addItemToInventory(buyer, stallItem.id, stallItem.qty || 1); }
+    stall.items.splice(idx, 1);
+    buyer.tradeCount = (buyer.tradeCount || 0) + 1;
+    seller.tradeCount = (seller.tradeCount || 0) + 1;
+    this.logAction(buyerName, 'stall_buy', (stallItem.icon||'') + ' ' + stallItem.name + ' from ' + stall.owner + '\'s stall for ' + stallItem.price + 'g');
+    this.logAction(stall.owner, 'stall_sold', (stallItem.icon||'') + ' ' + stallItem.name + ' to ' + buyerName + ' for ' + (stallItem.price - tax) + 'g (tax:' + tax + 'g)');
+    this.tradeLog.push({ type: 'stall_sale', buyer: buyerName, seller: stall.owner, item: stallItem.name, icon: stallItem.icon || '', rarity: stallItem.rarity || 'common', price: stallItem.price, tax, stallId, time: Date.now() });
+    if (this.tradeLog.length > 500) this.tradeLog = this.tradeLog.slice(-500);
+    this.saveData();
+    return { buyer: buyerName, seller: stall.owner, item: stallItem.name, price: stallItem.price, tax, buyerGold: buyer.gold, stallId, stall };
+  }
+
+  getMarketStalls() {
+    // Return all stalls with public info (for client rendering & browsing)
+    const result = {};
+    for (const [id, stall] of Object.entries(this.marketStalls)) {
+      if (!stall) continue;
+      result[id] = {
+        owner: stall.owner, color: stall.color, tier: stall.tier,
+        items: stall.items.map(si => ({ name: si.name, icon: si.icon, rarity: si.rarity, price: si.price, qty: si.qty, id: si.id })),
+      };
+    }
+    return result;
   }
 
   // ── Cash Balance ─────────────────────────
@@ -3734,7 +3918,7 @@ class Game {
         }
 
     } else if (zone.type === 'market') {
-      // ═══ GRAND BAZAAR — massive outdoor marketplace ═══
+      // ═══ MARKETPLACE — massive outdoor marketplace ═══
       const mx = Math.floor(MAP_W / 2); // 30
       const my = Math.floor(MAP_H / 2); // 30
       // Base: sand everywhere
@@ -6378,6 +6562,7 @@ class Game {
       boss: bossData,
       secondaryBosses: sbData.length > 0 ? sbData : null,
       bountyBoss: (this.activeWorldEvent && this.activeWorldEvent.eventType === 'bounty_hunt' && this.activeWorldEvent.bountyBoss && !this.activeWorldEvent.bountyBoss.dead && this.activeWorldEvent.bountyBoss.zone === zoneId) ? this._getBountyBossClientData(this.activeWorldEvent.bountyBoss) : null,
+      marketStalls: zoneId === 'market' ? this.getMarketStalls() : undefined,
     };
   }
 
@@ -7792,6 +7977,13 @@ class Game {
       if (rp.ws) {
         try { rp.ws.send(str); } catch (e) { console.error(`[WS send error] user=${u}`, e.message); }
       }
+    }
+  }
+
+  rpgBroadcastToPlayer(username, msg) {
+    const rp = this.rpgPlayers[username];
+    if (rp && rp.ws) {
+      try { rp.ws.send(JSON.stringify(msg)); } catch (e) { console.error(`[WS send error] user=${username}`, e.message); }
     }
   }
 
@@ -10063,7 +10255,7 @@ const RPG_ZONES = {
       { id: 'lm_gold_vein', tx: 10, ty: 24, zone: null,         type: 'mine_entrance', label: 'Gold Vein (Event)',   icon: '💰' },
       { id: 'lm_forest',    tx: 50, ty: 17, zone: 'forest',    type: 'forest_gate',   label: 'Shadow Forest',    icon: '🌲' },
       { id: 'lm_dungeon',   tx: 49, ty: 54, zone: 'dungeon',   type: 'dungeon_portal',label: 'Dark Dungeon',     icon: '🏰' },
-      { id: 'lm_market',    tx: 30, ty: 28, zone: 'market',    type: 'market_gate',   label: 'Grand Bazaar',      icon: '🏪' },
+      { id: 'lm_market',    tx: 30, ty: 28, zone: 'market',    type: 'market_gate',   label: 'Marketplace — NOW OPEN!!', icon: '🏪' },
       { id: 'lm_duel',      tx: 50, ty: 10, zone: null,         type: 'arena_gate',    label: 'Duel Arena',       icon: '⚔️' },
       { id: 'lm_housing',   tx: 30, ty: 35, zone: 'housing',    type: 'housing_gate',  label: 'Housing District', icon: '🏘️' },
     ],
@@ -10342,7 +10534,7 @@ const RPG_ZONES = {
     ],
   },
   market: {
-    name: 'Grand Bazaar', icon: '🏪', type: 'market',
+    name: 'Marketplace', icon: '🏪', type: 'market',
     bg: '#2a1e14',
     minMiningLevel: 0,
     landmarks: [

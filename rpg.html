@@ -826,6 +826,7 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;di
 <div class="panel-overlay" id="market-panel">
   <div class="panel">
     <h3>MARKETPLACE <button class="close-btn" onclick="toggleMarketPanel()">&times;</button></h3>
+    <div style="font-size:10px;color:#ff8c00;margin-bottom:6px">⚠️ Panel listings: 5% fee · 10% tax · 3 max · 24h expiry — <b>Rent a stall for better rates!</b></div>
     <div class="panel-tabs">
       <button class="panel-tab active" onclick="marketTab('browse')">Browse</button>
       <button class="panel-tab" onclick="marketTab('my')">My Listings</button>
@@ -833,6 +834,32 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;di
       <button class="panel-tab" onclick="marketTab('history')">📜 History</button>
     </div>
     <div id="market-content"></div>
+  </div>
+</div>
+
+<!-- Stall Rent Panel (Broker Bart) -->
+<div class="panel-overlay" id="stallrent-panel">
+  <div class="panel" style="max-width:500px">
+    <h3>🏪 BROKER BART — Stall Rentals <button class="close-btn" onclick="closeAllStallPanels()">&times;</button></h3>
+    <div style="font-size:11px;color:var(--dim);margin-bottom:8px">Rent a stall to sell items with only 3% tax! No listing fee. No expiry. Sells while you're offline.</div>
+    <div id="stallrent-content"></div>
+  </div>
+</div>
+
+<!-- My Stall Panel (manage own stall) -->
+<div class="panel-overlay" id="mystall-panel">
+  <div class="panel" style="max-width:520px">
+    <h3>🏪 MY STALL <button class="close-btn" onclick="closeAllStallPanels()">&times;</button></h3>
+    <div id="mystall-content"></div>
+  </div>
+</div>
+
+<!-- Browse Stall Panel (shopping from another player's stall) -->
+<div class="panel-overlay" id="browsestall-panel">
+  <div class="panel" style="max-width:450px">
+    <h3 id="browsestall-title">🏪 STALL</h3>
+    <button class="close-btn" onclick="closeAllStallPanels()" style="position:absolute;top:10px;right:14px">&times;</button>
+    <div id="browsestall-content"></div>
   </div>
 </div>
 
@@ -2604,6 +2631,15 @@ function handleMessage(msg){
     case'market_listed':break;
     case'market_purchased':break;
     case'market_cancelled':break;
+    // Stall handlers
+    case'rpg_stalls_update':marketStallData=d||{};break;
+    case'rpg_rent_stall_result':if(d&&!d.error){logMsg('Rented '+d.tier+' stall '+d.stallId+' for '+d.cost+'g!','loot');gold=d.gold;updateHUD();marketStallData[d.stallId]=d.stall;closeAllStallPanels()}else if(d)logMsg(d.message||d.error||'Rent failed','dmg');break;
+    case'rpg_release_stall_result':if(d&&!d.error){logMsg('Released stall! Refund: '+d.refund+'g, '+d.itemsReturned+' items returned','loot');gold=d.gold;updateHUD();refreshInventory();closeAllStallPanels()}else if(d)logMsg(d.message||d.error||'Release failed','dmg');break;
+    case'rpg_stall_set_color_result':if(d&&!d.error){logMsg('Stall color updated!','xp')}break;
+    case'rpg_stall_stock_result':if(d&&!d.error){logMsg('Item stocked in your stall!','loot');gold=d.gold;updateHUD();marketStallData[d.stallId]=d.stall;refreshInventory();if(document.getElementById('mystall-panel').classList.contains('show'))renderMyStallPanel()}else if(d)logMsg(d.message||d.error||'Stock failed','dmg');break;
+    case'rpg_stall_unstock_result':if(d&&!d.error){logMsg('Item removed from stall: '+d.returned,'loot');marketStallData[d.stallId]=d.stall;refreshInventory();if(document.getElementById('mystall-panel').classList.contains('show'))renderMyStallPanel()}else if(d)logMsg(d.message||d.error||'Unstock failed','dmg');break;
+    case'rpg_stall_buy_result':if(d&&!d.error){logMsg('Bought '+d.item+' from '+d.seller+'\'s stall for '+d.price+'g!','loot');gold=d.buyerGold;updateHUD();if(d.stall)marketStallData[d.stallId]=d.stall;refreshInventory();if(document.getElementById('browsestall-panel').classList.contains('show'))renderBrowseStallPanel(d.stallId)}else if(d)logMsg(d.error||'Purchase failed','dmg');break;
+    case'rpg_stall_sale_notify':if(d){logMsg('💰 STALL SALE: '+d.buyer+' bought '+d.item+' for '+d.price+'g! (tax: '+d.tax+'g)','loot');gold=(gold||0)+(d.price-d.tax);updateHUD();addFloat(px,py-40,'STALL SALE +'+d.price+'g','#fbbf24',true)}break;
     // Gold purchase notification
     case'rpg_gold_purchased':if(d){gold=d.gold;updateHUD();logMsg('💰 '+d.added+' gold purchased! ('+d.package+')','loot');addFloat(px,py-40,'+'+d.added+' GOLD','#fbbf24',true);showDropToast('💰',d.package,'legendary',1);playCombatSound('kill')}break;
     case'rpg_convert_vg_result':onConvertVGResult(d);break;
@@ -2991,6 +3027,8 @@ function onZoneState(z){
     if(playerHouse){send('rpg_get_street',{streetIndex:playerHouse.streetIndex})}
     else{send('rpg_housing_directory',{page:0})}
   } else { housingMode=null; closeHousingUI(); }
+  // Market zone — load stall data
+  if(z.marketStalls) marketStallData=z.marketStalls;
   // Zone music + ambient
   ensureAudio();
   startZoneMusic(z.id);startAmbient(z.type==='hub'?'hub':z.type,z.id);
@@ -3209,7 +3247,7 @@ const ZONE_ICONS={
 };
 const ZONE_TYPES_LABEL={
   hub:'Safe Zone',forest:'Combat Zone',dungeon:'Combat Zone',quarry:'Mining Zone',
-  underground_mine:'Mining Zone',deep_mine:'Mining Zone',gold_vein:'Mining Zone',housing:'Housing District',market:'Grand Bazaar'
+  underground_mine:'Mining Zone',deep_mine:'Mining Zone',gold_vein:'Mining Zone',housing:'Housing District',market:'Marketplace'
 };
 function playZoneTransition(zoneId,cb){
   if(zoneTransitionActive){cb&&cb();return;}
@@ -9953,7 +9991,7 @@ function generateDecorations(zoneId,type){
     decorations.push({type:'hub_signpost',x:mx*T,y:(my+2)*T,label:'🏘️ Housing District',dir:''});
     decorations.push({type:'hub_signpost',x:5*T,y:8*T,label:'🏠 Hub Portal',dir:'left'});
   }else if(type==='market'){
-    // Grand Bazaar — outdoor desert marketplace
+    // Marketplace — outdoor desert marketplace
     const T=TILE_SIZE;
     const cx=30,cy=30;// center of map
     // Lanterns along the grand boulevard (north-south center strip)
@@ -9969,20 +10007,22 @@ function generateDecorations(zoneId,type){
     }
     // Central fountain decoration
     decorations.push({type:'fountain',x:cx*T+T/2,y:cy*T+T/2});
-    // Market stall decorations at stall positions (with awnings)
+    // Market stall decorations at stall positions (with awnings + stallId)
     // Small stalls — two rows flanking boulevard
     const smallPositions=[[22,6],[22,12],[22,20],[36,6],[36,12],[36,20]];
-    for(const[sx,sy] of smallPositions){
-      decorations.push({type:'market_stall',x:(sx+2)*T,y:(sy+2)*T});
+    for(let i=0;i<smallPositions.length;i++){
+      const[sx,sy]=smallPositions[i];
+      decorations.push({type:'market_stall',x:(sx+2)*T,y:(sy+2)*T,stallId:'sm'+(i+1)});
     }
     // Medium stalls
     const medPositions=[[8,24],[8,36],[46,24],[46,36]];
-    for(const[sx,sy] of medPositions){
-      decorations.push({type:'market_stall',x:(sx+3)*T,y:(sy+2)*T});
+    for(let i=0;i<medPositions.length;i++){
+      const[sx,sy]=medPositions[i];
+      decorations.push({type:'market_stall',x:(sx+3)*T,y:(sy+2)*T,stallId:'md'+(i+1)});
     }
     // Large stalls (premium wing)
-    decorations.push({type:'market_stall',x:15*T,y:48*T});
-    decorations.push({type:'market_stall',x:42*T,y:48*T});
+    decorations.push({type:'market_stall',x:15*T,y:48*T,stallId:'lg1'});
+    decorations.push({type:'market_stall',x:42*T,y:48*T,stallId:'lg2'});
     // Crates and barrels scattered around
     for(let i=0;i<25;i++){
       const bx=(5+rng()*50)*T,by=(5+rng()*50)*T;
@@ -9999,8 +10039,10 @@ function generateDecorations(zoneId,type){
     for(let i=0;i<10;i++){decorations.push({type:'tree',x:(1+rng()*3)*T,y:(4+rng()*52)*T,size:.6+rng()*.4,variant:Math.floor(rng()*3),col:{ox:0,oy:0,w:14,h:14}})}
     for(let i=0;i<10;i++){decorations.push({type:'tree',x:(56+rng()*3)*T,y:(4+rng()*52)*T,size:.6+rng()*.4,variant:Math.floor(rng()*3),col:{ox:0,oy:0,w:14,h:14}})}
     // Entrance arch signpost
-    decorations.push({type:'hub_signpost',x:cx*T,y:54*T,label:'🏪 Grand Bazaar',dir:''});
+    decorations.push({type:'hub_signpost',x:cx*T,y:54*T,label:'🏪 Marketplace',dir:''});
     decorations.push({type:'hub_signpost',x:cx*T,y:4*T,label:'📜 Premium Wing',dir:''});
+    // Broker Bart NPC near entrance
+    decorations.push({type:'npc_broker',x:(cx+4)*T,y:52*T});
   }
   // Landmark decorations for non-hub zones (portals, return portals)
   if(type!=='hub'&&hubLandmarks&&hubLandmarks.length){
@@ -11635,17 +11677,40 @@ function drawDecoration(d){
       break;
     }
     case'market_stall':{
+      const stallInfo=d.stallId?marketStallData[d.stallId]:null;
+      const awningColor=stallInfo?stallInfo.color:'#666';
+      const awningLight=stallInfo?stallInfo.color+'cc':'#888';
       // Counter / awning
       ctx.fillStyle='#5a3a18';ctx.fillRect(s.x-14*sc,s.y-6*sc,28*sc,6*sc);
       ctx.fillStyle='#7a5a38';ctx.fillRect(s.x-14*sc,s.y-8*sc,28*sc,3*sc);
       // Awning poles
       ctx.fillStyle='#6a4a28';ctx.fillRect(s.x-12*sc,s.y-24*sc,3*sc,24*sc);ctx.fillRect(s.x+9*sc,s.y-24*sc,3*sc,24*sc);
-      // Awning
-      ctx.fillStyle='#aa3333';ctx.fillRect(s.x-14*sc,s.y-26*sc,28*sc,4*sc);
-      ctx.fillStyle='#cc4444';ctx.fillRect(s.x-14*sc,s.y-28*sc,28*sc,3*sc);
-      // Goods on counter
-      ctx.fillStyle='#fbbf24';ctx.fillRect(s.x-6*sc,s.y-10*sc,4*sc,4*sc);
-      ctx.fillStyle='#4ade80';ctx.fillRect(s.x+2*sc,s.y-10*sc,4*sc,4*sc);
+      // Awning (colored by owner)
+      ctx.fillStyle=awningColor;ctx.fillRect(s.x-14*sc,s.y-26*sc,28*sc,4*sc);
+      ctx.fillStyle=awningLight;ctx.fillRect(s.x-14*sc,s.y-28*sc,28*sc,3*sc);
+      if(stallInfo){
+        // Stocked goods on counter
+        const items=stallInfo.items||[];
+        for(let gi=0;gi<Math.min(items.length,4);gi++){
+          const gx=s.x+(-6+gi*5)*sc;
+          ctx.fillStyle=['#fbbf24','#4ade80','#60a5fa','#c084fc'][gi%4];
+          ctx.fillRect(gx,s.y-10*sc,4*sc,4*sc);
+        }
+        // Owner name above
+        ctx.font='bold '+Math.max(7,4*sc)+'px sans-serif';ctx.textAlign='center';
+        ctx.fillStyle='rgba(0,0,0,0.6)';ctx.fillText(stallInfo.owner,s.x+0.5*sc,s.y-30*sc+0.5*sc);
+        ctx.fillStyle='#fbbf24';ctx.fillText(stallInfo.owner,s.x,s.y-30*sc);
+        // Item count
+        if(items.length>0){
+          ctx.font=Math.max(6,3.5*sc)+'px sans-serif';
+          ctx.fillStyle='#4ade80';ctx.fillText(items.length+' items',s.x,s.y-25.5*sc);
+        }
+      }else{
+        // FOR RENT sign
+        ctx.font='bold '+Math.max(7,4.5*sc)+'px sans-serif';ctx.textAlign='center';
+        ctx.fillStyle='rgba(0,0,0,0.5)';ctx.fillText('FOR RENT',s.x+0.5*sc,s.y-30*sc+0.5*sc);
+        ctx.fillStyle='#888';ctx.fillText('FOR RENT',s.x,s.y-30*sc);
+      }
       break;
     }
     case'market_gate':{
@@ -12119,6 +12184,39 @@ function drawDecoration(d){
         ctx.font='bold '+(5*S)+'px sans-serif';ctx.textAlign='center';
         ctx.fillStyle='#fbbf24';ctx.fillText('Here ya go! 🍺',mx,my-30*S);
       }
+      break;
+    }
+    case'npc_broker':{
+      // Broker Bart — stall rental NPC in the marketplace
+      const S=sc;const bx=s.x,by=s.y-14*S;
+      // Shadow
+      ctx.fillStyle='rgba(0,0,0,0.2)';ctx.beginPath();ctx.ellipse(bx,s.y+4*S,8*S,3*S,0,0,Math.PI*2);ctx.fill();
+      // Legs
+      ctx.fillStyle='#2a1a08';ctx.fillRect(bx-4*S,by+8*S,3.5*S,6*S);ctx.fillRect(bx+0.5*S,by+8*S,3.5*S,6*S);
+      // Body — merchant vest
+      ctx.fillStyle='#6a3a0a';ctx.fillRect(bx-5*S,by-2*S,10*S,10*S);
+      ctx.fillStyle='#8a5a2a';ctx.fillRect(bx-4*S,by-1*S,8*S,8*S);
+      // Gold sash
+      ctx.fillStyle='#fbbf24';ctx.fillRect(bx-5*S,by+2*S,10*S,1.5*S);
+      // Head
+      ctx.fillStyle='#c89060';ctx.beginPath();ctx.arc(bx,by-6*S,5*S,0,Math.PI*2);ctx.fill();
+      // Turban
+      ctx.fillStyle='#cc3333';ctx.beginPath();ctx.arc(bx,by-9*S,4.5*S,Math.PI,0);ctx.fill();
+      ctx.fillStyle='#aa2222';ctx.fillRect(bx-4.5*S,by-9*S,9*S,2*S);
+      ctx.fillStyle='#fbbf24';ctx.beginPath();ctx.arc(bx,by-11*S,1.5*S,0,Math.PI*2);ctx.fill();
+      // Eyes
+      ctx.fillStyle='#222';ctx.fillRect(bx-2.5*S,by-7*S,1.5*S,1.5*S);ctx.fillRect(bx+1*S,by-7*S,1.5*S,1.5*S);
+      // Mustache
+      ctx.fillStyle='#3a2a10';ctx.fillRect(bx-3*S,by-4.5*S,6*S,1.2*S);
+      // Arms holding clipboard
+      ctx.fillStyle='#c89060';ctx.fillRect(bx-7*S,by+1*S,3*S,5*S);ctx.fillRect(bx+4*S,by+1*S,3*S,5*S);
+      // Clipboard
+      ctx.fillStyle='#6a4a20';ctx.fillRect(bx+4*S,by-1*S,5*S,7*S);
+      ctx.fillStyle='#f0e8d0';ctx.fillRect(bx+4.5*S,by-0.5*S,4*S,6*S);
+      // Name label
+      ctx.font='bold '+(4.5*S)+'px sans-serif';ctx.textAlign='center';
+      ctx.fillStyle='#fbbf24';ctx.fillText('Broker Bart',bx,by-15*S);
+      ctx.fillStyle='rgba(0,0,0,0.5)';ctx.fillText('Broker Bart',bx+0.5*S,by-14.5*S);
       break;
     }
     case'npc_grunt':{
@@ -25742,6 +25840,7 @@ document.addEventListener('keydown',e=>{
     else if(document.getElementById('wear-panel').classList.contains('show')){toggleWearPanel()}
     else if(document.getElementById('shop-panel').classList.contains('show')){toggleShopPanel()}
     else if(document.getElementById('craft-panel').classList.contains('show')){toggleCraftPanel()}
+    else if(document.getElementById('stallrent-panel').classList.contains('show')||document.getElementById('mystall-panel').classList.contains('show')||document.getElementById('browsestall-panel').classList.contains('show')){closeAllStallPanels()}
     else if(document.getElementById('market-panel').classList.contains('show')){toggleMarketPanel()}
     else if(document.getElementById('vg-panel').style.display==='flex'){toggleVGPanel()}
     else if(document.getElementById('ore-sell-panel').classList.contains('show')){closeOreSellPanel()}
@@ -26000,10 +26099,25 @@ function interactNearest(){
     const lm=nearbyLandmark;
     if(lm.zone){enterZone(lm.zone);return}
   }
-  // Market zone: interact with return portal
-  if(zoneType==='market'&&nearbyLandmark){
-    const lm=nearbyLandmark;
-    if(lm.zone){enterZone(lm.zone);return}
+  // Market zone: interact with return portal, broker NPC, and stalls
+  if(zoneType==='market'){
+    if(nearbyLandmark&&nearbyLandmark.zone){enterZone(nearbyLandmark.zone);return}
+    // Check for Broker Bart NPC
+    for(const d of decorations){
+      if(d.type!=='npc_broker')continue;
+      const dist=Math.sqrt((px-d.x)**2+(py-d.y)**2);
+      if(dist<100){openStallRentPanel();return}
+    }
+    // Check for nearby stall to browse
+    const nearStall=getNearestStall();
+    if(nearStall){
+      if(marketStallData[nearStall.stallId]&&marketStallData[nearStall.stallId].owner===username){
+        openMyStallPanel();
+      }else{
+        openBrowseStallPanel(nearStall.stallId);
+      }
+      return;
+    }
   }
   // Mine/combat targeting is handled by hold-E / mobile attack button in update()
 }
@@ -26077,7 +26191,28 @@ function updateActionInfo(){
       const lm=nearbyLandmark;
       el.innerHTML='<span class="key">[E]</span> Enter <b style="color:var(--gold)">'+lm.label+'</b>';
     } else {
-      el.innerHTML='Explore the Grand Bazaar &middot; <span class="key">WASD</span> Move &middot; <span class="key">[M]</span> Map';
+      // Check for broker NPC
+      let nearBroker=false;
+      for(const d of decorations){
+        if(d.type==='npc_broker'&&Math.sqrt((px-d.x)**2+(py-d.y)**2)<100){nearBroker=true;break}
+      }
+      if(nearBroker){
+        el.innerHTML='<span class="key">[E]</span> Talk to <b style="color:var(--gold)">Broker Bart</b>';
+      } else {
+        const nearStall=getNearestStall();
+        if(nearStall){
+          const stall=marketStallData[nearStall.stallId];
+          if(stall&&stall.owner===username){
+            el.innerHTML='<span class="key">[E]</span> Manage <b style="color:var(--gold)">Your Stall</b>';
+          }else if(stall){
+            el.innerHTML='<span class="key">[E]</span> Browse <b style="color:var(--gold)">'+stall.owner+'\'s Stall</b>';
+          }else{
+            el.innerHTML='<span class="key">[E]</span> <b style="color:var(--dim)">Empty Stall (FOR RENT)</b>';
+          }
+        } else {
+          el.innerHTML='Explore the Marketplace &middot; <span class="key">WASD</span> Move &middot; <span class="key">[M]</span> Map';
+        }
+      }
     }
   }
 }
@@ -26115,7 +26250,7 @@ const WORLD_MAP_NODES={
   gold_vein:{x:12,y:6,icon:'💰',name:'Gold Vein',type:'mine'},
   forest:{x:78,y:38,icon:'🌲',name:'Shadow Forest',type:'combat'},
   dungeon:{x:78,y:72,icon:'🏰',name:'Dark Dungeon',type:'combat'},
-  market:{x:70,y:62,icon:'🏪',name:'Grand Bazaar',type:'market'},
+  market:{x:70,y:62,icon:'🏪',name:'Marketplace',type:'market'},
 };
 const WORLD_MAP_EDGES=[['hub','quarry'],['hub','forest'],['hub','dungeon'],['quarry','underground_mine'],['underground_mine','deep_mine'],['deep_mine','gold_vein'],['hub','market']];
 function updateWorldMap(){
@@ -26227,6 +26362,8 @@ let invCache={inventory:[],equipped:{},gold:0};
 let marketCache=[];
 let activeInvTab='all',activeShopTab='weapons',activeMarketTab='browse';
 let invSortMode='default'; // default, rarity, name, quantity
+// Player-owned stall data (synced from server)
+let marketStallData={}; // { stallId: { owner, color, tier, items:[...] } }
 
 const RARITY_CLASSES={common:'rarity-common',uncommon:'rarity-uncommon',rare:'rarity-rare',epic:'rarity-epic',legendary:'rarity-legendary',mythic:'rarity-mythic'};
 const RARITY_COLORS={common:'#888',uncommon:'#4ade80',rare:'#60a5fa',epic:'#c084fc',legendary:'#fbbf24',mythic:'#ff4444'};
@@ -28522,7 +28659,7 @@ function renderMarket(){
     // Sell tab: list inventory items that can be sold
     const items=invCache.inventory||[];
     if(!items.length){cont.innerHTML='<div style="color:var(--dim);padding:20px;text-align:center">No items to sell</div>';return}
-    cont.innerHTML='<div style="margin-bottom:8px;font-size:10px;color:var(--dim)">2% listing fee &middot; 5% sale tax on completion &middot; Max 5 listings</div>'
+    cont.innerHTML='<div style="margin-bottom:8px;font-size:10px;color:var(--dim)">5% listing fee &middot; 10% sale tax &middot; Max 3 listings &middot; 24h expiry</div>'
       +items.map(i=>{
       const def=itemData[i.id]||{};
       const isStack=i.qty&&i.qty>1;
@@ -28570,6 +28707,199 @@ function doSellItem(uid,itemId,qty,inputId,qtyInputId){
     send('rpg_market_sell_material',{itemId,qty:String(sellQty),price:String(price)});
   }
   setTimeout(fetchMarket,500);
+}
+
+// ── Player-Owned Stall Functions ──
+const STALL_COLORS=['#aa3333','#3333aa','#33aa33','#aa8833','#8833aa','#33aaaa'];
+const STALL_COLOR_NAMES=['Red','Blue','Green','Gold','Purple','Teal'];
+const STALL_TIERS={small:{name:'Small Cart',slots:4,cost:1500,icon:'🛒'},medium:{name:'Covered Booth',slots:8,cost:5000,icon:'🏪'},large:{name:'Full Shop',slots:16,cost:20000,icon:'🏬'}};
+const STALL_IDS={small:['sm1','sm2','sm3','sm4','sm5','sm6'],medium:['md1','md2','md3','md4'],large:['lg1','lg2']};
+
+function closeAllStallPanels(){
+  document.getElementById('stallrent-panel').classList.remove('show');
+  document.getElementById('mystall-panel').classList.remove('show');
+  document.getElementById('browsestall-panel').classList.remove('show');
+}
+
+function getMyStall(){
+  for(const[id,s] of Object.entries(marketStallData)){
+    if(s&&s.owner===username)return{id,...s};
+  }
+  return null;
+}
+
+function getNearestStall(){
+  // Check if player is near any stall enclosure in the market zone
+  if(zoneType!=='market')return null;
+  const T=TILE_SIZE;
+  const allSlots=[
+    ...STALL_IDS.small.map(id=>({stallId:id,tier:'small'})),
+    ...STALL_IDS.medium.map(id=>({stallId:id,tier:'medium'})),
+    ...STALL_IDS.large.map(id=>({stallId:id,tier:'large'}))
+  ];
+  // Get stall positions from decoration positions (market_stall decorations)
+  const smallPos=[[22,6],[22,12],[22,20],[36,6],[36,12],[36,20]];
+  const medPos=[[8,24],[8,36],[46,24],[46,36]];
+  const lgPos=[[14,8],[36,8]];
+  const positions=[...smallPos.map((p,i)=>({stallId:'sm'+(i+1),x:(p[0]+2)*T,y:(p[1]+2)*T})),...medPos.map((p,i)=>({stallId:'md'+(i+1),x:(p[0]+3)*T,y:(p[1]+2)*T})),{stallId:'lg1',x:15*T,y:48*T},{stallId:'lg2',x:42*T,y:48*T}];
+  let best=null,bestDist=120;
+  for(const pos of positions){
+    const dist=Math.sqrt((px-pos.x)**2+(py-pos.y)**2);
+    if(dist<bestDist){bestDist=dist;best=pos}
+  }
+  return best;
+}
+
+function openStallRentPanel(){
+  closeAllStallPanels();
+  const el=document.getElementById('stallrent-panel');
+  el.classList.add('show');
+  renderStallRentPanel();
+}
+
+function renderStallRentPanel(){
+  const cont=document.getElementById('stallrent-content');
+  const myStall=getMyStall();
+  if(myStall){
+    cont.innerHTML='<div style="background:rgba(255,180,0,0.1);border:1px solid #fbbf24;border-radius:8px;padding:12px;margin-bottom:12px">'
+      +'<div style="font-size:13px;color:#fbbf24;font-weight:bold">You own: '+STALL_TIERS[myStall.tier].icon+' '+STALL_TIERS[myStall.tier].name+' ('+myStall.id+')</div>'
+      +'<div style="font-size:11px;color:var(--dim);margin-top:4px">'+myStall.items.length+'/'+STALL_TIERS[myStall.tier].slots+' items stocked</div>'
+      +'<div style="margin-top:8px;display:flex;gap:6px">'
+      +'<button class="btn btn-gold" onclick="closeAllStallPanels();openMyStallPanel()">Manage Stall</button>'
+      +'<button class="btn btn-red" onclick="if(confirm(\'Release stall? 50% refund + all items returned.\'))send(\'rpg_release_stall\',{})">Release (50% refund)</button>'
+      +'</div></div>';
+    return;
+  }
+  let html='<div style="display:grid;gap:10px">';
+  for(const[tier,info] of Object.entries(STALL_TIERS)){
+    const ids=STALL_IDS[tier];
+    const available=ids.filter(id=>!marketStallData[id]);
+    const canAfford=gold>=info.cost;
+    html+='<div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:8px;padding:12px">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center">'
+      +'<div><span style="font-size:16px">'+info.icon+'</span> <b style="color:#fbbf24">'+info.name+'</b>'
+      +'<div style="font-size:10px;color:var(--dim)">'+info.slots+' item slots · 3% sale tax · No expiry</div></div>'
+      +'<div style="text-align:right"><div style="color:'+(canAfford?'#4ade80':'#ef4444')+';font-weight:bold">'+info.cost.toLocaleString()+'g</div>'
+      +'<div style="font-size:9px;color:var(--dim)">'+available.length+'/'+ids.length+' available</div></div></div>';
+    if(available.length>0){
+      html+='<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px">';
+      for(const id of available){
+        html+='<button class="btn '+(canAfford?'btn-gold':'')+'" style="font-size:10px;padding:4px 10px" onclick="send(\'rpg_rent_stall\',{stallId:\''+id+'\'})" '+(canAfford?'':'disabled')+'>Rent '+id+'</button>';
+      }
+      html+='</div>';
+    }else{
+      html+='<div style="font-size:10px;color:#ef4444;margin-top:4px">All rented!</div>';
+    }
+    // Show who owns each stall in this tier
+    const rented=ids.filter(id=>marketStallData[id]);
+    if(rented.length){
+      html+='<div style="font-size:9px;color:var(--dim);margin-top:6px">Rented: '+rented.map(id=>id+' ('+marketStallData[id].owner+')').join(', ')+'</div>';
+    }
+    html+='</div>';
+  }
+  html+='</div>';
+  cont.innerHTML=html;
+}
+
+function openMyStallPanel(){
+  closeAllStallPanels();
+  const el=document.getElementById('mystall-panel');
+  el.classList.add('show');
+  renderMyStallPanel();
+}
+
+function renderMyStallPanel(){
+  const cont=document.getElementById('mystall-content');
+  const myStall=getMyStall();
+  if(!myStall){cont.innerHTML='<div style="color:var(--dim);padding:20px;text-align:center">You don\'t own a stall. Talk to Broker Bart!</div>';return}
+  const info=STALL_TIERS[myStall.tier];
+  let html='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
+    +'<div>'+info.icon+' <b style="color:#fbbf24">'+info.name+'</b> ('+myStall.id+') — '+myStall.items.length+'/'+info.slots+' items</div>'
+    +'<div style="display:flex;gap:4px;align-items:center">Color: ';
+  for(let i=0;i<STALL_COLORS.length;i++){
+    const sel=myStall.color===STALL_COLORS[i];
+    html+='<div onclick="send(\'rpg_stall_set_color\',{color:\''+STALL_COLORS[i]+'\'})" style="width:18px;height:18px;border-radius:50%;background:'+STALL_COLORS[i]+';cursor:pointer;border:'+(sel?'2px solid #fff':'2px solid transparent')+'" title="'+STALL_COLOR_NAMES[i]+'"></div>';
+  }
+  html+='</div></div>';
+  // Stocked items
+  html+='<div style="font-size:11px;color:var(--dim);margin-bottom:6px">Stocked Items (buyers see these)</div>';
+  if(myStall.items.length===0){
+    html+='<div style="color:var(--dim);padding:12px;text-align:center;background:rgba(0,0,0,0.2);border-radius:6px;margin-bottom:10px">Empty — stock items below!</div>';
+  }else{
+    html+='<div style="display:grid;gap:4px;margin-bottom:10px">';
+    for(let i=0;i<myStall.items.length;i++){
+      const si=myStall.items[i];
+      html+='<div class="market-listing"><div class="ml-icon">'+(si.icon||'📦')+'</div><div class="ml-info"><div class="ml-name" style="color:'+(RARITY_COLORS[si.rarity]||'#ccc')+'">'+(si.name||si.id)+(si.qty?' x'+si.qty:'')+'</div><div class="ml-seller">'+si.price+'g</div></div>'
+        +'<button class="btn btn-red" style="font-size:9px;padding:3px 8px" onclick="send(\'rpg_stall_unstock\',{slotIndex:'+i+'})">Remove</button></div>';
+    }
+    html+='</div>';
+  }
+  // Add items from inventory
+  if(myStall.items.length<info.slots){
+    html+='<div style="font-size:11px;color:#4ade80;margin-bottom:6px">Add items from inventory ('+( info.slots-myStall.items.length)+' slots remaining)</div>';
+    const items=invCache.inventory||[];
+    if(items.length===0){
+      html+='<div style="color:var(--dim);padding:8px;text-align:center">Inventory empty</div>';
+    }else{
+      html+='<div style="max-height:200px;overflow-y:auto;display:grid;gap:4px">';
+      for(const i of items){
+        if(i.id==='goblin_key')continue;
+        const def=itemData[i.id]||{};
+        const isStack=i.qty&&i.qty>1;
+        const uid=i.uid||'';
+        const inputId='stall-price-'+(uid||i.id);
+        const qtyId='stall-qty-'+(uid||i.id);
+        html+='<div class="market-listing"><div class="ml-icon">'+(def.icon||'?')+'</div><div class="ml-info"><div class="ml-name" style="color:'+(RARITY_COLORS[def.rarity]||'#ccc')+'">'+(def.name||i.id)+(isStack?' x'+i.qty:'')+'</div></div>';
+        if(isStack)html+='<input type="number" id="'+qtyId+'" value="'+i.qty+'" min="1" max="'+i.qty+'" style="width:45px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:2px 4px;font-size:10px">';
+        html+='<input type="number" id="'+inputId+'" placeholder="Price" min="1" style="width:60px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:2px 4px;font-size:10px">'
+          +'<button class="btn btn-gold" style="font-size:9px;padding:3px 6px;margin-left:3px" onclick="doStallStock(\''+uid+'\',\''+i.id+'\',\''+inputId+'\','+(isStack?'\''+qtyId+'\'':'null')+')">Stock</button></div>';
+      }
+      html+='</div>';
+    }
+  }
+  cont.innerHTML=html;
+}
+
+function doStallStock(uid,itemId,priceInputId,qtyInputId){
+  const price=parseInt(document.getElementById(priceInputId).value);
+  if(!price||price<1){logMsg('Set a price first!','dmg');return}
+  const msg={price:String(price)};
+  if(uid){msg.itemUid=uid}
+  else{msg.itemId=itemId;msg.qty=String(qtyInputId?parseInt(document.getElementById(qtyInputId).value)||1:1)}
+  send('rpg_stall_stock',msg);
+}
+
+function openBrowseStallPanel(stallId){
+  closeAllStallPanels();
+  const el=document.getElementById('browsestall-panel');
+  el.classList.add('show');
+  renderBrowseStallPanel(stallId);
+}
+
+function renderBrowseStallPanel(stallId){
+  const stall=marketStallData[stallId];
+  const title=document.getElementById('browsestall-title');
+  const cont=document.getElementById('browsestall-content');
+  if(!stall){
+    title.textContent='🏪 FOR RENT';
+    cont.innerHTML='<div style="color:var(--dim);padding:20px;text-align:center">This stall is available! Talk to Broker Bart to rent it.</div>';
+    return;
+  }
+  title.innerHTML='🏪 '+stall.owner+'\'s Stall <span style="font-size:10px;color:var(--dim)">('+stallId+')</span>';
+  if(stall.items.length===0){
+    cont.innerHTML='<div style="color:var(--dim);padding:20px;text-align:center">This stall has no items for sale right now.</div>';
+    return;
+  }
+  let html='<div style="font-size:10px;color:var(--dim);margin-bottom:8px">3% sale tax (much cheaper than the listings board!)</div>';
+  html+='<div style="display:grid;gap:4px">';
+  for(let i=0;i<stall.items.length;i++){
+    const si=stall.items[i];
+    const canBuy=gold>=si.price;
+    html+='<div class="market-listing"><div class="ml-icon">'+(si.icon||'📦')+'</div><div class="ml-info"><div class="ml-name" style="color:'+(RARITY_COLORS[si.rarity]||'#ccc')+'">'+(si.name||si.id)+(si.qty?' x'+si.qty:'')+'</div></div><div class="ml-price">'+si.price+'g</div>'
+      +'<button class="btn '+(canBuy?'btn-gold':'')+'" style="font-size:9px;padding:3px 8px" onclick="send(\'rpg_stall_buy\',{stallId:\''+stallId+'\',slotIndex:'+i+'})" '+(canBuy?'':'disabled')+'>Buy</button></div>';
+  }
+  html+='</div>';
+  cont.innerHTML=html;
 }
 
 // ── Drop Toast Notifications ──
