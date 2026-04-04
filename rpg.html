@@ -1497,7 +1497,8 @@ const TILE_COLORS={
   underground_mine:{0:'#282010',1:'#3e2e1c',2:'#1e2c0c',3:'#383838',4:'#3c3218',5:'#1e2434',6:'#342414'},
   deep_mine:{0:'#1a140c',1:'#2c2016',2:'#141e08',3:'#282828',4:'#2c2410',5:'#141a28',6:'#24180c'},
   combat:{0:'#2e4816',1:'#443018',2:'#224818',3:'#444438',4:'#544a2a',5:'#1a4060',6:'#4a3018'},
-  dungeon:{0:'#505888',1:'#6e7298',2:'#3e5858',3:'#586088',4:'#686890',5:'#486080',6:'#5a5070'}
+  dungeon:{0:'#505888',1:'#6e7298',2:'#3e5858',3:'#586088',4:'#686890',5:'#486080',6:'#5a5070'},
+  market:{0:'#3e3420',1:'#5a4a30',2:'#2a4a20',3:'#504838',4:'#6a5a3a',5:'#2a5878',6:'#5a3a18'}
 };
 let miningTarget=null,attackTarget=null,hoverEntity=null;
 let floats=[],particles=[],shakeTimer=0,damageFlash=0;
@@ -1514,7 +1515,7 @@ let treantGrave=null; // persistent treant aftermath until respawn {x,y,roots,tr
 let envParticles=[]; // leaves, dust, fireflies
 let hubMusicPlaying=false,hubMusicNodes=[];
 let zoneMusicFade=null,zoneMusicCurrent=null;
-const ZONE_MUSIC_MAP={hub:'audio/Music/HUB%20music.mp3',forest:'audio/Music/Forest%20Music.mp3',quarry:'audio/Music/Mines%20Music.mp3',underground_mine:'audio/Music/Mines%20Music.mp3',deep_mine:'audio/Music/Mines%20Music.mp3',gold_vein:'audio/Music/Mines%20Music.mp3',dungeon:'audio/Dungeon%20Music.mp3'};
+const ZONE_MUSIC_MAP={hub:'audio/Music/HUB%20music.mp3',forest:'audio/Music/Forest%20Music.mp3',quarry:'audio/Music/Mines%20Music.mp3',underground_mine:'audio/Music/Mines%20Music.mp3',deep_mine:'audio/Music/Mines%20Music.mp3',gold_vein:'audio/Music/Mines%20Music.mp3',dungeon:'audio/Dungeon%20Music.mp3',market:'audio/Music/HUB%20music.mp3'};
 // Asset pack fallback music (used when primary mp3 fails to load)
 const ZONE_MUSIC_FALLBACK={
   hub:'superpowers-asset-packs/medieval-fantasy/music/theme-1.ogg',
@@ -1524,6 +1525,7 @@ const ZONE_MUSIC_FALLBACK={
   deep_mine:'superpowers-asset-packs/ninja-adventure/musics/theme-18.ogg',
   gold_vein:'superpowers-asset-packs/ninja-adventure/musics/theme-15.ogg',
   dungeon:'superpowers-asset-packs/ninja-adventure/musics/theme-12.ogg',
+  market:'superpowers-asset-packs/medieval-fantasy/music/theme-1.ogg',
 };
 // Per-track Audio elements (like tavern music)
 const zoneMusicEls={};
@@ -3203,11 +3205,11 @@ function _executeZoneChange(zoneId){
 // ═══ ZONE TRANSITION ANIMATION ═══
 const ZONE_ICONS={
   hub:'🏘️',forest:'🌲',dungeon:'💀',quarry:'⛏️',
-  underground_mine:'🕳️',deep_mine:'🔥',gold_vein:'✨',housing:'🏘️'
+  underground_mine:'🕳️',deep_mine:'🔥',gold_vein:'✨',housing:'🏘️',market:'🏪'
 };
 const ZONE_TYPES_LABEL={
   hub:'Safe Zone',forest:'Combat Zone',dungeon:'Combat Zone',quarry:'Mining Zone',
-  underground_mine:'Mining Zone',deep_mine:'Mining Zone',gold_vein:'Mining Zone',housing:'Housing District'
+  underground_mine:'Mining Zone',deep_mine:'Mining Zone',gold_vein:'Mining Zone',housing:'Housing District',market:'Grand Bazaar'
 };
 function playZoneTransition(zoneId,cb){
   if(zoneTransitionActive){cb&&cb();return;}
@@ -9950,6 +9952,55 @@ function generateDecorations(zoneId,type){
     // Signpost at center
     decorations.push({type:'hub_signpost',x:mx*T,y:(my+2)*T,label:'🏘️ Housing District',dir:''});
     decorations.push({type:'hub_signpost',x:5*T,y:8*T,label:'🏠 Hub Portal',dir:'left'});
+  }else if(type==='market'){
+    // Grand Bazaar — outdoor desert marketplace
+    const T=TILE_SIZE;
+    const cx=30,cy=30;// center of map
+    // Lanterns along the grand boulevard (north-south center strip)
+    for(let ty=4;ty<56;ty+=3){
+      decorations.push({type:'torch',x:(cx-2)*T,y:ty*T});
+      decorations.push({type:'torch',x:(cx+3)*T,y:ty*T});
+    }
+    // Lanterns along cross streets
+    for(const streetY of [18,30,42]){
+      for(let tx=6;tx<54;tx+=4){
+        decorations.push({type:'torch',x:tx*T,y:(streetY-1)*T});
+      }
+    }
+    // Central fountain decoration
+    decorations.push({type:'fountain',x:cx*T+T/2,y:cy*T+T/2});
+    // Market stall decorations at stall positions (with awnings)
+    // Small stalls — two rows flanking boulevard
+    const smallPositions=[[22,6],[22,12],[22,20],[36,6],[36,12],[36,20]];
+    for(const[sx,sy] of smallPositions){
+      decorations.push({type:'market_stall',x:(sx+2)*T,y:(sy+2)*T});
+    }
+    // Medium stalls
+    const medPositions=[[8,24],[8,36],[46,24],[46,36]];
+    for(const[sx,sy] of medPositions){
+      decorations.push({type:'market_stall',x:(sx+3)*T,y:(sy+2)*T});
+    }
+    // Large stalls (premium wing)
+    decorations.push({type:'market_stall',x:15*T,y:48*T});
+    decorations.push({type:'market_stall',x:42*T,y:48*T});
+    // Crates and barrels scattered around
+    for(let i=0;i<25;i++){
+      const bx=(5+rng()*50)*T,by=(5+rng()*50)*T;
+      decorations.push({type:rng()>.5?'crate':'barrel',x:bx,y:by});
+    }
+    // Rugs / carpets on the ground (decorative colored patches)
+    const rugColors=['#8b2252','#b8860b','#6a0dad','#1e6040','#8b0000'];
+    for(let i=0;i<12;i++){
+      decorations.push({type:'rug',x:(8+rng()*44)*T,y:(8+rng()*44)*T,color:rugColors[Math.floor(rng()*rugColors.length)]});
+    }
+    // Potted plants & bushes around edges
+    for(let i=0;i<20;i++){decorations.push({type:'bush',x:(2+rng()*56)*T,y:(2+rng()*56)*T,size:.3+rng()*.4})}
+    // Palm trees at edges
+    for(let i=0;i<10;i++){decorations.push({type:'tree',x:(1+rng()*3)*T,y:(4+rng()*52)*T,size:.6+rng()*.4,variant:Math.floor(rng()*3),col:{ox:0,oy:0,w:14,h:14}})}
+    for(let i=0;i<10;i++){decorations.push({type:'tree',x:(56+rng()*3)*T,y:(4+rng()*52)*T,size:.6+rng()*.4,variant:Math.floor(rng()*3),col:{ox:0,oy:0,w:14,h:14}})}
+    // Entrance arch signpost
+    decorations.push({type:'hub_signpost',x:cx*T,y:54*T,label:'🏪 Grand Bazaar',dir:''});
+    decorations.push({type:'hub_signpost',x:cx*T,y:4*T,label:'📜 Premium Wing',dir:''});
   }
   // Landmark decorations for non-hub zones (portals, return portals)
   if(type!=='hub'&&hubLandmarks&&hubLandmarks.length){
@@ -10937,6 +10988,71 @@ function drawDecoration(d){
       }
       break;
     }
+    case'fountain':{
+      // Stone basin with water
+      const ft=Date.now()*0.003;
+      ctx.fillStyle='rgba(0,0,0,0.1)';ctx.beginPath();ctx.ellipse(s.x,s.y+4*sc,18*sc,6*sc,0,0,Math.PI*2);ctx.fill();
+      // Outer basin
+      ctx.fillStyle='#7a6a4a';ctx.beginPath();ctx.ellipse(s.x,s.y,16*sc,8*sc,0,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#6a5a3a';ctx.beginPath();ctx.ellipse(s.x,s.y-2*sc,14*sc,7*sc,0,0,Math.PI*2);ctx.fill();
+      // Water surface
+      ctx.fillStyle='#2a6888';ctx.beginPath();ctx.ellipse(s.x,s.y-2*sc,12*sc,6*sc,0,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='rgba(100,180,220,0.3)';ctx.beginPath();ctx.ellipse(s.x+2*sc,s.y-3*sc,5*sc,2.5*sc,0,0,Math.PI*2);ctx.fill();
+      // Center pedestal
+      ctx.fillStyle='#8a7a5a';ctx.fillRect(s.x-2*sc,s.y-14*sc,4*sc,12*sc);
+      // Water jet
+      ctx.save();ctx.globalAlpha=.5;
+      const jh=8+Math.sin(ft)*2;
+      ctx.fillStyle='#60a5fa';ctx.beginPath();ctx.ellipse(s.x,s.y-(14+jh)*sc,2*sc,jh*sc*0.5,0,0,Math.PI*2);ctx.fill();
+      // Droplets
+      for(let i=0;i<4;i++){
+        const da=ft+i*1.57,dr=4+i*2;
+        ctx.fillStyle='rgba(100,200,255,0.4)';ctx.beginPath();ctx.arc(s.x+Math.cos(da)*dr*sc,s.y-12*sc+Math.sin(da)*dr*sc*0.5,sc,0,Math.PI*2);ctx.fill();
+      }
+      ctx.restore();
+      break;
+    }
+    case'crate':{
+      // Wooden crate
+      ctx.fillStyle='rgba(0,0,0,0.1)';ctx.beginPath();ctx.ellipse(s.x,s.y+3*sc,5*sc,2*sc,0,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#6a4a20';ctx.fillRect(s.x-4*sc,s.y-6*sc,8*sc,8*sc);
+      ctx.fillStyle='#7a5a30';ctx.fillRect(s.x-3.5*sc,s.y-5.5*sc,7*sc,7*sc);
+      // Cross planks
+      ctx.strokeStyle='#5a3a10';ctx.lineWidth=sc*0.5;
+      ctx.beginPath();ctx.moveTo(s.x-3*sc,s.y-5*sc);ctx.lineTo(s.x+3*sc,s.y+1*sc);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(s.x+3*sc,s.y-5*sc);ctx.lineTo(s.x-3*sc,s.y+1*sc);ctx.stroke();
+      break;
+    }
+    case'barrel':{
+      // Wooden barrel
+      ctx.fillStyle='rgba(0,0,0,0.1)';ctx.beginPath();ctx.ellipse(s.x,s.y+3*sc,4*sc,1.5*sc,0,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#5a3a18';ctx.beginPath();ctx.ellipse(s.x,s.y,4*sc,5*sc,0,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#6a4a28';ctx.beginPath();ctx.ellipse(s.x,s.y,3.5*sc,4.5*sc,0,0,Math.PI*2);ctx.fill();
+      // Metal bands
+      ctx.strokeStyle='#888';ctx.lineWidth=sc*0.6;
+      ctx.beginPath();ctx.ellipse(s.x,s.y-2*sc,3.8*sc,1*sc,0,0,Math.PI*2);ctx.stroke();
+      ctx.beginPath();ctx.ellipse(s.x,s.y+2*sc,3.8*sc,1*sc,0,0,Math.PI*2);ctx.stroke();
+      // Top lid
+      ctx.fillStyle='#7a5a38';ctx.beginPath();ctx.ellipse(s.x,s.y-4.5*sc,3.5*sc,1.5*sc,0,0,Math.PI*2);ctx.fill();
+      break;
+    }
+    case'rug':{
+      // Flat colored rug / carpet
+      ctx.save();ctx.globalAlpha=.6;
+      ctx.fillStyle=d.color||'#8b2252';
+      ctx.fillRect(s.x-8*sc,s.y-5*sc,16*sc,10*sc);
+      // Border pattern
+      ctx.strokeStyle='rgba(255,215,0,0.4)';ctx.lineWidth=sc*0.6;
+      ctx.strokeRect(s.x-7*sc,s.y-4*sc,14*sc,8*sc);
+      // Fringe edges
+      ctx.strokeStyle=d.color||'#8b2252';ctx.lineWidth=sc*0.3;
+      for(let i=-7;i<=7;i+=2){
+        ctx.beginPath();ctx.moveTo(s.x+i*sc,s.y-5*sc);ctx.lineTo(s.x+i*sc,s.y-6.5*sc);ctx.stroke();
+        ctx.beginPath();ctx.moveTo(s.x+i*sc,s.y+5*sc);ctx.lineTo(s.x+i*sc,s.y+6.5*sc);ctx.stroke();
+      }
+      ctx.restore();
+      break;
+    }
     case'ground_pebbles':{
       // Scattered pebbles on the ground (flat decoration)
       const rh3=((d.x*9876543+d.y*3456789)>>>0);
@@ -11530,6 +11646,31 @@ function drawDecoration(d){
       // Goods on counter
       ctx.fillStyle='#fbbf24';ctx.fillRect(s.x-6*sc,s.y-10*sc,4*sc,4*sc);
       ctx.fillStyle='#4ade80';ctx.fillRect(s.x+2*sc,s.y-10*sc,4*sc,4*sc);
+      break;
+    }
+    case'market_gate':{
+      // Grand stone archway with wooden sign
+      // Left pillar
+      ctx.fillStyle='#6a5a3a';ctx.fillRect(s.x-20*sc,s.y-40*sc,8*sc,40*sc);
+      ctx.fillStyle='#7a6a4a';ctx.fillRect(s.x-22*sc,s.y-42*sc,12*sc,5*sc);
+      // Right pillar
+      ctx.fillStyle='#6a5a3a';ctx.fillRect(s.x+12*sc,s.y-40*sc,8*sc,40*sc);
+      ctx.fillStyle='#7a6a4a';ctx.fillRect(s.x+10*sc,s.y-42*sc,12*sc,5*sc);
+      // Arch beam
+      ctx.fillStyle='#5a3a18';ctx.fillRect(s.x-22*sc,s.y-44*sc,44*sc,5*sc);
+      ctx.fillStyle='#7a5a38';ctx.fillRect(s.x-20*sc,s.y-46*sc,40*sc,3*sc);
+      // Hanging sign board
+      ctx.fillStyle='#3e2a10';ctx.fillRect(s.x-12*sc,s.y-38*sc,24*sc,8*sc);
+      ctx.fillStyle='#fbbf24';ctx.font=`${Math.max(8,10*sc)}px sans-serif`;ctx.textAlign='center';
+      ctx.fillText('🏪',s.x,s.y-32*sc);
+      // Lanterns on top
+      ctx.fillStyle='#ff8c00';ctx.beginPath();ctx.arc(s.x-16*sc,s.y-48*sc,3*sc,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#ff8c00';ctx.beginPath();ctx.arc(s.x+16*sc,s.y-48*sc,3*sc,0,Math.PI*2);ctx.fill();
+      // Glow
+      ctx.save();ctx.globalAlpha=.2;
+      ctx.fillStyle='#ff8c00';ctx.beginPath();ctx.arc(s.x-16*sc,s.y-48*sc,6*sc,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();ctx.arc(s.x+16*sc,s.y-48*sc,6*sc,0,Math.PI*2);ctx.fill();
+      ctx.restore();
       break;
     }
     case'arena_gate':{
@@ -25714,7 +25855,7 @@ function interactNearest(){
       enterZone(lm.zone);
       return;
     }
-    if(lm.type==='market_stall'){logMsg('Market coming soon!','xp');return}
+    if(lm.type==='market_stall'){toggleMarketPanel();return}
     if(lm.type==='arena_gate'){toggleDuelQueue();return}
   }
   // Housing: interact with nearest house plot (enter own house / knock on others)
@@ -25859,6 +26000,11 @@ function interactNearest(){
     const lm=nearbyLandmark;
     if(lm.zone){enterZone(lm.zone);return}
   }
+  // Market zone: interact with return portal
+  if(zoneType==='market'&&nearbyLandmark){
+    const lm=nearbyLandmark;
+    if(lm.zone){enterZone(lm.zone);return}
+  }
   // Mine/combat targeting is handled by hold-E / mobile attack button in update()
 }
 
@@ -25926,6 +26072,13 @@ function updateActionInfo(){
     }
     else if(attackTarget){const m=mobs.find(m=>m.id===attackTarget);el.innerHTML=m?'Attacking <b>'+m.name+'</b> ('+m.hp+'/'+m.maxHP+')':'Hold E near a mob to attack!'}
     else el.innerHTML='<span class="key">[1]</span> Sword &middot; Hold <span class="key">E</span> near enemies to auto-attack!';
+  }else if(zoneType==='market'){
+    if(nearbyLandmark){
+      const lm=nearbyLandmark;
+      el.innerHTML='<span class="key">[E]</span> Enter <b style="color:var(--gold)">'+lm.label+'</b>';
+    } else {
+      el.innerHTML='Explore the Grand Bazaar &middot; <span class="key">WASD</span> Move &middot; <span class="key">[M]</span> Map';
+    }
   }
 }
 
@@ -25962,8 +26115,9 @@ const WORLD_MAP_NODES={
   gold_vein:{x:12,y:6,icon:'💰',name:'Gold Vein',type:'mine'},
   forest:{x:78,y:38,icon:'🌲',name:'Shadow Forest',type:'combat'},
   dungeon:{x:78,y:72,icon:'🏰',name:'Dark Dungeon',type:'combat'},
+  market:{x:70,y:62,icon:'🏪',name:'Grand Bazaar',type:'market'},
 };
-const WORLD_MAP_EDGES=[['hub','quarry'],['hub','forest'],['hub','dungeon'],['quarry','underground_mine'],['underground_mine','deep_mine'],['deep_mine','gold_vein']];
+const WORLD_MAP_EDGES=[['hub','quarry'],['hub','forest'],['hub','dungeon'],['quarry','underground_mine'],['underground_mine','deep_mine'],['deep_mine','gold_vein'],['hub','market']];
 function updateWorldMap(){
   const zl=document.getElementById('zo-level');if(zl)zl.textContent=playerLevel;
   const zm=document.getElementById('zo-mining');if(zm)zm.textContent=miningLevel;

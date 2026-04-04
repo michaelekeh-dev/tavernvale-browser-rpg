@@ -3733,6 +3733,106 @@ class Game {
           if (map[y][x] === TILE.GRASS && rng() < 0.05) map[y][x] = TILE.SAND;
         }
 
+    } else if (zone.type === 'market') {
+      // ═══ GRAND BAZAAR — massive outdoor marketplace ═══
+      const mx = Math.floor(MAP_W / 2); // 30
+      const my = Math.floor(MAP_H / 2); // 30
+      // Base: sand everywhere
+      for (let y = 2; y < MAP_H - 2; y++)
+        for (let x = 2; x < MAP_W - 2; x++) map[y][x] = TILE.SAND;
+
+      // ── Grand Boulevard (north-south, center) ──
+      fill(mx - 3, 4, mx + 3, MAP_H - 5, TILE.STONE);
+      // Boulevard decorative edges (wood planks)
+      fill(mx - 4, 4, mx - 4, MAP_H - 5, TILE.WOOD);
+      fill(mx + 4, 4, mx + 4, MAP_H - 5, TILE.WOOD);
+
+      // ── Cross streets (east-west) ──
+      fill(4, 16, MAP_W - 5, 17, TILE.STONE); // Upper market row
+      fill(4, 26, MAP_W - 5, 27, TILE.STONE); // Middle market row
+      fill(4, 38, MAP_W - 5, 39, TILE.STONE); // Lower market row
+
+      // ── Grand entrance plaza (south) ──
+      fill(mx - 8, MAP_H - 10, mx + 8, MAP_H - 5, TILE.STONE);
+      fill(mx - 6, MAP_H - 12, mx + 6, MAP_H - 10, TILE.STONE);
+
+      // ── Central fountain plaza ──
+      fill(mx - 5, my - 4, mx + 5, my + 4, TILE.STONE);
+      // Fountain water
+      fill(mx - 2, my - 2, mx + 2, my + 2, TILE.WATER);
+      // Fountain rim (stone walkable around water)
+      fill(mx - 2, my - 3, mx + 2, my - 3, TILE.STONE);
+      fill(mx - 2, my + 3, mx + 2, my + 3, TILE.STONE);
+      fill(mx - 3, my - 2, mx - 3, my + 2, TILE.STONE);
+      fill(mx + 3, my - 2, mx + 3, my + 2, TILE.STONE);
+
+      // ── Northern premium wing (large stalls) ──
+      fill(6, 4, MAP_W - 7, 6, TILE.STONE); // Top promenade
+      // Large stall plots — walled enclosures with door openings
+      // Left large stall
+      fill(14, 8, 23, 13, TILE.FLOOR);
+      fill(14, 7, 23, 7, TILE.WALL); fill(14, 14, 23, 14, TILE.WALL);
+      fill(13, 7, 13, 14, TILE.WALL); fill(24, 7, 24, 14, TILE.WALL);
+      fill(18, 14, 19, 14, TILE.STONE); // door
+      // Right large stall
+      fill(36, 8, 45, 13, TILE.FLOOR);
+      fill(36, 7, 45, 7, TILE.WALL); fill(36, 14, 45, 14, TILE.WALL);
+      fill(35, 7, 35, 14, TILE.WALL); fill(46, 7, 46, 14, TILE.WALL);
+      fill(40, 14, 41, 14, TILE.STONE); // door
+
+      // ── Side stall rows (small stalls along cross streets) ──
+      const smallStalls = [
+        [10, 18, 14, 21], [18, 18, 22, 21],   // Upper left
+        [42, 18, 46, 21], [50, 18, 54, 21],   // Upper right
+        [10, 40, 14, 43],                      // Lower left
+        [50, 40, 54, 43],                      // Lower right
+      ];
+      for (const [sx1, sy1, sx2, sy2] of smallStalls) {
+        fill(sx1, sy1, sx2, sy2, TILE.FLOOR);
+        fill(sx1, sy1 - 1, sx2, sy1 - 1, TILE.WALL);
+        fill(sx1 - 1, sy1 - 1, sx1 - 1, sy2, TILE.WALL);
+        fill(sx2 + 1, sy1 - 1, sx2 + 1, sy2, TILE.WALL);
+        const doorX = Math.floor((sx1 + sx2) / 2);
+        fill(doorX, sy1 - 1, doorX + 1, sy1 - 1, TILE.FLOOR); // door
+      }
+
+      // ── Medium stall plots (along middle cross street) ──
+      const medStalls = [
+        [10, 28, 16, 32], [43, 28, 49, 32],   // Middle row
+        [18, 40, 24, 44], [35, 40, 41, 44],   // Lower middle
+      ];
+      for (const [sx1, sy1, sx2, sy2] of medStalls) {
+        fill(sx1, sy1, sx2, sy2, TILE.FLOOR);
+        fill(sx1, sy1 - 1, sx2, sy1 - 1, TILE.WALL);
+        fill(sx1 - 1, sy1 - 1, sx1 - 1, sy2 + 1, TILE.WALL);
+        fill(sx2 + 1, sy1 - 1, sx2 + 1, sy2 + 1, TILE.WALL);
+        fill(sx1, sy2 + 1, sx2, sy2 + 1, TILE.WALL);
+        const doorX = Math.floor((sx1 + sx2) / 2);
+        fill(doorX, sy1 - 1, doorX + 1, sy1 - 1, TILE.FLOOR); // door
+      }
+
+      // ── Decorative walls along edges (bazaar boundary) ──
+      for (let x = 3; x < MAP_W - 3; x++) {
+        if (map[3][x] !== TILE.STONE && map[3][x] !== TILE.WALL) map[3][x] = TILE.WALL;
+        if (map[MAP_H - 4][x] !== TILE.STONE && map[MAP_H - 4][x] !== TILE.WALL) map[MAP_H - 4][x] = TILE.WALL;
+      }
+      for (let y = 3; y < MAP_H - 3; y++) {
+        if (map[y][3] !== TILE.STONE && map[y][3] !== TILE.WALL) map[y][3] = TILE.WALL;
+        if (map[y][MAP_W - 4] !== TILE.STONE && map[y][MAP_W - 4] !== TILE.WALL) map[y][MAP_W - 4] = TILE.WALL;
+      }
+      // Gate openings in south wall
+      fill(mx - 3, MAP_H - 4, mx + 3, MAP_H - 4, TILE.STONE);
+      // Gate openings in east/west walls
+      fill(3, 26, 3, 27, TILE.STONE);
+      fill(MAP_W - 4, 26, MAP_W - 4, 27, TILE.STONE);
+
+      // ── Scatter variation ──
+      for (let y = 4; y < MAP_H - 4; y++)
+        for (let x = 4; x < MAP_W - 4; x++) {
+          if (map[y][x] === TILE.SAND && rng() < 0.06) map[y][x] = TILE.GRASS; // weeds growing through sand
+          if (map[y][x] === TILE.STONE && rng() < 0.04) map[y][x] = TILE.SAND; // worn cobble
+        }
+
     } else if (zone.type === 'mine') {
       // Cavern with scattered wall pillars and water pools
       for (let y = 2; y < MAP_H - 2; y++)
@@ -6205,6 +6305,8 @@ class Game {
       rp.x = 30 * 40; rp.y = 30 * 40;  // Center of main cavern
     } else if (zoneId === 'deep_mine') {
       rp.x = 30 * 40; rp.y = 30 * 40;  // Central ruins
+    } else if (zoneId === 'market') {
+      rp.x = 30 * 40; rp.y = 52 * 40;  // Near entrance gate
     } else {
       rp.x = 1200; rp.y = 700;
     }
@@ -9961,7 +10063,7 @@ const RPG_ZONES = {
       { id: 'lm_gold_vein', tx: 10, ty: 24, zone: null,         type: 'mine_entrance', label: 'Gold Vein (Event)',   icon: '💰' },
       { id: 'lm_forest',    tx: 50, ty: 17, zone: 'forest',    type: 'forest_gate',   label: 'Shadow Forest',    icon: '🌲' },
       { id: 'lm_dungeon',   tx: 49, ty: 54, zone: 'dungeon',   type: 'dungeon_portal',label: 'Dark Dungeon',     icon: '🏰' },
-      { id: 'lm_market',    tx: 30, ty: 28, zone: null,         type: 'market_stall',  label: 'Market (Coming Soon)', icon: '🛒' },
+      { id: 'lm_market',    tx: 30, ty: 28, zone: 'market',    type: 'market_gate',   label: 'Grand Bazaar',      icon: '🏪' },
       { id: 'lm_duel',      tx: 50, ty: 10, zone: null,         type: 'arena_gate',    label: 'Duel Arena',       icon: '⚔️' },
       { id: 'lm_housing',   tx: 30, ty: 35, zone: 'housing',    type: 'housing_gate',  label: 'Housing District', icon: '🏘️' },
     ],
@@ -10238,6 +10340,34 @@ const RPG_ZONES = {
     landmarks: [
       { id: 'lm_housing_return', tx: 4, ty: 8, zone: 'hub', type: 'return_portal', label: 'Return to Hub', icon: '🏠' },
     ],
+  },
+  market: {
+    name: 'Grand Bazaar', icon: '🏪', type: 'market',
+    bg: '#2a1e14',
+    minMiningLevel: 0,
+    landmarks: [
+      { id: 'lm_market_return', tx: 30, ty: 56, zone: 'hub', type: 'return_portal', label: 'Return to Hub', icon: '🏠' },
+    ],
+    stallSlots: {
+      small:  [
+        { id: 'sm1', tx: 10, ty: 18, w: 5, h: 4 },
+        { id: 'sm2', tx: 18, ty: 18, w: 5, h: 4 },
+        { id: 'sm3', tx: 42, ty: 18, w: 5, h: 4 },
+        { id: 'sm4', tx: 50, ty: 18, w: 5, h: 4 },
+        { id: 'sm5', tx: 10, ty: 40, w: 5, h: 4 },
+        { id: 'sm6', tx: 50, ty: 40, w: 5, h: 4 },
+      ],
+      medium: [
+        { id: 'md1', tx: 10, ty: 28, w: 7, h: 5 },
+        { id: 'md2', tx: 43, ty: 28, w: 7, h: 5 },
+        { id: 'md3', tx: 18, ty: 40, w: 7, h: 5 },
+        { id: 'md4', tx: 35, ty: 40, w: 7, h: 5 },
+      ],
+      large:  [
+        { id: 'lg1', tx: 14, ty: 8, w: 10, h: 6 },
+        { id: 'lg2', tx: 36, ty: 8, w: 10, h: 6 },
+      ],
+    },
   },
 };
 
