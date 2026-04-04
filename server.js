@@ -542,25 +542,31 @@ app.post('/api/admin/fullreset', requireAdminAuth, (req, res) => {
 
 // Admin: World Event controls
 app.post('/api/admin/world-event/start', requireAdminAuth, (req, res) => {
-  const { eventType, goldPool, bountyZone, bountyKillVG, bountyShareVG } = req.body;
-  // Pre-set bounty zone override before starting
-  if (eventType === 'bounty_hunt' && bountyZone) {
-    // Temporarily patch zones config so startup uses the admin-chosen zone
-    WORLD_EVENTS.bounty_hunt._adminZone = bountyZone;
+  try {
+    const { eventType, goldPool, bountyZone, bountyKillVG, bountyShareVG } = req.body;
+    console.log('[ADMIN] Starting world event:', eventType, { bountyZone, bountyKillVG, bountyShareVG, goldPool });
+    // Pre-set bounty zone override before starting
+    if (eventType === 'bounty_hunt' && bountyZone) {
+      WORLD_EVENTS.bounty_hunt._adminZone = bountyZone;
+    }
+    const result = game.rpgAdminStartWorldEvent('_admin_', eventType);
+    console.log('[ADMIN] World event result:', JSON.stringify(result));
+    if (result.error) return res.status(400).json(result);
+    // Override gold pool if provided for horde events
+    if (goldPool && game.activeWorldEvent && game.activeWorldEvent.eventType === 'mob_invasion') {
+      game.activeWorldEvent.hordeGoldPool = Number(goldPool);
+    }
+    // Override bounty hunt settings
+    if (game.activeWorldEvent && game.activeWorldEvent.eventType === 'bounty_hunt') {
+      if (bountyKillVG) game.activeWorldEvent.bountyKillVG = Number(bountyKillVG);
+      if (bountyShareVG) game.activeWorldEvent.bountyShareVG = Number(bountyShareVG);
+      delete WORLD_EVENTS.bounty_hunt._adminZone;
+    }
+    res.json({ success: true, eventType });
+  } catch (err) {
+    console.error('[ADMIN] World event start error:', err);
+    res.status(500).json({ error: err.message });
   }
-  const result = game.rpgAdminStartWorldEvent('_admin_', eventType);
-  if (result.error) return res.status(400).json(result);
-  // Override gold pool if provided for horde events
-  if (goldPool && game.activeWorldEvent && game.activeWorldEvent.eventType === 'mob_invasion') {
-    game.activeWorldEvent.hordeGoldPool = Number(goldPool);
-  }
-  // Override bounty hunt settings
-  if (game.activeWorldEvent && game.activeWorldEvent.eventType === 'bounty_hunt') {
-    if (bountyKillVG) game.activeWorldEvent.bountyKillVG = Number(bountyKillVG);
-    if (bountyShareVG) game.activeWorldEvent.bountyShareVG = Number(bountyShareVG);
-    delete WORLD_EVENTS.bounty_hunt._adminZone;
-  }
-  res.json({ success: true, eventType });
 });
 app.post('/api/admin/world-event/stop', requireAdminAuth, (req, res) => {
   game.rpgAdminStopWorldEvent('_admin_');

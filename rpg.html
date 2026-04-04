@@ -28370,9 +28370,12 @@ function renderMarket(){
       const def=itemData[i.id]||{};
       const isStack=i.qty&&i.qty>1;
       const inputId='sell-price-'+(i.uid||i.id);
+      const qtyId='sell-qty-'+(i.uid||i.id);
+      const qtyInput=isStack?'<input type="number" id="'+qtyId+'" value="'+(i.qty||1)+'" min="1" max="'+(i.qty||1)+'" style="width:50px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:3px 6px;font-size:11px;margin-right:4px" placeholder="Qty">':'';
       return '<div class="market-listing"><div class="ml-icon">'+(def.icon||'?')+'</div><div class="ml-info"><div class="ml-name" style="color:'+(RARITY_COLORS[def.rarity]||'#ccc')+'">'+(def.name||i.id)+(isStack?' x'+i.qty:'')+'</div><div class="ml-seller">'+(def.type||'item')+'</div></div>'
+        +qtyInput
         +'<input type="number" id="'+inputId+'" placeholder="Price" min="1" style="width:70px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:3px 6px;font-size:11px">'
-        +'<button class="btn btn-gold" style="font-size:9px;padding:3px 8px;margin-left:4px" onclick="doSellItem(\''+( i.uid||'')+'\',\''+i.id+'\','+( i.qty||1)+',\''+inputId+'\')">Sell</button></div>';
+        +'<button class="btn btn-gold" style="font-size:9px;padding:3px 8px;margin-left:4px" onclick="doSellItem(\''+( i.uid||'')+'\',\''+i.id+'\','+( i.qty||1)+',\''+inputId+'\',\''+(isStack?qtyId:'')+'\')">Sell</button></div>';
     }).join('');
   } else if(activeMarketTab==='history'){
     cont.innerHTML='<div style="color:var(--dim);padding:20px;text-align:center">Loading trade history...</div>';
@@ -28399,13 +28402,15 @@ function doCancelListing(listingId){
   send('rpg_market_cancel',{listingId:String(listingId)});
   setTimeout(fetchMarket,500);
 }
-function doSellItem(uid,itemId,qty,inputId){
+function doSellItem(uid,itemId,qty,inputId,qtyInputId){
   const price=parseInt(document.getElementById(inputId).value);
   if(!price||price<1){logMsg('Enter a valid price','dmg');return}
+  const sellQty=qtyInputId?parseInt(document.getElementById(qtyInputId).value)||qty:qty;
+  if(sellQty<1){logMsg('Enter a valid quantity','dmg');return}
   if(uid){
     send('rpg_market_sell',{itemUid:uid,price:String(price)});
   } else {
-    send('rpg_market_sell_material',{itemId,qty:String(qty),price:String(price)});
+    send('rpg_market_sell_material',{itemId,qty:String(sellQty),price:String(price)});
   }
   setTimeout(fetchMarket,500);
 }
