@@ -5488,7 +5488,7 @@ function update(dt){
       for(const m of mobs){const d=Math.sqrt((px-m.x)**2+(py-m.y)**2);if(d<bestD){bestD=d;best=m}}
       if(boss&&!boss.sleeping&&!boss.waking&&!boss.burrowed){const d=Math.sqrt((px-boss.x)**2+(py-boss.y)**2);if(d<bestD){bestD=d;best=boss}}
       for(const sb of secondaryBosses){if(!sb.sleeping){const d=Math.sqrt((px-sb.x)**2+(py-sb.y)**2);if(d<bestD){bestD=d;best=sb}}}
-      if(bountyBoss&&!bountyBoss.dead&&bountyBoss.zone===currentZone){const d=Math.sqrt((px-bountyBoss.x)**2+(py-bountyBoss.y)**2);if(d<120&&d<bestD){bestD=d;best={id:'bounty_boss',isBountyBoss:true}}}
+      if(bountyBoss&&!bountyBoss.dead&&bountyBoss.zone===currentZone){const d=Math.sqrt((px-bountyBoss.x)**2+(py-bountyBoss.y)**2);if(d<200&&d<bestD){bestD=d;best={id:'bounty_boss',isBountyBoss:true}}}
       if(zoneType==='hub'&&playerInDungeon&&ghostBoss&&!ghostBoss.dead&&ghostJumpscare<=0){
         const d=Math.sqrt((px-ghostBoss.x)**2+(py-ghostBoss.y)**2);if(d<120&&d<bestD){bestD=d;best={id:'ghost_boss'}}}
       if(best){if(attackTarget!==best.id){attackTarget=best.id;miningTarget=null;updateActionInfo()}}

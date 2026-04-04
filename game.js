@@ -564,17 +564,17 @@ const WORLD_EVENTS = {
     desc: 'The Gilded Hoarder has appeared! Slay this golden beast for massive Vault Gold!',
     duration: 600000,      // 10 minutes
     zones: ['forest'],     // default zone, admin can override
-    bountyBossHP: 15000,
-    bountyBossAtk: 15,
+    bountyBossHP: 5000,
+    bountyBossAtk: 8,
     bountyKillVG: 50,      // VG for last-hit killer
     bountyShareVG: 100,    // VG split among ALL damage-dealers
     bountyGold: 5000,      // gold reward for killer
     bountyXP: 2000,
     attacks: [
-      { name: 'Gold Toss',     type: 'aoe',   radius: 100, dmg: 15, cd: 4000, telegraph: 1000 },
-      { name: 'Gem Shower',    type: 'spread', count: 5,  range: 200, dmg: 10, cd: 5000, telegraph: 800 },
-      { name: 'Treasure Slam', type: 'aoe',   radius: 150, dmg: 25, cd: 7000, telegraph: 1500 },
-      { name: 'Coin Storm',    type: 'aoe',   radius: 200, dmg: 18, cd: 9000, telegraph: 1200 },
+      { name: 'Gold Toss',     type: 'aoe',   radius: 100, dmg: 8,  cd: 5000, telegraph: 1500 },
+      { name: 'Gem Shower',    type: 'spread', count: 5,  range: 200, dmg: 5, cd: 6000, telegraph: 1200 },
+      { name: 'Treasure Slam', type: 'aoe',   radius: 130, dmg: 12, cd: 8000, telegraph: 2000 },
+      { name: 'Coin Storm',    type: 'aoe',   radius: 180, dmg: 10, cd: 10000, telegraph: 1500 },
     ],
   },
 };
@@ -4657,8 +4657,8 @@ class Game {
           zonePlayers.push({ username: u, x: urp.x || 400, y: urp.y || 200, rp: urp });
         }
         // Phase speed multipliers
-        const spdMult = bb.phase === 'desperate' ? 1.6 : bb.phase === 'enraged' ? 1.3 : 1.0;
-        const cdMult = bb.phase === 'desperate' ? 0.6 : bb.phase === 'enraged' ? 0.8 : 1.0;
+        const spdMult = bb.phase === 'desperate' ? 1.2 : bb.phase === 'enraged' ? 1.1 : 1.0;
+        const cdMult = bb.phase === 'desperate' ? 0.8 : bb.phase === 'enraged' ? 0.9 : 1.0;
         // Find nearest player
         let nearest = null, nearDist = Infinity;
         for (const pl of zonePlayers) {
@@ -4685,8 +4685,8 @@ class Game {
                   if (now2 - pl.rp.blockStart < 250) { parried = true; admg = 0; }
                   else { blocked = true; admg = Math.max(1, Math.floor(admg * 0.5)); }
                 }
-                if (bb.phase === 'enraged') admg = Math.floor(admg * 1.3);
-                if (bb.phase === 'desperate') admg = Math.floor(admg * 1.6);
+                if (bb.phase === 'enraged') admg = Math.floor(admg * 1.15);
+                if (bb.phase === 'desperate') admg = Math.floor(admg * 1.3);
                 pl.rp.hp = Math.max(0, pl.rp.hp - admg);
                 this.rpgSendTo(pl.username, { type: 'rpg_bounty_boss_attack', data: {
                   bossId: bb.id, attack: atk.name, dmg: admg, hp: pl.rp.hp, maxHP: pl.rp.maxHP,
@@ -8497,7 +8497,7 @@ class Game {
     const bb = evt.bountyBoss;
     if (rp.zone !== bb.zone) return { error: 'wrong_zone' };
     const dx = (rp.x || 400) - bb.x, dy = (rp.y || 400) - bb.y;
-    if (Math.sqrt(dx * dx + dy * dy) > 120) return { error: 'too_far' };
+    if (Math.sqrt(dx * dx + dy * dy) > 200) return { error: 'too_far' };
 
     const p = this.rpgGetPlayerData(username);
     let dmg = Math.floor(Math.random() * (this.maxDmg(p) - this.minDmg(p) + 1)) + this.minDmg(p);
