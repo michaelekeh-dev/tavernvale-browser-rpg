@@ -23587,6 +23587,38 @@ function drawDetailMap(){
       }
     }
   }
+  if(zoneType==='market'){
+    // Broker Bart NPC marker
+    for(const d of decorations){
+      if(d.type==='npc_broker'){
+        const nx=d.x*sx,ny=d.y*sy;
+        dc.fillStyle='#c084fc';dc.beginPath();dc.arc(nx,ny,5,0,Math.PI*2);dc.fill();
+        dc.font='bold 8px sans-serif';dc.textAlign='center';dc.textBaseline='bottom';
+        dc.fillStyle='#c084fc';dc.fillText('💬 Broker Bart',nx,ny-7);
+      }
+    }
+    // Stall markers — highlight player's stall in green
+    const myStall=typeof getMyStall==='function'?getMyStall():null;
+    for(const d of decorations){
+      if(d.type!=='market_stall')continue;
+      const mx=d.x*sx,my=d.y*sy;
+      const stallData=marketStallData[d.stallId];
+      const isOwn=myStall&&myStall.id===d.stallId;
+      if(isOwn){
+        const gp=.6+Math.sin(t*.005)*.4;
+        dc.fillStyle='rgba(74,222,128,'+gp+')';dc.beginPath();dc.arc(mx,my,7,0,Math.PI*2);dc.fill();
+        dc.strokeStyle='rgba(74,222,128,0.4)';dc.lineWidth=1.5;dc.beginPath();dc.arc(mx,my,11,0,Math.PI*2);dc.stroke();
+        dc.font='bold 8px "Press Start 2P",monospace';dc.textAlign='center';dc.textBaseline='bottom';
+        dc.fillStyle='#4ade80';dc.fillText('🏪 YOUR STALL',mx,my-12);
+      } else if(stallData){
+        dc.fillStyle='rgba(251,191,36,0.5)';dc.fillRect(mx-3,my-3,6,6);
+        dc.font='bold 6px sans-serif';dc.textAlign='center';dc.textBaseline='bottom';
+        dc.fillStyle='rgba(251,191,36,0.6)';dc.fillText(stallData.owner,mx,my-5);
+      } else {
+        dc.fillStyle='rgba(100,100,100,0.3)';dc.fillRect(mx-2,my-2,4,4);
+      }
+    }
+  }
 
   // ── Player marker — large gold marker ──
   // Pulsing glow
