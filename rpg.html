@@ -2968,6 +2968,7 @@ function onZoneState(z){
   if(boss&&boss.name){discoveredBosses.add(boss.name);localStorage.setItem('rpg_discovered_bosses',JSON.stringify([...discoveredBosses]))}
   secondaryBosses=z.secondaryBosses||[];sbossTelegraph=null;
   if(secondaryBosses.length){secondaryBosses.forEach(sb=>{if(sb.name){discoveredBosses.add(sb.name);localStorage.setItem('rpg_discovered_bosses',JSON.stringify([...discoveredBosses]))}})}
+  if(z.bountyBoss){bountyBoss=z.bountyBoss;bountyBoss.flash=0;bountyBossTelegraph=null}else{bountyBoss=null;bountyBossTelegraph=null}
   playerInsideGoblinHut=false;goblinHutDimAlpha=0;
   tileMap=z.tileMap||null;
   zoneRegions=z.regions||null;

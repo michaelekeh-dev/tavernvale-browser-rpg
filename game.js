@@ -6275,6 +6275,7 @@ class Game {
       players,
       boss: bossData,
       secondaryBosses: sbData.length > 0 ? sbData : null,
+      bountyBoss: (this.activeWorldEvent && this.activeWorldEvent.eventType === 'bounty_hunt' && this.activeWorldEvent.bountyBoss && !this.activeWorldEvent.bountyBoss.dead && this.activeWorldEvent.bountyBoss.zone === zoneId) ? this._getBountyBossClientData(this.activeWorldEvent.bountyBoss) : null,
     };
   }
 
@@ -8350,6 +8351,7 @@ class Game {
       id: event.id, type: eventType, name: cfg.name, icon: cfg.icon,
       desc: cfg.desc, duration: cfg.duration, endsAt: event.expiresAt,
       multipliers, bountyTarget: event.bountyTarget,
+      bountyBoss: event.bountyBoss ? this._getBountyBossClientData(event.bountyBoss) : null,
       hordeGoldPool: event.hordeGoldPool || 0,
       hordeMobsAlive: event.hordeMobsAlive || 0,
     }});
