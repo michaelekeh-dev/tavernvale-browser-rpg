@@ -5173,10 +5173,10 @@ class Game {
             sb.attackTimer -= 200;
             if (sb.attackTimer <= 0) {
               const landingAtk = sb.currentAttack;
-              const cdMult = sb.enraged ? 0.4 : 1;
+              const cdMult = sb.enraged ? 0.83 : 1;
               sb.attackCooldowns[landingAtk.name] = now + landingAtk.cooldown * cdMult;
               sb.currentAttack = null;
-              sb.globalCD = sb.enraged ? 300 : 1000;
+              sb.globalCD = sb.enraged ? 830 : 1000;
               try { this.rpgBossAttackLand(zoneId, sb, landingAtk, snearP, pbUser); } catch(e) { console.error('[SBOSS ATTACK ERROR]', sb.id, landingAtk.name, e.message); }
             } else {
               this.rpgSendTo(pbUser, { type: 'rpg_sboss_telegraph', data: {
@@ -5224,7 +5224,7 @@ class Game {
             } else {
               atk = savail[Math.floor(Math.random() * savail.length)];
             }
-            const telegraphMult = sb.enraged ? 0.4 : 1;
+            const telegraphMult = sb.enraged ? 0.83 : 1;
             sb.currentAttack = { ...atk, snapX: rp.x, snapY: rp.y };
             sb.attackTimer = Math.floor((atk.telegraphTime || 800) * telegraphMult);
             this.rpgSendTo(pbUser, { type: 'rpg_sboss_attack_start', data: {
@@ -9614,7 +9614,7 @@ const RPG_ZONES = {
         phases: [
           { hpPercent: 1.0,  name: 'Throne Guard', speedMult: 0.8, dmgMult: 1.0 },
           { hpPercent: 0.6,  name: 'Furious',      speedMult: 1.2, dmgMult: 1.3 },
-          { hpPercent: 0.3,  name: 'ENRAGED',      speedMult: 1.2, dmgMult: 1.6, enraged: true },
+          { hpPercent: 0.3,  name: 'ENRAGED',      speedMult: 1.2, dmgMult: 1.3, enraged: true },
         ],
         attacks: [
           { name: 'Dash Strike',       type: 'dash',   dmg: 28, range: 280, width: 50, telegraphTime: 1400, cooldown: 5000 },

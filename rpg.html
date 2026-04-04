@@ -21837,7 +21837,7 @@ function drawLyingChar(c,sx,sy,S,a,eq,name,nameColor){
 
 function drawPlayer(){
   const s=worldToScreen(px,py);
-  const PS=isMobile?0.9:2.1; // player scale (smaller on mobile)
+  const PS=isMobile?1.1:2.7; // player scale (smaller on mobile)
   // Ground shadow under player — soft layered for realism
   ctx.save();
   ctx.fillStyle='rgba(0,0,0,0.18)';ctx.beginPath();ctx.ellipse(s.x+2,s.y+9,22,8,0.05,0,Math.PI*2);ctx.fill();
@@ -22337,7 +22337,7 @@ function drawBasementBanisterForeground(){
 function drawOtherPlayer(p){
   const s=worldToScreen(p.x,p.y);
   if(s.x<-60||s.x>W+60||s.y<-60||s.y>H+60)return;
-  const OS=isMobile?0.9:2.1; // other player scale (smaller on mobile)
+  const OS=isMobile?1.1:2.7; // other player scale (smaller on mobile)
   // Ground shadow under other players
   ctx.fillStyle='rgba(0,0,0,0.18)';ctx.beginPath();ctx.ellipse(s.x,s.y+8,16,6,0,0,Math.PI*2);ctx.fill();
   ctx.globalAlpha=.85;
