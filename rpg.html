@@ -849,7 +849,7 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;di
 <!-- My Stall Panel (manage own stall) -->
 <div class="panel-overlay" id="mystall-panel">
   <div class="panel" style="max-width:520px">
-    <h3>🏪 MY STALL <button class="close-btn" onclick="closeAllStallPanels()">&times;</button></h3>
+    <h3>🏪 MY STALL <span style="font-size:10px;color:var(--dim);vertical-align:middle" id="mystall-tier-badge"></span> <button class="close-btn" onclick="closeAllStallPanels()">&times;</button></h3>
     <div id="mystall-content"></div>
   </div>
 </div>
@@ -10115,6 +10115,85 @@ function generateDecorations(zoneId,type){
   }
 }
 
+// Helper: draw a single stall item based on its type/category
+function _drawStallItem(ctx,item,x,y,S){
+  if(!item)return;
+  const name=(item.name||item.id||'').toLowerCase();
+  const icon=item.icon||'';
+  // Determine visual category from icon or name
+  const isSword=icon.includes('⚔')||icon.includes('🗡')||name.includes('sword')||name.includes('blade')||name.includes('dagger');
+  const isAxe=name.includes('axe')||name.includes('hatchet');
+  const isStaff=name.includes('staff')||name.includes('wand')||icon.includes('🪄');
+  const isBow=name.includes('bow')||icon.includes('🏹');
+  const isShield=name.includes('shield')||icon.includes('🛡');
+  const isArmor=name.includes('armor')||name.includes('plate')||name.includes('chest')||name.includes('helm')||icon.includes('🛡')||icon.includes('👕');
+  const isPotion=name.includes('potion')||name.includes('elixir')||name.includes('flask')||icon.includes('🧪')||icon.includes('⚗');
+  const isOre=name.includes('ore')||name.includes('ingot')||name.includes('bar')||icon.includes('⛏');
+  const isGem=name.includes('gem')||name.includes('crystal')||name.includes('diamond')||name.includes('ruby')||icon.includes('💎');
+  const isBook=name.includes('book')||name.includes('scroll')||name.includes('tome')||icon.includes('📜')||icon.includes('📕');
+  const isRing=name.includes('ring')||name.includes('amulet')||name.includes('necklace')||icon.includes('💍');
+  const isFood=name.includes('food')||name.includes('meat')||name.includes('bread')||name.includes('fish')||icon.includes('🍖')||icon.includes('🍞');
+  const rc=RARITY_COLORS[item.rarity]||'#aaa';
+  if(isSword){
+    // Sword — blade sticking up with hilt
+    ctx.fillStyle='#ccc';ctx.fillRect(x+1.5*S,y-1*S,1.5*S,6*S); // blade
+    ctx.fillStyle=rc;ctx.fillRect(x,y+4.5*S,4*S,1.5*S); // crossguard
+    ctx.fillStyle='#6a4a20';ctx.fillRect(x+1.5*S,y+5.5*S,1.5*S,2*S); // grip
+  } else if(isAxe){
+    ctx.fillStyle='#6a4a20';ctx.fillRect(x+2*S,y,1.5*S,7*S); // handle
+    ctx.fillStyle=rc;ctx.beginPath();ctx.arc(x+1*S,y+1*S,2.5*S,Math.PI*0.5,Math.PI*1.5);ctx.fill(); // head
+  } else if(isStaff){
+    ctx.fillStyle='#5a3a10';ctx.fillRect(x+1.5*S,y-1*S,1.5*S,8*S);
+    ctx.fillStyle=rc;ctx.beginPath();ctx.arc(x+2*S,y-1*S,2*S,0,Math.PI*2);ctx.fill(); // orb
+  } else if(isBow){
+    ctx.strokeStyle=rc;ctx.lineWidth=S*0.8;
+    ctx.beginPath();ctx.arc(x+2*S,y+3*S,3.5*S,Math.PI*1.3,Math.PI*1.7);ctx.stroke();
+    ctx.strokeStyle='#8a8a60';ctx.lineWidth=S*0.4;
+    ctx.beginPath();ctx.moveTo(x+2*S,y);ctx.lineTo(x+2*S,y+6*S);ctx.stroke();
+  } else if(isShield){
+    ctx.fillStyle=rc;ctx.beginPath();
+    ctx.moveTo(x+2*S,y);ctx.lineTo(x+4.5*S,y+1.5*S);ctx.lineTo(x+4*S,y+5*S);ctx.lineTo(x+2*S,y+6.5*S);ctx.lineTo(x,y+5*S);ctx.lineTo(x-0.5*S,y+1.5*S);
+    ctx.closePath();ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,0.2)';ctx.fillRect(x+1*S,y+2*S,2*S,1.5*S);
+  } else if(isArmor){
+    ctx.fillStyle=rc;ctx.fillRect(x,y+1*S,4.5*S,5*S); // body
+    ctx.fillStyle=rc;ctx.fillRect(x-1*S,y+1*S,1.5*S,3*S); // left shoulder
+    ctx.fillRect(x+4*S,y+1*S,1.5*S,3*S); // right shoulder
+    ctx.fillStyle='rgba(0,0,0,0.2)';ctx.fillRect(x+1.5*S,y+2*S,1.5*S,3*S); // center line
+  } else if(isPotion){
+    ctx.fillStyle=rc;ctx.beginPath();ctx.arc(x+2*S,y+4.5*S,2.2*S,0,Math.PI*2);ctx.fill(); // bulb
+    ctx.fillStyle='rgba(255,255,255,0.3)';ctx.beginPath();ctx.arc(x+1.2*S,y+3.8*S,0.8*S,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#8a7a50';ctx.fillRect(x+1.2*S,y+1*S,1.8*S,2.5*S); // neck
+    ctx.fillStyle='#aa8a40';ctx.fillRect(x+0.8*S,y+0.5*S,2.5*S,1.2*S); // cork
+  } else if(isOre){
+    ctx.fillStyle=rc;
+    ctx.beginPath();ctx.moveTo(x,y+5*S);ctx.lineTo(x+1*S,y+1*S);ctx.lineTo(x+3.5*S,y);ctx.lineTo(x+5*S,y+3*S);ctx.lineTo(x+3*S,y+5.5*S);ctx.closePath();ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,0.2)';ctx.fillRect(x+1.5*S,y+1.5*S,1*S,1.5*S);
+  } else if(isGem){
+    ctx.fillStyle=rc;
+    ctx.beginPath();ctx.moveTo(x+2*S,y);ctx.lineTo(x+4*S,y+2*S);ctx.lineTo(x+3*S,y+5*S);ctx.lineTo(x+1*S,y+5*S);ctx.lineTo(x,y+2*S);ctx.closePath();ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,0.35)';ctx.beginPath();ctx.moveTo(x+2*S,y+0.5*S);ctx.lineTo(x+3*S,y+2*S);ctx.lineTo(x+2*S,y+3*S);ctx.lineTo(x+1*S,y+2*S);ctx.closePath();ctx.fill();
+  } else if(isBook){
+    ctx.fillStyle=rc;ctx.fillRect(x,y+1*S,4*S,5*S);
+    ctx.fillStyle='rgba(255,255,255,0.15)';ctx.fillRect(x+0.5*S,y+2*S,3*S,0.8*S);
+    ctx.fillRect(x+0.5*S,y+3.5*S,2*S,0.8*S);
+    ctx.fillStyle='#f5e8c8';ctx.fillRect(x+3.8*S,y+1*S,0.8*S,5*S); // pages
+  } else if(isRing){
+    ctx.strokeStyle=rc;ctx.lineWidth=S*1.2;
+    ctx.beginPath();ctx.arc(x+2*S,y+3.5*S,2*S,0,Math.PI*2);ctx.stroke();
+    ctx.fillStyle=rc;ctx.beginPath();ctx.arc(x+2*S,y+1.5*S,1.2*S,0,Math.PI*2);ctx.fill();
+  } else if(isFood){
+    ctx.fillStyle=rc||'#c87040';
+    ctx.beginPath();ctx.ellipse(x+2*S,y+4*S,2.5*S,1.8*S,0,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,0.15)';ctx.beginPath();ctx.ellipse(x+1.5*S,y+3.5*S,1*S,0.6*S,0,0,Math.PI*2);ctx.fill();
+  } else {
+    // Generic crate/package
+    ctx.fillStyle=rc;ctx.fillRect(x,y+1*S,4.5*S,4.5*S);
+    ctx.fillStyle='rgba(0,0,0,0.15)';ctx.fillRect(x+1.8*S,y+1*S,0.8*S,4.5*S);
+    ctx.fillRect(x,y+2.8*S,4.5*S,0.8*S);
+  }
+}
+
 function drawDecoration(d){
   // Hide tavern interior decorations when player is outside
   if(d.interior&&!playerInsideTavern)return;
@@ -11657,11 +11736,14 @@ function drawDecoration(d){
       ctx.font='bold '+(7*S)+'px sans-serif';ctx.textAlign='center';
       ctx.fillStyle='#000';ctx.fillText('Broker',bx+1,by-20*S+1);
       ctx.fillStyle='#fbbf24';ctx.fillText('Broker',bx,by-20*S);
+      // Coming soon tag
+      ctx.font=(5*S)+'px sans-serif';
+      ctx.fillStyle='rgba(255,255,255,0.35)';ctx.fillText('🔨 Coming Soon',bx,by-25*S);
       // [E] Talk hint when near
       const bdist=Math.sqrt((px-d.x)**2+(py-d.y)**2);
       if(bdist<80){
         ctx.font='bold '+(6*S)+'px sans-serif';ctx.fillStyle='#fbbf24';
-        ctx.fillText('[E] Talk',bx,by-24*S);
+        ctx.fillText('[E] Talk',bx,by-29*S);
       }
       break;
     }
@@ -11734,38 +11816,82 @@ function drawDecoration(d){
     }
     case'market_stall':{
       const stallInfo=d.stallId?marketStallData[d.stallId]:null;
-      const awningColor=stallInfo?stallInfo.color:'#666';
-      const awningLight=stallInfo?stallInfo.color+'cc':'#888';
-      // Counter / awning
-      ctx.fillStyle='#5a3a18';ctx.fillRect(s.x-14*sc,s.y-6*sc,28*sc,6*sc);
-      ctx.fillStyle='#7a5a38';ctx.fillRect(s.x-14*sc,s.y-8*sc,28*sc,3*sc);
-      // Awning poles
-      ctx.fillStyle='#6a4a28';ctx.fillRect(s.x-12*sc,s.y-24*sc,3*sc,24*sc);ctx.fillRect(s.x+9*sc,s.y-24*sc,3*sc,24*sc);
-      // Awning (colored by owner)
-      ctx.fillStyle=awningColor;ctx.fillRect(s.x-14*sc,s.y-26*sc,28*sc,4*sc);
-      ctx.fillStyle=awningLight;ctx.fillRect(s.x-14*sc,s.y-28*sc,28*sc,3*sc);
+      const awningColor=stallInfo?stallInfo.color:'#555';
+      const S=sc;
+      const bx=s.x,by=s.y;
+      // ── Back wall / shelf board ──
+      ctx.fillStyle='#3a2a14';ctx.fillRect(bx-16*S,by-34*S,32*S,28*S);
+      ctx.fillStyle='#4a3a20';ctx.fillRect(bx-15*S,by-33*S,30*S,26*S);
+      // Shelf planks
+      ctx.fillStyle='#5a4228';ctx.fillRect(bx-15*S,by-22*S,30*S,2*S);
+      ctx.fillStyle='#5a4228';ctx.fillRect(bx-15*S,by-13*S,30*S,2*S);
+      // ── Counter (front) ──
+      ctx.fillStyle='#5a3a18';ctx.fillRect(bx-16*S,by-7*S,32*S,7*S);
+      ctx.fillStyle='#7a5a38';ctx.fillRect(bx-16*S,by-8*S,32*S,2*S);
+      // ── Awning poles ──
+      ctx.fillStyle='#6a4a28';ctx.fillRect(bx-14*S,by-38*S,3*S,38*S);ctx.fillRect(bx+11*S,by-38*S,3*S,38*S);
+      // ── Awning (colored) ──
+      ctx.fillStyle=awningColor;
+      ctx.beginPath();
+      ctx.moveTo(bx-18*S,by-36*S);ctx.lineTo(bx+18*S,by-36*S);
+      ctx.lineTo(bx+20*S,by-30*S);ctx.lineTo(bx-20*S,by-30*S);
+      ctx.closePath();ctx.fill();
+      // Awning scallops
+      for(let si=0;si<5;si++){
+        const sx2=bx+(-16+si*8)*S;
+        ctx.fillStyle=awningColor;ctx.beginPath();
+        ctx.arc(sx2,by-30*S,3*S,0,Math.PI);ctx.fill();
+      }
+      // Awning highlight stripe
+      ctx.fillStyle='rgba(255,255,255,0.1)';ctx.fillRect(bx-18*S,by-36*S,36*S,2*S);
       if(stallInfo){
-        // Stocked goods on counter
         const items=stallInfo.items||[];
+        // ── Draw actual items on shelves + hanging ──
+        // Top shelf items (slots 0-3)
         for(let gi=0;gi<Math.min(items.length,4);gi++){
-          const gx=s.x+(-6+gi*5)*sc;
-          ctx.fillStyle=['#fbbf24','#4ade80','#60a5fa','#c084fc'][gi%4];
-          ctx.fillRect(gx,s.y-10*sc,4*sc,4*sc);
+          const gx=bx+(-11+gi*7.5)*S, gy=by-27*S;
+          _drawStallItem(ctx,items[gi],gx,gy,S);
         }
-        // Owner name above
-        ctx.font='bold '+Math.max(7,4*sc)+'px sans-serif';ctx.textAlign='center';
-        ctx.fillStyle='rgba(0,0,0,0.6)';ctx.fillText(stallInfo.owner,s.x+0.5*sc,s.y-30*sc+0.5*sc);
-        ctx.fillStyle='#fbbf24';ctx.fillText(stallInfo.owner,s.x,s.y-30*sc);
-        // Item count
+        // Bottom shelf items (slots 4-7)
+        for(let gi=4;gi<Math.min(items.length,8);gi++){
+          const gx=bx+(-11+(gi-4)*7.5)*S, gy=by-18*S;
+          _drawStallItem(ctx,items[gi],gx,gy,S);
+        }
+        // Counter items (slots 8-11)
+        for(let gi=8;gi<Math.min(items.length,12);gi++){
+          const gx=bx+(-11+(gi-8)*7.5)*S, gy=by-10*S;
+          _drawStallItem(ctx,items[gi],gx,gy,S);
+        }
+        // Hanging items from awning (slots 12-15)
+        for(let gi=12;gi<Math.min(items.length,16);gi++){
+          const gx=bx+(-11+(gi-12)*8)*S;
+          // Rope
+          ctx.strokeStyle='#8a7a50';ctx.lineWidth=S;
+          ctx.beginPath();ctx.moveTo(gx+2*S,by-30*S);ctx.lineTo(gx+2*S,by-33*S);ctx.stroke();
+          _drawStallItem(ctx,items[gi],gx,by-36*S,S);
+        }
+        // ── Owner name plate ──
+        ctx.fillStyle='#3a2a10';ctx.fillRect(bx-12*S,by-40*S,24*S,5*S);
+        ctx.fillStyle='#5a4a28';ctx.fillRect(bx-11*S,by-39.5*S,22*S,4*S);
+        ctx.font='bold '+Math.max(7,4*S)+'px sans-serif';ctx.textAlign='center';
+        ctx.fillStyle='#fbbf24';ctx.fillText(stallInfo.owner,bx,by-36.5*S);
+        // Item count badge
         if(items.length>0){
-          ctx.font=Math.max(6,3.5*sc)+'px sans-serif';
-          ctx.fillStyle='#4ade80';ctx.fillText(items.length+' items',s.x,s.y-25.5*sc);
+          const badge=items.length+'/'+((stallInfo.tier&&STALL_TIERS[stallInfo.tier])?STALL_TIERS[stallInfo.tier].slots:'?');
+          ctx.font='bold '+Math.max(5,3*S)+'px sans-serif';
+          ctx.fillStyle='rgba(0,0,0,0.5)';ctx.fillRect(bx+8*S,by-40*S,10*S,4*S);
+          ctx.fillStyle='#4ade80';ctx.fillText(badge,bx+13*S,by-37.5*S);
         }
       }else{
-        // FOR RENT sign
-        ctx.font='bold '+Math.max(7,4.5*sc)+'px sans-serif';ctx.textAlign='center';
-        ctx.fillStyle='rgba(0,0,0,0.5)';ctx.fillText('FOR RENT',s.x+0.5*sc,s.y-30*sc+0.5*sc);
-        ctx.fillStyle='#888';ctx.fillText('FOR RENT',s.x,s.y-30*sc);
+        // Empty stall — FOR RENT sign pinned to back wall
+        ctx.fillStyle='#ddd';ctx.fillRect(bx-8*S,by-26*S,16*S,10*S);
+        ctx.fillStyle='#f5f0e0';ctx.fillRect(bx-7*S,by-25*S,14*S,8*S);
+        ctx.font='bold '+Math.max(6,3.5*S)+'px sans-serif';ctx.textAlign='center';
+        ctx.fillStyle='#aa3333';ctx.fillText('FOR',bx,by-21*S);
+        ctx.fillText('RENT',bx,by-18*S);
+        // Tack pins
+        ctx.fillStyle='#cc8833';ctx.beginPath();ctx.arc(bx-5*S,by-24*S,S,0,Math.PI*2);ctx.fill();
+        ctx.beginPath();ctx.arc(bx+5*S,by-24*S,S,0,Math.PI*2);ctx.fill();
       }
       break;
     }
@@ -24204,6 +24330,11 @@ function openDialogue(npcId){
   }
   // ── House Broker ──
   else if(npcId==='broker'){
+    showDialogueUI('Broker','*shuffles papers* The Housing District is currently under renovation. We\'re expanding the streets and adding new property tiers. Check back soon — it\'ll be worth the wait!',[
+      {label:'\ud83d\udce6 Sounds exciting!',action:'leave'},
+      {label:'\ud83d\udc4b Alright, see ya.',action:'leave'},
+    ]);
+    /* COMING SOON — housing disabled for now
     if(playerHouse){
       const tierObj=HOUSING_TIERS[(playerHouse.tier||1)-1];
       const tierName=tierObj?tierObj.name:'Cottage';
@@ -24226,6 +24357,7 @@ function openDialogue(npcId){
         {label:'\ud83d\udc4b Not right now',action:'leave'},
       ]);
     }
+    */
   }
   // ── Broker Bart — Market Stall Broker ──
   else if(npcId==='market_broker'){
@@ -25934,6 +26066,7 @@ document.addEventListener('keydown',e=>{
     else if(nearbyLandmark) interactNearest();
     else if(zoneType==='hub') interactNearest();
     else if(zoneType==='housing') interactNearest();
+    else if(zoneType==='market') interactNearest();
     else if(currentZone==='quarry') interactNearest();
     // In combat/mine zones, E is handled in update() as hold-to-attack
   }
@@ -29001,14 +29134,19 @@ function openMyStallPanel(){
 function renderMyStallPanel(){
   const cont=document.getElementById('mystall-content');
   const myStall=getMyStall();
-  if(!myStall){cont.innerHTML='<div style="color:var(--dim);padding:20px;text-align:center">You don\'t own a stall. Talk to Broker Bart!</div>';return}
+  if(!myStall){cont.innerHTML='<div style="color:var(--dim);padding:20px;text-align:center">You don\'t own a stall. Talk to Broker Bart!</div>';document.getElementById('mystall-tier-badge').textContent='';return}
   const info=STALL_TIERS[myStall.tier];
-  let html='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
-    +'<div>'+info.icon+' <b style="color:#fbbf24">'+info.name+'</b> ('+myStall.id+') — '+myStall.items.length+'/'+info.slots+' items</div>'
-    +'<div style="display:flex;gap:4px;align-items:center">Color: ';
+  document.getElementById('mystall-tier-badge').textContent=info.icon+' '+info.name+' ('+myStall.id+')';
+  let html='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding:8px 10px;background:rgba(255,255,255,0.03);border-radius:6px;border:1px solid var(--border)">'
+    +'<div style="display:flex;align-items:center;gap:8px">'
+    +'<div style="font-size:12px"><b style="color:#fbbf24">'+myStall.items.length+'</b><span style="color:var(--dim)">/'+info.slots+'</span></div>'
+    +'<div style="font-size:10px;color:var(--dim)">items stocked</div></div>'
+    +'<div style="display:flex;gap:6px;align-items:center">'
+    +'<button class="btn" style="font-size:9px;padding:3px 8px;color:#4ade80;border-color:rgba(74,222,128,0.3)" onclick="closeAllStallPanels();stallGuideTarget=getStallWorldPos(getMyStall().id);stallGuideTimer=Date.now()+20000;logMsg(\'Follow the green arrow!\',\'xp\')">📍 Find</button>'
+    +'<span style="font-size:9px;color:var(--dim)">Awning:</span>';
   for(let i=0;i<STALL_COLORS.length;i++){
     const sel=myStall.color===STALL_COLORS[i];
-    html+='<div onclick="send(\'rpg_stall_set_color\',{color:\''+STALL_COLORS[i]+'\'})" style="width:18px;height:18px;border-radius:50%;background:'+STALL_COLORS[i]+';cursor:pointer;border:'+(sel?'2px solid #fff':'2px solid transparent')+'" title="'+STALL_COLOR_NAMES[i]+'"></div>';
+    html+='<div onclick="send(\'rpg_stall_set_color\',{color:\''+STALL_COLORS[i]+'\'})" style="width:16px;height:16px;border-radius:50%;background:'+STALL_COLORS[i]+';cursor:pointer;border:'+(sel?'2px solid #fff':'1px solid rgba(255,255,255,0.15)')+';transition:border .15s" title="'+STALL_COLOR_NAMES[i]+'"></div>';
   }
   html+='</div></div>';
   // Stocked items
