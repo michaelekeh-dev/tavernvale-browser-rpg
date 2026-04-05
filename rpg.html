@@ -863,6 +863,9 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;di
   </div>
 </div>
 
+<!-- Stall Buy Popup (in-shop purchase confirmation) -->
+<div id="stall-buy-popup" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:2000;justify-content:center;align-items:center"></div>
+
 <!-- Pickaxe Panel (Grizzle) -->
 <div class="panel-overlay" id="pickaxe-panel">
   <div class="panel">
@@ -1132,6 +1135,12 @@ let houseReturnZone='housing'; // zone to return to when leaving house
 let carryingFurniture=null; // {furnitureIdx, id, spriteKey, fw, fh} when carrying a furniture piece
 let currentHouseFloor=1;
 let manorOtherFloorDim=0; // dim opacity for the floor you're NOT on (0-0.7)
+// ── Stall Interior State ──
+let insideStall=false;
+let insideStallId=null;
+let insideStallData=null; // {stallId, owner, tier, color, items, gridW, gridH, isOwner}
+let stallReturnZone='market';
+const STALL_INTERIOR_SIZES={small:{gw:7,gh:7},medium:{gw:9,gh:9},large:{gw:12,gh:12}};
 // Tile map constants (must match server)
 const TILE_SIZE=40,MAP_W=60,MAP_H=60;
 const TILE={FLOOR:0,WALL:1,GRASS:2,STONE:3,SAND:4,WATER:5,WOOD:6,STAIRS:7,UPPER_FLOOR:8};
@@ -2632,13 +2641,13 @@ function handleMessage(msg){
     case'market_purchased':break;
     case'market_cancelled':break;
     // Stall handlers
-    case'rpg_stalls_update':marketStallData=d||{};break;
+    case'rpg_stalls_update':marketStallData=d||{};if(insideStall)refreshStallDecorations();break;
     case'rpg_rent_stall_result':if(d&&!d.error){logMsg('Rented '+d.tier+' stall '+d.stallId+' for '+d.cost+'g!','loot');gold=d.gold;updateHUD();marketStallData[d.stallId]=d.stall;closeAllStallPanels();stallGuideTarget=getStallWorldPos(d.stallId);stallGuideTimer=Date.now()+20000;logMsg('Follow the green arrow to your new stall!','xp')}else if(d)logMsg(d.message||d.error||'Rent failed','dmg');break;
     case'rpg_release_stall_result':if(d&&!d.error){logMsg('Released stall! Refund: '+d.refund+'g, '+d.itemsReturned+' items returned','loot');gold=d.gold;updateHUD();refreshInventory();closeAllStallPanels()}else if(d)logMsg(d.message||d.error||'Release failed','dmg');break;
     case'rpg_stall_set_color_result':if(d&&!d.error){logMsg('Stall color updated!','xp')}break;
-    case'rpg_stall_stock_result':if(d&&!d.error){logMsg('Item stocked in your stall!','loot');gold=d.gold;updateHUD();marketStallData[d.stallId]=d.stall;refreshInventory();if(document.getElementById('mystall-panel').classList.contains('show'))renderMyStallPanel()}else if(d)logMsg(d.message||d.error||'Stock failed','dmg');break;
-    case'rpg_stall_unstock_result':if(d&&!d.error){logMsg('Item removed from stall: '+d.returned,'loot');marketStallData[d.stallId]=d.stall;refreshInventory();if(document.getElementById('mystall-panel').classList.contains('show'))renderMyStallPanel()}else if(d)logMsg(d.message||d.error||'Unstock failed','dmg');break;
-    case'rpg_stall_buy_result':if(d&&!d.error){logMsg('Bought '+d.item+' from '+d.seller+'\'s stall for '+d.price+'g!','loot');gold=d.buyerGold;updateHUD();if(d.stall)marketStallData[d.stallId]=d.stall;refreshInventory();if(document.getElementById('browsestall-panel').classList.contains('show'))renderBrowseStallPanel(d.stallId)}else if(d)logMsg(d.error||'Purchase failed','dmg');break;
+    case'rpg_stall_stock_result':if(d&&!d.error){logMsg('Item stocked in your stall!','loot');gold=d.gold;updateHUD();marketStallData[d.stallId]=d.stall;refreshInventory();if(document.getElementById('mystall-panel').classList.contains('show'))renderMyStallPanel();if(insideStall)refreshStallDecorations()}else if(d)logMsg(d.message||d.error||'Stock failed','dmg');break;
+    case'rpg_stall_unstock_result':if(d&&!d.error){logMsg('Item removed from stall: '+d.returned,'loot');marketStallData[d.stallId]=d.stall;refreshInventory();if(document.getElementById('mystall-panel').classList.contains('show'))renderMyStallPanel();if(insideStall)refreshStallDecorations()}else if(d)logMsg(d.message||d.error||'Unstock failed','dmg');break;
+    case'rpg_stall_buy_result':if(d&&!d.error){logMsg('Bought '+d.item+' from '+d.seller+'\'s stall for '+d.price+'g!','loot');gold=d.buyerGold;updateHUD();if(d.stall)marketStallData[d.stallId]=d.stall;refreshInventory();if(document.getElementById('browsestall-panel').classList.contains('show'))renderBrowseStallPanel(d.stallId);if(insideStall)refreshStallDecorations();document.getElementById('stall-buy-popup').style.display='none'}else if(d)logMsg(d.error||'Purchase failed','dmg');break;
     case'rpg_stall_sale_notify':if(d){logMsg('💰 STALL SALE: '+d.buyer+' bought '+d.item+' for '+d.price+'g! (tax: '+d.tax+'g)','loot');gold=(gold||0)+(d.price-d.tax);updateHUD();addFloat(px,py-40,'STALL SALE +'+d.price+'g','#fbbf24',true)}break;
     // Gold purchase notification
     case'rpg_gold_purchased':if(d){gold=d.gold;updateHUD();logMsg('💰 '+d.added+' gold purchased! ('+d.package+')','loot');addFloat(px,py-40,'+'+d.added+' GOLD','#fbbf24',true);showDropToast('💰',d.package,'legendary',1);playCombatSound('kill')}break;
@@ -3000,6 +3009,8 @@ function onZoneState(z){
   if(tutorialActive&&z.id!=='hub')advanceTutorial('enter_zone');
   // Clean up house interior state if transitioning out
   if(insideHouse){insideHouse=false;insideHouseData=null;carryingFurniture=null;delete TILE_COLORS.house_interior;const btn=document.getElementById('house-manage-btn');if(btn)btn.remove()}
+  // Clean up stall interior state if transitioning out
+  if(insideStall){insideStall=false;insideStallId=null;insideStallData=null;delete TILE_COLORS.stall_interior;const btn2=document.getElementById('stall-manage-btn');if(btn2)btn2.remove()}
   currentZone=z.id;zoneType=z.type;zoneBG=z.bg||'#1a1a2e';
   nodes=z.nodes||[];mobs=z.mobs||[];otherPlayers=z.players||[];
   boss=z.boss||null;bossTelegraph=null;
@@ -3243,11 +3254,11 @@ function _executeZoneChange(zoneId){
 // ═══ ZONE TRANSITION ANIMATION ═══
 const ZONE_ICONS={
   hub:'🏘️',forest:'🌲',dungeon:'💀',quarry:'⛏️',
-  underground_mine:'🕳️',deep_mine:'🔥',gold_vein:'✨',housing:'🏘️',market:'🏪'
+  underground_mine:'🕳️',deep_mine:'🔥',gold_vein:'✨',housing:'🏘️',market:'🏪',stall_interior:'🏪'
 };
 const ZONE_TYPES_LABEL={
   hub:'Safe Zone',forest:'Combat Zone',dungeon:'Combat Zone',quarry:'Mining Zone',
-  underground_mine:'Mining Zone',deep_mine:'Mining Zone',gold_vein:'Mining Zone',housing:'Housing District',market:'Marketplace'
+  underground_mine:'Mining Zone',deep_mine:'Mining Zone',gold_vein:'Mining Zone',housing:'Housing District',market:'Marketplace',stall_interior:'Player Shop'
 };
 function playZoneTransition(zoneId,cb){
   if(zoneTransitionActive){cb&&cb();return;}
@@ -10115,83 +10126,232 @@ function generateDecorations(zoneId,type){
   }
 }
 
-// Helper: draw a single stall item based on its type/category
-function _drawStallItem(ctx,item,x,y,S){
+// ── Draw item as LITERAL weapon/equipment display (same visuals as held items) ──
+function drawItemDisplay(ctx,item,cx,cy,S,showPrice){
   if(!item)return;
   const name=(item.name||item.id||'').toLowerCase();
-  const icon=item.icon||'';
-  // Determine visual category from icon or name
-  const isSword=icon.includes('⚔')||icon.includes('🗡')||name.includes('sword')||name.includes('blade')||name.includes('dagger');
-  const isAxe=name.includes('axe')||name.includes('hatchet');
-  const isStaff=name.includes('staff')||name.includes('wand')||icon.includes('🪄');
-  const isBow=name.includes('bow')||icon.includes('🏹');
-  const isShield=name.includes('shield')||icon.includes('🛡');
-  const isArmor=name.includes('armor')||name.includes('plate')||name.includes('chest')||name.includes('helm')||icon.includes('🛡')||icon.includes('👕');
-  const isPotion=name.includes('potion')||name.includes('elixir')||name.includes('flask')||icon.includes('🧪')||icon.includes('⚗');
-  const isOre=name.includes('ore')||name.includes('ingot')||name.includes('bar')||icon.includes('⛏');
-  const isGem=name.includes('gem')||name.includes('crystal')||name.includes('diamond')||name.includes('ruby')||icon.includes('💎');
-  const isBook=name.includes('book')||name.includes('scroll')||name.includes('tome')||icon.includes('📜')||icon.includes('📕');
-  const isRing=name.includes('ring')||name.includes('amulet')||name.includes('necklace')||icon.includes('💍');
-  const isFood=name.includes('food')||name.includes('meat')||name.includes('bread')||name.includes('fish')||icon.includes('🍖')||icon.includes('🍞');
-  const rc=RARITY_COLORS[item.rarity]||'#aaa';
-  if(isSword){
-    // Sword — blade sticking up with hilt
-    ctx.fillStyle='#ccc';ctx.fillRect(x+1.5*S,y-1*S,1.5*S,6*S); // blade
-    ctx.fillStyle=rc;ctx.fillRect(x,y+4.5*S,4*S,1.5*S); // crossguard
-    ctx.fillStyle='#6a4a20';ctx.fillRect(x+1.5*S,y+5.5*S,1.5*S,2*S); // grip
-  } else if(isAxe){
-    ctx.fillStyle='#6a4a20';ctx.fillRect(x+2*S,y,1.5*S,7*S); // handle
-    ctx.fillStyle=rc;ctx.beginPath();ctx.arc(x+1*S,y+1*S,2.5*S,Math.PI*0.5,Math.PI*1.5);ctx.fill(); // head
-  } else if(isStaff){
-    ctx.fillStyle='#5a3a10';ctx.fillRect(x+1.5*S,y-1*S,1.5*S,8*S);
-    ctx.fillStyle=rc;ctx.beginPath();ctx.arc(x+2*S,y-1*S,2*S,0,Math.PI*2);ctx.fill(); // orb
-  } else if(isBow){
-    ctx.strokeStyle=rc;ctx.lineWidth=S*0.8;
-    ctx.beginPath();ctx.arc(x+2*S,y+3*S,3.5*S,Math.PI*1.3,Math.PI*1.7);ctx.stroke();
-    ctx.strokeStyle='#8a8a60';ctx.lineWidth=S*0.4;
-    ctx.beginPath();ctx.moveTo(x+2*S,y);ctx.lineTo(x+2*S,y+6*S);ctx.stroke();
-  } else if(isShield){
-    ctx.fillStyle=rc;ctx.beginPath();
-    ctx.moveTo(x+2*S,y);ctx.lineTo(x+4.5*S,y+1.5*S);ctx.lineTo(x+4*S,y+5*S);ctx.lineTo(x+2*S,y+6.5*S);ctx.lineTo(x,y+5*S);ctx.lineTo(x-0.5*S,y+1.5*S);
-    ctx.closePath();ctx.fill();
-    ctx.fillStyle='rgba(255,255,255,0.2)';ctx.fillRect(x+1*S,y+2*S,2*S,1.5*S);
-  } else if(isArmor){
-    ctx.fillStyle=rc;ctx.fillRect(x,y+1*S,4.5*S,5*S); // body
-    ctx.fillStyle=rc;ctx.fillRect(x-1*S,y+1*S,1.5*S,3*S); // left shoulder
-    ctx.fillRect(x+4*S,y+1*S,1.5*S,3*S); // right shoulder
-    ctx.fillStyle='rgba(0,0,0,0.2)';ctx.fillRect(x+1.5*S,y+2*S,1.5*S,3*S); // center line
-  } else if(isPotion){
-    ctx.fillStyle=rc;ctx.beginPath();ctx.arc(x+2*S,y+4.5*S,2.2*S,0,Math.PI*2);ctx.fill(); // bulb
-    ctx.fillStyle='rgba(255,255,255,0.3)';ctx.beginPath();ctx.arc(x+1.2*S,y+3.8*S,0.8*S,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle='#8a7a50';ctx.fillRect(x+1.2*S,y+1*S,1.8*S,2.5*S); // neck
-    ctx.fillStyle='#aa8a40';ctx.fillRect(x+0.8*S,y+0.5*S,2.5*S,1.2*S); // cork
-  } else if(isOre){
-    ctx.fillStyle=rc;
-    ctx.beginPath();ctx.moveTo(x,y+5*S);ctx.lineTo(x+1*S,y+1*S);ctx.lineTo(x+3.5*S,y);ctx.lineTo(x+5*S,y+3*S);ctx.lineTo(x+3*S,y+5.5*S);ctx.closePath();ctx.fill();
-    ctx.fillStyle='rgba(255,255,255,0.2)';ctx.fillRect(x+1.5*S,y+1.5*S,1*S,1.5*S);
-  } else if(isGem){
-    ctx.fillStyle=rc;
-    ctx.beginPath();ctx.moveTo(x+2*S,y);ctx.lineTo(x+4*S,y+2*S);ctx.lineTo(x+3*S,y+5*S);ctx.lineTo(x+1*S,y+5*S);ctx.lineTo(x,y+2*S);ctx.closePath();ctx.fill();
-    ctx.fillStyle='rgba(255,255,255,0.35)';ctx.beginPath();ctx.moveTo(x+2*S,y+0.5*S);ctx.lineTo(x+3*S,y+2*S);ctx.lineTo(x+2*S,y+3*S);ctx.lineTo(x+1*S,y+2*S);ctx.closePath();ctx.fill();
-  } else if(isBook){
-    ctx.fillStyle=rc;ctx.fillRect(x,y+1*S,4*S,5*S);
-    ctx.fillStyle='rgba(255,255,255,0.15)';ctx.fillRect(x+0.5*S,y+2*S,3*S,0.8*S);
-    ctx.fillRect(x+0.5*S,y+3.5*S,2*S,0.8*S);
-    ctx.fillStyle='#f5e8c8';ctx.fillRect(x+3.8*S,y+1*S,0.8*S,5*S); // pages
-  } else if(isRing){
-    ctx.strokeStyle=rc;ctx.lineWidth=S*1.2;
-    ctx.beginPath();ctx.arc(x+2*S,y+3.5*S,2*S,0,Math.PI*2);ctx.stroke();
-    ctx.fillStyle=rc;ctx.beginPath();ctx.arc(x+2*S,y+1.5*S,1.2*S,0,Math.PI*2);ctx.fill();
-  } else if(isFood){
-    ctx.fillStyle=rc||'#c87040';
-    ctx.beginPath();ctx.ellipse(x+2*S,y+4*S,2.5*S,1.8*S,0,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle='rgba(255,255,255,0.15)';ctx.beginPath();ctx.ellipse(x+1.5*S,y+3.5*S,1*S,0.6*S,0,0,Math.PI*2);ctx.fill();
-  } else {
-    // Generic crate/package
-    ctx.fillStyle=rc;ctx.fillRect(x,y+1*S,4.5*S,4.5*S);
-    ctx.fillStyle='rgba(0,0,0,0.15)';ctx.fillRect(x+1.8*S,y+1*S,0.8*S,4.5*S);
-    ctx.fillRect(x,y+2.8*S,4.5*S,0.8*S);
+  const rarity=item.rarity||'common';
+  const _mhue=((Date.now()/12)%360);
+  const wColor=rarity==='mythic'?'hsl('+_mhue+',100%,60%)':rarity==='legendary'?'#fbbf24':rarity==='epic'?'#c084fc':rarity==='rare'?'#60a5fa':rarity==='uncommon'?'#4ade80':'#aaa';
+  const wShade=rarity==='mythic'?'hsl('+((_mhue+30)%360)+',80%,40%)':darkerC(wColor,40);
+  const wHi=rarity==='mythic'?'hsl('+((_mhue+330)%360)+',100%,80%)':darkerC(wColor,-30);
+  const isAxe=name.includes('axe')||name.includes('cleaver')||name.includes('hatchet');
+  const isDagger=name.includes('dagger')||name.includes('knife');
+  const isScythe=name.includes('scythe');
+  const isGreatsword=name.includes('greatsword');
+  const isMace=name.includes('mace')||name.includes('bludgeon');
+  const isBow=name.includes('bow');
+  const isSpear=name.includes('spear');
+  const isHammer=name.includes('hammer');
+  const isSword=!isAxe&&!isDagger&&!isScythe&&!isMace&&!isBow&&!isSpear&&!isHammer&&(name.includes('sword')||name.includes('blade')||name.includes('sabre'));
+  const isShield=name.includes('shield');
+  const isArmor=name.includes('armor')||name.includes('plate')||name.includes('chest')||name.includes('helm');
+  const isPotion=name.includes('potion')||name.includes('elixir')||name.includes('flask');
+  const isOre=name.includes('ore')||name.includes('ingot')||name.includes('bar');
+  const isGem=name.includes('gem')||name.includes('crystal')||name.includes('diamond')||name.includes('ruby');
+  const isBook=name.includes('book')||name.includes('scroll')||name.includes('tome');
+  const isRing=name.includes('ring')||name.includes('amulet')||name.includes('necklace');
+  const isFood=name.includes('food')||name.includes('meat')||name.includes('bread')||name.includes('fish');
+  const isStaff=name.includes('staff')||name.includes('wand');
+  const isPickaxe=name.includes('pickaxe');
+  const c=ctx;
+  c.save();c.translate(cx,cy);
+  // Rarity glow
+  if(rarity==='mythic'){c.shadowColor='hsl('+_mhue+',100%,70%)';c.shadowBlur=18*S;}
+  else if(rarity==='legendary'){c.shadowColor='#fbbf24';c.shadowBlur=10*S;}
+  else if(rarity==='epic'){c.shadowColor='#c084fc';c.shadowBlur=6*S;}
+  else if(rarity==='rare'){c.shadowColor='#60a5fa';c.shadowBlur=4*S;}
+  if(isMace){
+    // ── MACE (same as drawPixelChar mace) ──
+    c.fillStyle='#5a3418';c.fillRect(-0.5*S,0,S*1.5,3*S);
+    c.fillStyle='#4a2a10';c.fillRect(0,0.5*S,S,0.5*S);c.fillRect(0,1.5*S,S,0.5*S);
+    c.fillStyle='#6b4226';c.fillRect(0,-5*S,S,5*S);
+    c.fillStyle='#7a5030';c.fillRect(S*0.25,-5*S,S*0.5,5*S);
+    c.fillStyle=wColor;c.fillRect(-S,-8*S,S*3,S*3);
+    c.fillStyle=wShade;c.fillRect(-S,-8*S,S*3,S);
+    c.fillStyle=wHi;c.fillRect(-0.5*S,-7*S,S*2,S);
+    c.fillStyle=wColor;c.fillRect(0,-9*S,S,S);c.fillRect(-2*S,-7*S,S,S);c.fillRect(2*S,-7*S,S,S);c.fillRect(0,-5*S,S,S);
+    c.fillStyle=wHi;c.fillRect(0,-9*S,S*0.5,S*0.5);c.fillRect(-2*S,-7*S,S*0.5,S*0.5);c.fillRect(2*S,-7*S,S*0.5,S*0.5);
+  }else if(isBow){
+    // ── BOW (same as drawPixelChar bow) ──
+    c.fillStyle='#6b4226';
+    c.fillRect(-S,-8*S,S,S);c.fillRect(-2*S,-7*S,S,S);
+    c.fillRect(-2.5*S,-6*S,S,2*S);c.fillRect(-2.5*S,-4*S,S,3*S);
+    c.fillRect(-2*S,-1*S,S,S);c.fillRect(-S,0,S,S);
+    c.fillStyle='#8b5a2b';c.fillRect(-2*S,-6*S,S*0.5,5*S);
+    c.fillStyle=wColor;c.fillRect(-S,-9*S,S*1.5,S);c.fillRect(-S,0.5*S,S*1.5,S);
+    c.fillStyle=wHi;c.fillRect(-S,-9*S,S,S*0.5);c.fillRect(-S,0.5*S,S,S*0.5);
+    c.fillStyle='#ddd';c.fillRect(0,-8.5*S,S*0.3,9*S);
+    c.fillStyle='#3a1e0a';c.fillRect(-2.5*S,-4.5*S,S*1.5,S*2);
+    c.fillStyle='#5a3418';c.fillRect(0,-4*S,S*4,S*0.4);
+    c.fillStyle=wColor;c.fillRect(3.5*S,-4.5*S,S,S);
+    c.fillStyle=wHi;c.fillRect(4*S,-4.5*S,S*0.5,S);
+    c.fillStyle='#ddd';c.fillRect(0,-3.8*S,S,S*0.3);c.fillRect(0,-4.4*S,S,S*0.3);
+  }else if(isSpear){
+    // ── SPEAR (same as drawPixelChar spear) ──
+    c.fillStyle='#5a3418';c.fillRect(-0.25*S,0,S*0.8,5*S);
+    c.fillStyle='#4a2a10';c.fillRect(-0.25*S,-12*S,S*0.8,12*S);
+    c.fillStyle='#6b4226';c.fillRect(0,-12*S,S*0.4,17*S);
+    c.fillStyle='#3a1e0a';c.fillRect(-0.5*S,0,S*1.5,S*0.5);c.fillRect(-0.5*S,1.5*S,S*1.5,S*0.5);
+    c.fillStyle=wColor;c.fillRect(-S,-15*S,S*2.5,3*S);c.fillRect(-0.5*S,-16*S,S*1.5,S);c.fillRect(0,-17*S,S*0.5,S);
+    c.fillStyle=wHi;c.fillRect(-S,-15*S,S,3*S);c.fillRect(-0.5*S,-16*S,S*0.5,S);
+    c.fillStyle=wShade;c.fillRect(0.5*S,-14*S,S,2*S);
+    c.fillStyle='#888';c.fillRect(-1.5*S,-12.5*S,S*3.5,S*0.5);
+    c.fillStyle='#aaa';c.fillRect(-1.5*S,-12.5*S,S*3.5,S*0.25);
+  }else if(isHammer){
+    // ── HAMMER (same as drawPixelChar hammer) ──
+    c.fillStyle='#5a3418';c.fillRect(-0.5*S,0,S*1.5,3*S);
+    c.fillStyle='#4a2a10';c.fillRect(0,0.5*S,S,0.5*S);c.fillRect(0,2*S,S,0.5*S);
+    c.fillStyle='#4a2a10';c.fillRect(-0.25*S,-7*S,S*1,7*S);
+    c.fillStyle='#5a3418';c.fillRect(0,-7*S,S*0.5,7*S);
+    c.fillStyle=wColor;c.fillRect(-3.5*S,-11*S,S*8,S*4);
+    c.fillStyle=wHi;c.fillRect(-3.5*S,-11*S,S*8,S);
+    c.fillStyle=wShade;c.fillRect(-3.5*S,-8*S,S*8,S);
+    c.fillStyle=wShade;c.fillRect(-3.5*S,-10.5*S,S,3*S);c.fillRect(3.5*S,-10.5*S,S,3*S);
+    c.fillStyle='#3a1e0a';c.fillRect(-0.5*S,-10*S,S*1.5,S*3);
+    c.fillStyle='rgba(255,255,255,0.25)';c.fillRect(-3*S,-10*S,S,2*S);c.fillRect(3*S,-10*S,S,2*S);
+  }else if(isAxe){
+    // ── AXE (same as drawPixelChar axe) ──
+    c.fillStyle='#6b4226';c.fillRect(-0.5*S,0,1.5*S,3*S);
+    c.fillStyle='#8b5a2b';c.fillRect(-0.5*S,-S,1.5*S,1*S);
+    c.fillStyle='#5a3418';c.fillRect(0,-6*S,S,6*S);
+    c.fillStyle=wColor;c.fillRect(-3*S,-8*S,4*S,5*S);c.fillRect(-4*S,-7*S,1*S,3*S);
+    c.fillStyle=wHi;c.fillRect(-3*S,-8*S,4*S,S);c.fillRect(-4*S,-7*S,1*S,1*S);
+    c.fillStyle=wShade;c.fillRect(-3*S,-4*S,3*S,S);
+    c.fillStyle='rgba(255,255,255,0.35)';c.fillRect(-4*S,-6*S,S,2*S);
+    c.fillStyle='#4a3018';c.fillRect(-S,-3*S,2*S,S);
+  }else if(isDagger){
+    // ── DAGGER (same as drawPixelChar dagger) ──
+    c.fillStyle='#3a2518';c.fillRect(-0.5*S,0,1.5*S,2*S);
+    c.fillStyle='#2a1a10';c.fillRect(0,2*S,S,S);
+    c.fillStyle=wColor;c.fillRect(-S,-S,3*S,S);
+    c.fillStyle=wColor;c.fillRect(0,-5*S,S,4*S);
+    c.fillStyle=wHi;c.fillRect(0,-5*S,S,S);
+    c.fillStyle='rgba(255,255,255,0.3)';c.fillRect(0,-4*S,S,2*S);
+    c.fillStyle=wShade;c.fillRect(S*0.5,-5*S,S*0.5,S*0.5);
+  }else if(isScythe){
+    // ── SCYTHE (same as drawPixelChar scythe) ──
+    const ms=rarity==='mythic'?1.15:1;
+    c.scale(ms,ms);
+    c.fillStyle='#1a0e06';c.fillRect(-S*0.5,-14*S,S*2,20*S);
+    c.fillStyle='#2a1a0e';c.fillRect(0,-14*S,S,20*S);
+    c.fillStyle='#3a2518';c.fillRect(-S*0.5,1*S,S*2,S);c.fillRect(-S*0.5,3*S,S*2,S);
+    c.fillStyle=wColor;c.fillRect(-S,-12*S,S*3,S);c.fillRect(-S,-8*S,S*3,S);
+    c.fillStyle=wHi;c.fillRect(-S,-12*S,S*3,S*0.5);c.fillRect(-S,-8*S,S*3,S*0.5);
+    c.fillStyle=wColor;
+    c.fillRect(-3*S,-16*S,4*S,2*S);c.fillRect(-5*S,-17*S,5*S,1*S);
+    c.fillRect(-7*S,-16*S,3*S,2*S);c.fillRect(-8*S,-14*S,2*S,3*S);
+    c.fillRect(-7*S,-11*S,2*S,2*S);c.fillRect(-6*S,-9*S,2*S,2*S);
+    c.fillStyle=wHi;
+    c.fillRect(-5*S,-17*S,5*S,S*0.5);c.fillRect(-7*S,-16*S,2*S,S*0.5);
+    c.fillRect(-8*S,-14*S,S,3*S);c.fillRect(-7*S,-11*S,S,2*S);
+  }else if(isStaff){
+    // ── STAFF (shaft + orb) ──
+    c.fillStyle='#5a3418';c.fillRect(-0.5*S,0,S*1.5,6*S);
+    c.fillStyle='#3a2010';c.fillRect(-0.5*S,-10*S,S*1.5,10*S);
+    c.fillStyle='#4a2a18';c.fillRect(0,-10*S,S*0.5,16*S);
+    c.fillStyle=wColor;c.beginPath();c.arc(0.25*S,-11*S,2.5*S,0,Math.PI*2);c.fill();
+    c.fillStyle=wHi;c.beginPath();c.arc(-0.5*S,-12*S,1*S,0,Math.PI*2);c.fill();
+  }else if(isSword||isGreatsword){
+    // ── SWORD (same as drawPixelChar generic sword) ──
+    const bl=isGreatsword?18:14;
+    if(rarity==='legendary')c.scale(1.1,1.1);
+    c.fillStyle='#5a3418';c.fillRect(-0.5*S,0,S*2,3.5*S);
+    c.fillStyle='#4a2a10';c.fillRect(0,0.5*S,S,0.5*S);c.fillRect(0,1.5*S,S,0.5*S);c.fillRect(0,2.5*S,S,0.5*S);
+    c.fillStyle=wColor;c.fillRect(-S,3.5*S,S*3,S*1.5);
+    c.fillStyle=wHi;c.fillRect(-0.5*S,3.5*S,S*2,S*0.5);
+    c.fillStyle=wColor;c.fillRect(-2.5*S,-0.5*S,S*6,S*1.5);
+    c.fillStyle=wHi;c.fillRect(-2.5*S,-0.5*S,S*6,S*0.5);
+    c.fillStyle=darkerC(wColor,20);c.fillRect(-2*S,-0.5*S,S*0.5,S*1.5);c.fillRect(2.5*S,-0.5*S,S*0.5,S*1.5);
+    c.fillStyle=wColor;c.fillRect(-0.5*S,-bl*S,S*2,(bl-0.5)*S);
+    c.fillStyle=wHi;c.fillRect(-0.5*S,-bl*S,S*0.5,(bl-0.5)*S);
+    c.fillStyle=wShade;c.fillRect(S,-bl*S,S*0.5,(bl-0.5)*S);
+    c.fillStyle='rgba(0,0,0,0.15)';c.fillRect(0.1*S,(-bl+2)*S,S*0.4,(bl-4)*S);
+    c.fillStyle='rgba(255,255,255,0.2)';c.fillRect(-0.25*S,(-bl+1)*S,S*0.4,(bl-2)*S);
+    c.fillRect(0,(-bl-0.5)*S,S*0.5,S*0.5);
+    c.fillStyle=wHi;c.fillRect(0,(-bl-0.5)*S,S*0.5,S*0.5);
+  }else if(isShield){
+    // ── SHIELD (larger, detailed) ──
+    const sh=8*S;
+    c.fillStyle=wColor;
+    c.beginPath();c.moveTo(0,-sh*0.5);c.lineTo(sh*0.4,-sh*0.25);c.lineTo(sh*0.35,sh*0.25);
+    c.lineTo(0,sh*0.5);c.lineTo(-sh*0.35,sh*0.25);c.lineTo(-sh*0.4,-sh*0.25);c.closePath();c.fill();
+    c.fillStyle=wHi;
+    c.beginPath();c.moveTo(0,-sh*0.45);c.lineTo(sh*0.15,-sh*0.15);c.lineTo(0,sh*0.15);c.lineTo(-sh*0.15,-sh*0.15);c.closePath();c.fill();
+    c.fillStyle=wShade;c.fillRect(-sh*0.05,-sh*0.4,sh*0.1,sh*0.8);
+    c.fillRect(-sh*0.3,-sh*0.05,sh*0.6,sh*0.05);
+  }else if(isArmor){
+    // ── ARMOR on stand ──
+    c.fillStyle='#5a3a20';c.fillRect(-S*0.5,2*S,S,6*S);
+    c.fillStyle='#3a2010';c.fillRect(-2*S,7*S,4*S,S);
+    c.fillStyle=wColor;c.fillRect(-4*S,-4*S,8*S,7*S);
+    c.fillStyle=wColor;c.fillRect(-5.5*S,-4*S,2*S,3*S);c.fillRect(3.5*S,-4*S,2*S,3*S);
+    c.fillStyle=wHi;c.fillRect(-4*S,-4*S,8*S,S);c.fillRect(-5.5*S,-4*S,2*S,S);c.fillRect(3.5*S,-4*S,2*S,S);
+    c.fillStyle=wShade;c.fillRect(-0.5*S,-3*S,S,6*S);
+    c.fillStyle='rgba(0,0,0,0.3)';c.beginPath();c.arc(0,-4*S,1.5*S,0,Math.PI);c.fill();
+  }else if(isPotion){
+    // ── POTION bottle (larger) ──
+    c.fillStyle=wColor;c.beginPath();c.arc(0,3*S,4*S,0,Math.PI*2);c.fill();
+    c.fillStyle=wHi;c.beginPath();c.arc(-1.5*S,1.5*S,1.5*S,0,Math.PI*2);c.fill();
+    c.fillStyle='#8a7a50';c.fillRect(-1.5*S,-4*S,3*S,5*S);
+    c.fillStyle='#aa8a40';c.fillRect(-2*S,-5*S,4*S,2*S);
+    c.fillStyle='rgba(255,255,255,0.25)';c.beginPath();c.arc(1.5*S,4*S,S,0,Math.PI*2);c.fill();
+    c.beginPath();c.arc(-0.5*S,5*S,0.6*S,0,Math.PI*2);c.fill();
+  }else if(isOre){
+    // ── ORE chunk ──
+    c.fillStyle=wColor;c.beginPath();
+    c.moveTo(-4*S,3*S);c.lineTo(-2*S,-3*S);c.lineTo(2*S,-4*S);c.lineTo(5*S,0);c.lineTo(3*S,4*S);c.closePath();c.fill();
+    c.fillStyle=wHi;c.beginPath();c.moveTo(-1*S,-2*S);c.lineTo(1*S,-3*S);c.lineTo(2*S,-1*S);c.lineTo(0,0);c.closePath();c.fill();
+    c.fillStyle='rgba(255,255,255,0.15)';c.fillRect(-1*S,-2*S,2*S,3*S);
+  }else if(isGem){
+    // ── GEM (faceted) ──
+    c.fillStyle=wColor;c.beginPath();
+    c.moveTo(0,-5*S);c.lineTo(4*S,-1*S);c.lineTo(3*S,4*S);c.lineTo(-3*S,4*S);c.lineTo(-4*S,-1*S);c.closePath();c.fill();
+    c.fillStyle=wHi;c.beginPath();c.moveTo(0,-4*S);c.lineTo(2*S,-1*S);c.lineTo(0,2*S);c.lineTo(-2*S,-1*S);c.closePath();c.fill();
+    c.fillStyle='rgba(255,255,255,0.3)';c.beginPath();c.moveTo(-1*S,-3*S);c.lineTo(1*S,-3*S);c.lineTo(0,-1*S);c.closePath();c.fill();
+  }else if(isBook){
+    // ── BOOK ──
+    c.fillStyle=wColor;c.fillRect(-3*S,-4*S,6*S,8*S);
+    c.fillStyle=wShade;c.fillRect(-3*S,-4*S,6*S,S);c.fillRect(-3*S,3*S,6*S,S);
+    c.fillStyle='rgba(255,255,255,0.15)';c.fillRect(-2*S,-2*S,4*S,S);c.fillRect(-2*S,0,3*S,S);
+    c.fillStyle='#f5e8c8';c.fillRect(2.5*S,-4*S,S*1.5,8*S);
+    c.fillStyle='#e0d0b0';c.fillRect(2.5*S,-3*S,S,6*S);
+  }else if(isRing){
+    // ── RING on cushion ──
+    c.fillStyle='#4a2040';c.beginPath();c.ellipse(0,2*S,4*S,2*S,0,0,Math.PI*2);c.fill();
+    c.strokeStyle=wColor;c.lineWidth=S*1.5;c.beginPath();c.arc(0,-1*S,3*S,0,Math.PI*2);c.stroke();
+    c.fillStyle=wHi;c.beginPath();c.arc(0,-4*S,2*S,0,Math.PI*2);c.fill();
+    c.fillStyle='rgba(255,255,255,0.4)';c.beginPath();c.arc(-0.5*S,-4.5*S,0.8*S,0,Math.PI*2);c.fill();
+  }else if(isFood){
+    // ── FOOD on plate ──
+    c.fillStyle='#ddd';c.beginPath();c.ellipse(0,3*S,5*S,2*S,0,0,Math.PI*2);c.fill();
+    c.fillStyle=wColor||'#c87040';c.beginPath();c.ellipse(0,1*S,3.5*S,2.5*S,0,0,Math.PI*2);c.fill();
+    c.fillStyle='rgba(255,255,255,0.15)';c.beginPath();c.ellipse(-1*S,0,1.5*S,1*S,0,0,Math.PI*2);c.fill();
+  }else if(isPickaxe){
+    // ── PICKAXE ──
+    c.fillStyle='#6b4226';c.fillRect(-S,-S,1.5*S,5*S);c.fillStyle='#8b5a2b';c.fillRect(-0.5*S,0,S,4*S);
+    c.fillStyle=wColor;c.fillRect(-3*S,-5*S,5*S,2*S);
+    c.fillStyle=wHi;c.fillRect(-3*S,-5*S,5*S,S);
+    c.fillStyle=wShade;c.fillRect(-2*S,-3*S,1*S,1*S);c.fillRect(1*S,-3*S,1*S,1*S);
+  }else{
+    // ── GENERIC ITEM (crate/package) ──
+    c.fillStyle=wColor;c.fillRect(-4*S,-3*S,8*S,7*S);
+    c.fillStyle=wShade;c.fillRect(-4*S,-3*S,8*S,S);c.fillRect(-4*S,3*S,8*S,S);
+    c.fillStyle='rgba(0,0,0,0.15)';c.fillRect(-0.5*S,-3*S,S,7*S);c.fillRect(-4*S,0,8*S,S);
   }
+  c.shadowBlur=0;c.shadowColor='transparent';
+  // Price tag
+  if(showPrice&&item.price){
+    c.fillStyle='rgba(0,0,0,0.75)';c.fillRect(-10*S,9*S,20*S,7*S);
+    c.fillStyle='rgba(251,191,36,0.12)';c.fillRect(-10*S,9*S,20*S,7*S);
+    c.font='bold '+Math.max(6,3.5*S)+'px sans-serif';c.textAlign='center';
+    c.fillStyle='#fbbf24';c.fillText(item.price+'g',0,14.5*S);
+  }
+  c.restore();
+}
+// _drawStallItem: small version for exterior stall shelves
+function _drawStallItem(ctx,item,x,y,S){
+  if(!item)return;drawItemDisplay(ctx,item,x+2*S,y+3*S,S*0.6,false);
 }
 
 function drawDecoration(d){
@@ -11376,17 +11536,101 @@ function drawDecoration(d){
     }
     case'house_door_exit':{
       const S=sc;
-      // Door mat / exit indicator
       ctx.fillStyle='rgba(74,222,128,0.15)';
       ctx.fillRect(s.x-TILE_SIZE*ISO_S/2,s.y-4*S,TILE_SIZE*ISO_S*2,8*S);
-      // Arrow pointing down
       ctx.fillStyle='rgba(74,222,128,0.6)';
       ctx.beginPath();
       ctx.moveTo(s.x-6*S,s.y-4*S);ctx.lineTo(s.x+6*S,s.y-4*S);ctx.lineTo(s.x,s.y+4*S);ctx.closePath();ctx.fill();
-      // Label
       ctx.font='bold '+(7*sc)+'px monospace';ctx.textAlign='center';
       ctx.fillStyle='rgba(74,222,128,0.8)';
       ctx.fillText('EXIT [E]',s.x,s.y+12*S);
+      break;
+    }
+    // ── Stall Interior Decorations ──
+    case'stall_door_exit':{
+      const S=sc;
+      ctx.fillStyle='rgba(74,222,128,0.15)';
+      ctx.fillRect(s.x-TILE_SIZE*ISO_S/2,s.y-4*S,TILE_SIZE*ISO_S*2,8*S);
+      ctx.fillStyle='rgba(74,222,128,0.6)';
+      ctx.beginPath();ctx.moveTo(s.x-6*S,s.y-4*S);ctx.lineTo(s.x+6*S,s.y-4*S);ctx.lineTo(s.x,s.y+4*S);ctx.closePath();ctx.fill();
+      ctx.font='bold '+(7*sc)+'px monospace';ctx.textAlign='center';
+      ctx.fillStyle='rgba(74,222,128,0.8)';
+      ctx.fillText('EXIT [E]',s.x,s.y+12*S);
+      break;
+    }
+    case'stall_shop_sign':{
+      const S=sc;
+      const sw=Math.max(60,d.owner.length*6)*S*0.5;
+      // Wooden sign board
+      ctx.fillStyle='#3a2a10';ctx.fillRect(s.x-sw-4*S,s.y-8*S,sw*2+8*S,16*S);
+      ctx.fillStyle='#5a4a28';ctx.fillRect(s.x-sw-2*S,s.y-6*S,sw*2+4*S,12*S);
+      // Colored banner strip
+      ctx.fillStyle=d.color||'#555';ctx.fillRect(s.x-sw-2*S,s.y-6*S,sw*2+4*S,3*S);
+      ctx.fillStyle='rgba(255,255,255,0.1)';ctx.fillRect(s.x-sw-2*S,s.y-6*S,sw*2+4*S,1.5*S);
+      ctx.font='bold '+Math.max(8,5*S)+'px sans-serif';ctx.textAlign='center';
+      ctx.fillStyle='#fbbf24';ctx.fillText(d.owner,s.x,s.y+2*S);
+      break;
+    }
+    case'stall_counter':{
+      const S=sc;
+      const hw=(d.w||120)*ISO_S/2;
+      // Counter top
+      ctx.fillStyle='#5a3a18';ctx.fillRect(s.x-hw,s.y-3*S,hw*2,8*S);
+      ctx.fillStyle='#7a5a38';ctx.fillRect(s.x-hw,s.y-4*S,hw*2,2*S);
+      // Front panel
+      ctx.fillStyle='#4a2a10';ctx.fillRect(s.x-hw,s.y+4*S,hw*2,4*S);
+      break;
+    }
+    case'stall_display_item':{
+      const S=sc;
+      const item=d.item;
+      const dist=Math.sqrt((px-d.x)**2+(py-d.y)**2);
+      const isNear=dist<70;
+      // Draw mount/background based on display type
+      if(d.displayType==='wall'||d.displayType==='wall_side'){
+        // Wall-mounted display: dark panel + hooks
+        ctx.fillStyle='rgba(40,30,20,0.6)';ctx.fillRect(s.x-16*S,s.y-20*S,32*S,30*S);
+        ctx.fillStyle='#5a4228';ctx.fillRect(s.x-16*S,s.y-20*S,32*S,2*S); // top trim
+        ctx.fillRect(s.x-16*S,s.y+8*S,32*S,2*S); // bottom trim
+        // Hooks
+        ctx.fillStyle='#888';ctx.fillRect(s.x-2*S,s.y-18*S,4*S,2*S);
+      }else if(d.displayType==='pedestal'){
+        // Pedestal stand
+        ctx.fillStyle='#3a2a14';ctx.fillRect(s.x-8*S,s.y,16*S,10*S); // base
+        ctx.fillStyle='#5a4228';ctx.fillRect(s.x-10*S,s.y-2*S,20*S,3*S); // top plate
+        ctx.fillStyle='#4a3a20';ctx.fillRect(s.x-6*S,s.y+8*S,12*S,3*S); // foot
+      }else if(d.displayType==='counter_display'){
+        // Small mat/cloth on counter
+        ctx.fillStyle='rgba(80,40,20,0.4)';ctx.fillRect(s.x-10*S,s.y-2*S,20*S,12*S);
+      }
+      if(item){
+        // Draw the actual item using literal weapon rendering
+        const displayS=S*1.8;
+        const iy=d.displayType==='pedestal'?s.y-10*S:d.displayType==='counter_display'?s.y-4*S:s.y-8*S;
+        drawItemDisplay(ctx,item,s.x,iy,displayS,true);
+        // Item name below
+        ctx.font='bold '+Math.max(6,3*S)+'px sans-serif';ctx.textAlign='center';
+        const rc=RARITY_COLORS[item.rarity]||'#ccc';
+        ctx.fillStyle='rgba(0,0,0,0.6)';ctx.fillText(item.name||item.id,s.x+1,s.y+13*S+1);
+        ctx.fillStyle=rc;ctx.fillText(item.name||item.id,s.x,s.y+13*S);
+      }else{
+        // Empty slot indicator
+        ctx.strokeStyle='rgba(255,255,255,0.1)';ctx.lineWidth=S;ctx.setLineDash([3*S,3*S]);
+        ctx.strokeRect(s.x-10*S,s.y-14*S,20*S,20*S);
+        ctx.setLineDash([]);
+        if(insideStallData&&insideStallData.isOwner){
+          ctx.font=(5*S)+'px sans-serif';ctx.textAlign='center';
+          ctx.fillStyle='rgba(255,255,255,0.2)';ctx.fillText('Empty',s.x,s.y);
+        }
+      }
+      // Highlight when near
+      if(isNear){
+        ctx.strokeStyle='rgba(74,222,128,0.5)';ctx.lineWidth=2*S;
+        ctx.strokeRect(s.x-18*S,s.y-22*S,36*S,38*S);
+        ctx.font='bold '+(5*S)+'px sans-serif';ctx.textAlign='center';
+        ctx.fillStyle='rgba(74,222,128,0.8)';
+        ctx.fillText('[E] '+(item?(insideStallData&&insideStallData.isOwner?'Remove':'Buy'):'Stock'),s.x,s.y+20*S);
+      }
       break;
     }
     case'house_wall_torch':{
@@ -11819,79 +12063,77 @@ function drawDecoration(d){
       const awningColor=stallInfo?stallInfo.color:'#555';
       const S=sc;
       const bx=s.x,by=s.y;
-      // ── Back wall / shelf board ──
-      ctx.fillStyle='#3a2a14';ctx.fillRect(bx-16*S,by-34*S,32*S,28*S);
-      ctx.fillStyle='#4a3a20';ctx.fillRect(bx-15*S,by-33*S,30*S,26*S);
-      // Shelf planks
-      ctx.fillStyle='#5a4228';ctx.fillRect(bx-15*S,by-22*S,30*S,2*S);
-      ctx.fillStyle='#5a4228';ctx.fillRect(bx-15*S,by-13*S,30*S,2*S);
-      // ── Counter (front) ──
-      ctx.fillStyle='#5a3a18';ctx.fillRect(bx-16*S,by-7*S,32*S,7*S);
-      ctx.fillStyle='#7a5a38';ctx.fillRect(bx-16*S,by-8*S,32*S,2*S);
-      // ── Awning poles ──
-      ctx.fillStyle='#6a4a28';ctx.fillRect(bx-14*S,by-38*S,3*S,38*S);ctx.fillRect(bx+11*S,by-38*S,3*S,38*S);
-      // ── Awning (colored) ──
+      // ── Building walls ──
+      ctx.fillStyle='#2a1e14';ctx.fillRect(bx-18*S,by-38*S,36*S,38*S);
+      ctx.fillStyle='#3a2a1a';ctx.fillRect(bx-16*S,by-36*S,32*S,34*S);
+      // Window (left side)
+      ctx.fillStyle='#1a2a3a';ctx.fillRect(bx-13*S,by-30*S,10*S,8*S);
+      ctx.fillStyle='#2a3a4a';ctx.fillRect(bx-12*S,by-29*S,8*S,6*S);
+      // Window cross bars
+      ctx.fillStyle='#5a4a30';ctx.fillRect(bx-12*S,by-26.5*S,8*S,S);
+      ctx.fillRect(bx-8.5*S,by-29*S,S,6*S);
+      // Window (right side)
+      ctx.fillStyle='#1a2a3a';ctx.fillRect(bx+3*S,by-30*S,10*S,8*S);
+      ctx.fillStyle='#2a3a4a';ctx.fillRect(bx+4*S,by-29*S,8*S,6*S);
+      ctx.fillStyle='#5a4a30';ctx.fillRect(bx+4*S,by-26.5*S,8*S,S);
+      ctx.fillRect(bx+7.5*S,by-29*S,S,6*S);
+      // Warm glow in windows
+      if(stallInfo&&stallInfo.items&&stallInfo.items.length>0){
+        ctx.fillStyle='rgba(255,180,60,0.15)';
+        ctx.fillRect(bx-12*S,by-29*S,8*S,6*S);
+        ctx.fillRect(bx+4*S,by-29*S,8*S,6*S);
+      }
+      // Door frame
+      ctx.fillStyle='#4a3a20';ctx.fillRect(bx-5*S,by-16*S,10*S,16*S);
+      ctx.fillStyle='#5a4a30';ctx.fillRect(bx-4*S,by-15*S,8*S,14*S);
+      // Door handle
+      ctx.fillStyle='#aa8a40';ctx.fillRect(bx+2*S,by-9*S,1.5*S,1.5*S);
+      // ── Awning / Roof ──
       ctx.fillStyle=awningColor;
       ctx.beginPath();
-      ctx.moveTo(bx-18*S,by-36*S);ctx.lineTo(bx+18*S,by-36*S);
-      ctx.lineTo(bx+20*S,by-30*S);ctx.lineTo(bx-20*S,by-30*S);
+      ctx.moveTo(bx-20*S,by-36*S);ctx.lineTo(bx+20*S,by-36*S);
+      ctx.lineTo(bx+22*S,by-32*S);ctx.lineTo(bx-22*S,by-32*S);
       ctx.closePath();ctx.fill();
-      // Awning scallops
       for(let si=0;si<5;si++){
         const sx2=bx+(-16+si*8)*S;
         ctx.fillStyle=awningColor;ctx.beginPath();
-        ctx.arc(sx2,by-30*S,3*S,0,Math.PI);ctx.fill();
+        ctx.arc(sx2,by-32*S,3*S,0,Math.PI);ctx.fill();
       }
-      // Awning highlight stripe
-      ctx.fillStyle='rgba(255,255,255,0.1)';ctx.fillRect(bx-18*S,by-36*S,36*S,2*S);
+      ctx.fillStyle='rgba(255,255,255,0.1)';ctx.fillRect(bx-20*S,by-36*S,40*S,2*S);
       if(stallInfo){
-        const items=stallInfo.items||[];
-        // ── Draw actual items on shelves + hanging ──
-        // Top shelf items (slots 0-3)
-        for(let gi=0;gi<Math.min(items.length,4);gi++){
-          const gx=bx+(-11+gi*7.5)*S, gy=by-27*S;
-          _drawStallItem(ctx,items[gi],gx,gy,S);
-        }
-        // Bottom shelf items (slots 4-7)
-        for(let gi=4;gi<Math.min(items.length,8);gi++){
-          const gx=bx+(-11+(gi-4)*7.5)*S, gy=by-18*S;
-          _drawStallItem(ctx,items[gi],gx,gy,S);
-        }
-        // Counter items (slots 8-11)
-        for(let gi=8;gi<Math.min(items.length,12);gi++){
-          const gx=bx+(-11+(gi-8)*7.5)*S, gy=by-10*S;
-          _drawStallItem(ctx,items[gi],gx,gy,S);
-        }
-        // Hanging items from awning (slots 12-15)
-        for(let gi=12;gi<Math.min(items.length,16);gi++){
-          const gx=bx+(-11+(gi-12)*8)*S;
-          // Rope
-          ctx.strokeStyle='#8a7a50';ctx.lineWidth=S;
-          ctx.beginPath();ctx.moveTo(gx+2*S,by-30*S);ctx.lineTo(gx+2*S,by-33*S);ctx.stroke();
-          _drawStallItem(ctx,items[gi],gx,by-36*S,S);
-        }
-        // ── Owner name plate ──
-        ctx.fillStyle='#3a2a10';ctx.fillRect(bx-12*S,by-40*S,24*S,5*S);
-        ctx.fillStyle='#5a4a28';ctx.fillRect(bx-11*S,by-39.5*S,22*S,4*S);
+        // ── Owner sign ──
+        ctx.fillStyle='#3a2a10';ctx.fillRect(bx-14*S,by-42*S,28*S,6*S);
+        ctx.fillStyle='#5a4a28';ctx.fillRect(bx-13*S,by-41.5*S,26*S,5*S);
         ctx.font='bold '+Math.max(7,4*S)+'px sans-serif';ctx.textAlign='center';
-        ctx.fillStyle='#fbbf24';ctx.fillText(stallInfo.owner,bx,by-36.5*S);
-        // Item count badge
+        ctx.fillStyle='#fbbf24';ctx.fillText(stallInfo.owner+"'s Shop",bx,by-38*S);
+        // Item count
+        const items=stallInfo.items||[];
         if(items.length>0){
-          const badge=items.length+'/'+((stallInfo.tier&&STALL_TIERS[stallInfo.tier])?STALL_TIERS[stallInfo.tier].slots:'?');
-          ctx.font='bold '+Math.max(5,3*S)+'px sans-serif';
-          ctx.fillStyle='rgba(0,0,0,0.5)';ctx.fillRect(bx+8*S,by-40*S,10*S,4*S);
-          ctx.fillStyle='#4ade80';ctx.fillText(badge,bx+13*S,by-37.5*S);
+          const badge=items.length+' items';
+          ctx.font=Math.max(5,3*S)+'px sans-serif';
+          ctx.fillStyle='rgba(74,222,128,0.7)';ctx.fillText(badge,bx,by-34.5*S);
+        }
+        // Show a few items through windows (tiny previews)
+        for(let wi=0;wi<Math.min(items.length,2);wi++){
+          const wx=wi===0?bx-8*S:bx+8*S;
+          drawItemDisplay(ctx,items[wi],wx,by-26*S,S*0.35,false);
         }
       }else{
-        // Empty stall — FOR RENT sign pinned to back wall
-        ctx.fillStyle='#ddd';ctx.fillRect(bx-8*S,by-26*S,16*S,10*S);
-        ctx.fillStyle='#f5f0e0';ctx.fillRect(bx-7*S,by-25*S,14*S,8*S);
+        // FOR RENT
+        ctx.fillStyle='#ddd';ctx.fillRect(bx-8*S,by-42*S,16*S,8*S);
+        ctx.fillStyle='#f5f0e0';ctx.fillRect(bx-7*S,by-41*S,14*S,6*S);
         ctx.font='bold '+Math.max(6,3.5*S)+'px sans-serif';ctx.textAlign='center';
-        ctx.fillStyle='#aa3333';ctx.fillText('FOR',bx,by-21*S);
-        ctx.fillText('RENT',bx,by-18*S);
-        // Tack pins
-        ctx.fillStyle='#cc8833';ctx.beginPath();ctx.arc(bx-5*S,by-24*S,S,0,Math.PI*2);ctx.fill();
-        ctx.beginPath();ctx.arc(bx+5*S,by-24*S,S,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='#aa3333';ctx.fillText('FOR RENT',bx,by-37*S);
+        ctx.fillStyle='#cc8833';ctx.beginPath();ctx.arc(bx-5*S,by-40*S,S,0,Math.PI*2);ctx.fill();
+        ctx.beginPath();ctx.arc(bx+5*S,by-40*S,S,0,Math.PI*2);ctx.fill();
+      }
+      // [E] Enter prompt when near
+      const playerDist=Math.sqrt((px-d.x)**2+(py-d.y)**2);
+      if(playerDist<120){
+        const pulse=0.6+Math.sin(Date.now()*0.004)*0.3;
+        ctx.font='bold '+Math.max(7,4*S)+'px monospace';ctx.textAlign='center';
+        ctx.fillStyle='rgba(74,222,128,'+pulse+')';
+        ctx.fillText('[E] Enter Shop',bx,by+6*S);
       }
       break;
     }
@@ -26062,6 +26304,7 @@ document.addEventListener('keydown',e=>{
       return;
     }
     if(diceGameOpen&&diceState==='result'){closeDiceGame()}
+    else if(insideStall) interactStallInterior();
     else if(insideHouse) interactHouseInterior();
     else if(nearbyLandmark) interactNearest();
     else if(zoneType==='hub') interactNearest();
@@ -26410,15 +26653,12 @@ function interactNearest(){
       const dist=Math.sqrt((px-d.x)**2+(py-d.y)**2);
       if(dist<100){openDialogue('market_broker');return}
     }
-    // Check for nearby stall to browse
+    // Check for nearby stall to enter
     const nearStall=getNearestStall();
     if(nearStall){
-      if(marketStallData[nearStall.stallId]&&marketStallData[nearStall.stallId].owner===username){
-        stallGuideTarget=null;stallGuideTimer=0;
-        openMyStallPanel();
-      }else{
-        openBrowseStallPanel(nearStall.stallId);
-      }
+      stallGuideTarget=null;stallGuideTimer=0;
+      // Enter stall interior (walk-in shop experience)
+      playZoneTransition('stall_interior',()=>{enterStallInterior(nearStall.stallId)});
       return;
     }
   }
@@ -28180,7 +28420,248 @@ function refreshHouseDecorations(){
   generateHouseDecorations(h,gw,gh,ox,oy);
 }
 
-// After placing furniture, nudge the player out if they overlap any furniture collision box
+// ═══════════════════════════════════════════════
+// STALL INTERIOR SYSTEM (walk-in shop)
+// ═══════════════════════════════════════════════
+
+function enterStallInterior(stallId){
+  const stall=marketStallData[stallId];
+  const tier=stall?stall.tier:'small';
+  const sz=STALL_INTERIOR_SIZES[tier]||STALL_INTERIOR_SIZES.small;
+  const gw=sz.gw,gh=sz.gh;
+  const isOwner=stall&&stall.owner===username;
+
+  stallReturnZone=currentZone||'market';
+  insideStall=true;
+  insideStallId=stallId;
+  insideStallData={stallId:stallId,owner:stall?stall.owner:'',tier:tier,color:stall?stall.color:'#555',
+    items:stall?stall.items:[],gridW:gw,gridH:gh,isOwner:isOwner};
+  buildStallFloorMap(gw,gh);
+
+  currentZone='stall_interior';
+  zoneType='stall_interior';
+  zoneBG='#0e0e1a';
+  playerInBasement=false;playerInDungeon=false;playerInsideTavern=false;playerInsideGoblinHut=false;playerInsideLodge=false;
+  insideHouse=false;insideHouseData=null;
+  nodes=[];mobs=[];otherPlayers=[];boss=null;bossTelegraph=null;
+  secondaryBosses=[];sbossTelegraph=null;
+  hubLandmarks=[];nearbyLandmark=null;
+  groundLoot=[];slashEffects=[];dyingMobs=[];envParticles=[];
+
+  const ox=Math.floor((MAP_W-gw)/2),oy=Math.floor((MAP_H-gh)/2);
+  const doorX=ox+Math.floor(gw/2)-1;
+  px=(doorX+1)*TILE_SIZE;
+  py=(oy+gh-3)*TILE_SIZE;
+  camX=px;camY=py;
+
+  decorations=[];
+  generateStallDecorations(stallId,gw,gh,ox,oy);
+
+  closeDialogue();chatOpen=false;diceGameOpen=false;
+  closeAllStallPanels();
+  const ownerLabel=isOwner?'My Shop':(stall?stall.owner+"'s Shop":'Shop');
+  document.getElementById('hud-zone-name').textContent=ownerLabel;
+  document.getElementById('hud-overlay').style.display='none';
+  document.getElementById('zone-overlay').classList.remove('show');
+
+  // Manage button for owner
+  const existingBtn=document.getElementById('stall-manage-btn');
+  if(existingBtn)existingBtn.remove();
+  if(isOwner){
+    const btn=document.createElement('button');
+    btn.id='stall-manage-btn';
+    btn.textContent='📦 Manage Stock';
+    btn.style.cssText='position:fixed;top:60px;right:10px;z-index:1000;padding:6px 14px;background:rgba(30,30,50,.9);border:1px solid rgba(251,191,36,.4);color:#fbbf24;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit;';
+    btn.onclick=()=>{openMyStallPanel()};
+    document.body.appendChild(btn);
+  }
+
+  logMsg('🏪 Entered '+(isOwner?'your ':stall?stall.owner+"'s ":'')+'shop','xp');
+  if(isOwner)logMsg('💡 Press [E] near display to manage. Manage Stock to add items.','info');
+  else logMsg('💡 Press [E] near items to buy. Walk around and browse!','info');
+}
+
+function buildStallFloorMap(gw,gh){
+  const ox=Math.floor((MAP_W-gw)/2),oy=Math.floor((MAP_H-gh)/2);
+  const map=[];
+  for(let y=0;y<MAP_H;y++){map[y]=[];for(let x=0;x<MAP_W;x++)map[y][x]=TILE.WALL;}
+  for(let y=oy;y<oy+gh;y++)
+    for(let x=ox;x<ox+gw;x++)map[y][x]=TILE.WOOD;
+  // Walls
+  for(let x=ox;x<ox+gw;x++){map[oy][x]=TILE.WALL;map[oy+gh-1][x]=TILE.WALL;}
+  for(let y=oy;y<oy+gh;y++){map[y][ox]=TILE.WALL;map[y][ox+gw-1]=TILE.WALL;}
+  // Door opening
+  const doorX=ox+Math.floor(gw/2)-1;
+  map[oy+gh-1][doorX]=TILE.STONE;map[oy+gh-1][doorX+1]=TILE.STONE;
+  if(oy+gh<MAP_H){map[oy+gh][doorX]=TILE.STONE;map[oy+gh][doorX+1]=TILE.STONE;}
+  tileMap=map;
+  TILE_COLORS.stall_interior={
+    0:'#3a3020',1:'#2a1e14',2:'#3a3020',3:'#444468',4:'#3a3020',5:'#2a4880',6:'#4a3a28',7:'#5a4a3a',8:'#3a3020'
+  };
+}
+
+function generateStallDecorations(stallId,gw,gh,ox,oy){
+  const T=TILE_SIZE;
+  const stall=marketStallData[stallId];
+  const items=stall?stall.items:[];
+  const color=stall?stall.color:'#555';
+  const isOwner=stall&&stall.owner===username;
+  const tierDef=STALL_TIERS[stall?stall.tier:'small']||STALL_TIERS.small;
+
+  // Exit door
+  const doorX=ox+Math.floor(gw/2)-1;
+  decorations.push({type:'stall_door_exit',x:(doorX+1)*T,y:(oy+gh-0.3)*T,label:'Exit'});
+
+  // Torches on walls
+  decorations.push({type:'house_wall_torch',x:(ox+1)*T+T/2,y:(oy+1)*T});
+  decorations.push({type:'house_wall_torch',x:(ox+gw-2)*T+T/2,y:(oy+1)*T});
+  if(gw>=9){decorations.push({type:'house_wall_torch',x:(ox+Math.floor(gw/2))*T,y:(oy+1)*T});}
+
+  // Shop sign above back wall
+  decorations.push({type:'stall_shop_sign',x:(ox+Math.floor(gw/2))*T,y:(oy+1.5)*T,
+    owner:stall?stall.owner:'FOR RENT',color:color});
+
+  // Counter near entrance
+  decorations.push({type:'stall_counter',x:(ox+Math.floor(gw/2))*T,y:(oy+gh-3)*T,w:(gw-4)*T});
+
+  // ── Display positions ──
+  // Layout: back wall displays, left wall displays, right wall displays
+  const displaySlots=[];
+  const maxSlots=tierDef.slots;
+  const innerW=gw-4; // usable wall space (minus borders + padding)
+
+  // Back wall (north) — weapon wall hooks
+  const backCount=Math.min(maxSlots,gw>=12?4:gw>=9?3:2);
+  for(let i=0;i<backCount;i++){
+    const fx=ox+2+Math.floor(i*(innerW/(backCount)));
+    displaySlots.push({x:(fx+0.5)*T,y:(oy+2)*T,type:'wall'});
+  }
+  // Left wall
+  const leftCount=Math.min(maxSlots-backCount,gw>=12?3:gw>=9?2:1);
+  for(let i=0;i<leftCount;i++){
+    const fy=oy+3+Math.floor(i*((gh-6)/(leftCount)));
+    displaySlots.push({x:(ox+1.5)*T,y:fy*T,type:'wall_side'});
+  }
+  // Right wall
+  const rightCount=Math.min(maxSlots-backCount-leftCount,gw>=12?3:gw>=9?2:1);
+  for(let i=0;i<rightCount;i++){
+    const fy=oy+3+Math.floor(i*((gh-6)/(rightCount)));
+    displaySlots.push({x:(ox+gw-2.5)*T,y:fy*T,type:'wall_side'});
+  }
+  // Center pedestals (large shops)
+  const remaining=maxSlots-displaySlots.length;
+  if(remaining>0){
+    const centerCount=Math.min(remaining,gw>=12?4:gw>=9?2:0);
+    for(let i=0;i<centerCount;i++){
+      const fx=ox+3+Math.floor(i*((gw-6)/Math.max(1,centerCount-1)));
+      displaySlots.push({x:(fx)*T,y:(oy+Math.floor(gh/2))*T,type:'pedestal'});
+    }
+  }
+  // Fill remaining with counter displays
+  while(displaySlots.length<maxSlots){
+    const ci=displaySlots.length-backCount-leftCount-rightCount;
+    const fx=ox+2+ci*2;
+    displaySlots.push({x:Math.min(fx,(ox+gw-3))*T,y:(oy+gh-4)*T,type:'counter_display'});
+  }
+
+  // Create display decorations
+  for(let i=0;i<maxSlots;i++){
+    const slot=displaySlots[i];
+    const item=items[i]||null;
+    decorations.push({
+      type:'stall_display_item',
+      x:slot.x,y:slot.y,
+      displayType:slot.type,
+      slotIndex:i,
+      stallId:stallId,
+      item:item,
+      isOwner:isOwner
+    });
+  }
+}
+
+function exitStallInterior(){
+  insideStall=false;
+  insideStallId=null;
+  insideStallData=null;
+  const btn=document.getElementById('stall-manage-btn');
+  if(btn)btn.remove();
+  closeAllStallPanels();
+  delete TILE_COLORS.stall_interior;
+  _executeZoneChange(stallReturnZone);
+}
+
+function refreshStallDecorations(){
+  if(!insideStall||!insideStallData)return;
+  const stallId=insideStallId;
+  const stall=marketStallData[stallId];
+  if(stall)insideStallData.items=stall.items;
+  const gw=insideStallData.gridW,gh=insideStallData.gridH;
+  const ox=Math.floor((MAP_W-gw)/2),oy=Math.floor((MAP_H-gh)/2);
+  decorations=[];
+  buildStallFloorMap(gw,gh);
+  generateStallDecorations(stallId,gw,gh,ox,oy);
+}
+
+function interactStallInterior(){
+  if(!insideStall||!insideStallData)return;
+  const gw=insideStallData.gridW,gh=insideStallData.gridH;
+  const ox=Math.floor((MAP_W-gw)/2),oy=Math.floor((MAP_H-gh)/2);
+  const doorX=ox+Math.floor(gw/2)-1;
+  const T=TILE_SIZE;
+
+  // Check exit door
+  const doorWorldX=(doorX+1)*T,doorWorldY=(oy+gh-1)*T;
+  if(Math.sqrt((px-doorWorldX)**2+(py-doorWorldY)**2)<80){
+    exitStallInterior();return;
+  }
+
+  // Check display items
+  for(const d of decorations){
+    if(d.type!=='stall_display_item')continue;
+    const dist=Math.sqrt((px-d.x)**2+(py-d.y)**2);
+    if(dist<70){
+      if(d.item){
+        if(insideStallData.isOwner){
+          // Owner: unstock
+          if(confirm('Remove "'+d.item.name+'" ('+d.item.price+'g) from display?')){
+            send('rpg_stall_unstock',{slotIndex:d.slotIndex});
+          }
+        }else{
+          // Customer: buy
+          showStallBuyPrompt(d.item,d.slotIndex,insideStallId);
+        }
+      }else{
+        if(insideStallData.isOwner){
+          openMyStallPanel();
+        }else{
+          logMsg('Empty display slot.','info');
+        }
+      }
+      return;
+    }
+  }
+}
+
+function showStallBuyPrompt(item,slotIndex,stallId){
+  const rc=RARITY_COLORS[item.rarity]||'#ccc';
+  const canBuy=gold>=item.price;
+  const el=document.getElementById('stall-buy-popup');
+  el.innerHTML='<div style="background:rgba(15,15,30,.95);border:1px solid rgba(251,191,36,.3);border-radius:10px;padding:16px;max-width:300px;text-align:center">'
+    +'<div style="font-size:18px;margin-bottom:4px">'+(item.icon||'📦')+'</div>'
+    +'<div style="color:'+rc+';font-weight:bold;font-size:14px;margin-bottom:4px">'+item.name+(item.qty?' x'+item.qty:'')+'</div>'
+    +'<div style="color:var(--dim);font-size:10px;margin-bottom:8px">'+((item.rarity||'common').toUpperCase())+'</div>'
+    +'<div style="font-size:16px;color:#fbbf24;margin-bottom:10px">'+item.price+' gold</div>'
+    +'<div style="font-size:9px;color:var(--dim);margin-bottom:8px">3% stall tax (cheaper than marketplace!)</div>'
+    +(canBuy
+      ?'<button class="btn btn-gold" style="padding:6px 20px;font-size:12px" onclick="send(\'rpg_stall_buy\',{stallId:\''+stallId+'\',slotIndex:'+slotIndex+'});document.getElementById(\'stall-buy-popup\').style.display=\'none\'">Buy Now</button>'
+      :'<div style="color:#f87171;font-size:11px">Not enough gold ('+gold+'g)</div>')
+    +' <button class="btn" style="padding:6px 12px;font-size:11px;margin-left:6px" onclick="document.getElementById(\'stall-buy-popup\').style.display=\'none\'">Cancel</button>'
+    +'</div>';
+  el.style.display='flex';
+}
+
+
 function nudgePlayerFromFurniture(){
   for(const d of decorations){
     if(!d.col||d.type!=='house_furniture')continue;
@@ -29042,6 +29523,7 @@ function closeAllStallPanels(){
   document.getElementById('stallrent-panel').classList.remove('show');
   document.getElementById('mystall-panel').classList.remove('show');
   document.getElementById('browsestall-panel').classList.remove('show');
+  document.getElementById('stall-buy-popup').style.display='none';
 }
 
 function getMyStall(){
