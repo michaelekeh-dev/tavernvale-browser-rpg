@@ -15818,12 +15818,12 @@ function drawMob(m){
 // ═══════════════════════════════════════════
 function drawDragonBoss(b){
   const s=worldToScreen(b.x,b.y);
-  if(s.x<-400||s.x>W+400||s.y<-400||s.y>H+400)return;
+  if(s.x<-600||s.x>W+600||s.y<-600||s.y>H+600)return;
   const isTarget=attackTarget===b.id;
   const hpPct=b.hp/b.maxHP;
   const t=Date.now();
   const stage2=hpPct<=0.45;
-  const S=stage2?3.2:2.6;
+  const S=stage2?4.2:3.6;
   const mx=s.x,my=s.y;
   const breathe=Math.sin(t*0.003)*2;
   const bodyBob=Math.sin(t*0.002)*1.5;
@@ -25205,7 +25205,7 @@ function stopAmbient(){
 // ── Boss Music System (per-boss: intro → main loop → slain) ──
 let bossMusicPlaying=false, bossMusicCfgId=null;
 let bossMusicIntro=null, bossMusicMain=null, bossMusicSlain=null;
-let bossFadeInterval=null;
+let bossFadeInterval=null, bossSlainFadeTimeout=null;
 const BOSS_MUSIC_TRACKS={
   ancient_treant:{
     intro:'audio/BOSSES%20SFX/Treant%20Boss%20Intro.mp3',
@@ -25224,7 +25224,7 @@ const BOSS_MUSIC_TRACKS={
   },
   stone_guardian:{
     intro:'audio/New%20music/Stone%20Guardian%20Intro.mp3',
-    main:'audio/New%20music/Burrower%20Boss%20Main.mp3',
+    main:'audio/New%20music/Stone%20Guardian%20Main.mp3',
     slain:'audio/BOSSES%20SFX/Goblin%20Boss%20Slain%20music.mp3'
   },
   hollow_sentinel:{
@@ -25291,8 +25291,10 @@ function startBossMusic(cfgId){
 }
 function stopBossMusic(immediate){
   if(!bossMusicPlaying)return;
+  const savedCfgId=bossMusicCfgId;
   bossMusicPlaying=false;
   clearInterval(bossFadeInterval);
+  clearTimeout(bossSlainFadeTimeout);
   // Stop intro immediately
   if(bossMusicIntro){bossMusicIntro.onended=null;bossMusicIntro.pause();bossMusicIntro.currentTime=0}
   if(immediate){
@@ -25302,6 +25304,17 @@ function stopBossMusic(immediate){
     bossMusicIntro=null;bossMusicMain=null;bossMusicSlain=null;bossMusicCfgId=null;
     return;
   }
+  // Helper: after slain starts, if dragon boss, fade out after 10s
+  function scheduleSlainFade(el){
+    if(savedCfgId==='pdung_abyssal_dragon'&&el){
+      bossSlainFadeTimeout=setTimeout(()=>{
+        const fo=setInterval(()=>{
+          if(el.volume>0.02)el.volume=Math.max(0,el.volume-0.012);
+          else{clearInterval(fo);el.pause();el.currentTime=0;if(currentZone)startZoneMusic(currentZone);}
+        },50);
+      },10000);
+    }
+  }
   // Fade out main, then play slain
   const mainEl=bossMusicMain, slainEl=bossMusicSlain;
   if(mainEl&&mainEl.volume>0&&!mainEl.paused){
@@ -25310,13 +25323,13 @@ function stopBossMusic(immediate){
       else{
         mainEl.pause();mainEl.currentTime=0;clearInterval(bossFadeInterval);
         // Play slain music with fade-in
-        if(slainEl){slainEl.loop=false;slainEl.currentTime=0;slainEl.volume=0;slainEl.play().catch(()=>{});slainEl.onended=()=>{if(currentZone)startZoneMusic(currentZone)};bossFadeInterval=setInterval(()=>{if(slainEl.volume<0.45)slainEl.volume=Math.min(0.45,slainEl.volume+0.015);else clearInterval(bossFadeInterval)},50)}
+        if(slainEl){slainEl.loop=false;slainEl.currentTime=0;slainEl.volume=0;slainEl.play().catch(()=>{});slainEl.onended=()=>{clearTimeout(bossSlainFadeTimeout);if(currentZone)startZoneMusic(currentZone)};bossFadeInterval=setInterval(()=>{if(slainEl.volume<0.45)slainEl.volume=Math.min(0.45,slainEl.volume+0.015);else clearInterval(bossFadeInterval)},50);scheduleSlainFade(slainEl)}
       }
     },50);
   } else {
     // Main wasn't playing yet (still in intro or paused) — just play slain
     if(mainEl){mainEl.pause();mainEl.currentTime=0}
-    if(slainEl){slainEl.loop=false;slainEl.currentTime=0;slainEl.volume=0;slainEl.play().catch(()=>{});slainEl.onended=()=>{if(currentZone)startZoneMusic(currentZone)};bossFadeInterval=setInterval(()=>{if(slainEl.volume<0.45)slainEl.volume=Math.min(0.45,slainEl.volume+0.015);else clearInterval(bossFadeInterval)},50)}
+    if(slainEl){slainEl.loop=false;slainEl.currentTime=0;slainEl.volume=0;slainEl.play().catch(()=>{});slainEl.onended=()=>{clearTimeout(bossSlainFadeTimeout);if(currentZone)startZoneMusic(currentZone)};bossFadeInterval=setInterval(()=>{if(slainEl.volume<0.45)slainEl.volume=Math.min(0.45,slainEl.volume+0.015);else clearInterval(bossFadeInterval)},50);scheduleSlainFade(slainEl)}
   }
   bossMusicIntro=null;bossMusicMain=null;bossMusicSlain=null;bossMusicCfgId=null;
 }
