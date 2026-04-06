@@ -30483,6 +30483,7 @@ function marketTab(tab){
 function fetchMarket(){
   fetch(location.origin+'/api/market').then(r=>r.json()).then(d=>{marketCache=d;renderMarket()}).catch(()=>{});
   refreshInventory();
+  refreshWearables();
 }
 function renderMarket(){
   const cont=document.getElementById('market-content');
@@ -30502,11 +30503,17 @@ function renderMarket(){
         +'<button class="btn btn-red" style="font-size:9px;padding:3px 8px" onclick="doCancelListing('+l.id+')">Cancel</button></div></div>';
     }).join('');
   } else if(activeMarketTab==='sell'){
-    // Sell tab: list inventory items that can be sold
+    // Sell tab: list inventory items + wearables that can be sold
     const items=invCache.inventory||[];
-    if(!items.length){cont.innerHTML='<div style="color:var(--dim);padding:20px;text-align:center">No items to sell</div>';return}
-    cont.innerHTML='<div style="margin-bottom:8px;font-size:10px;color:var(--dim)">5% listing fee &middot; 10% sale tax &middot; Max 3 listings &middot; 24h expiry</div>'
-      +items.map(i=>{
+    const wears=(wearableCache.wearables||[]).filter(w=>{
+      const aw=wearableCache.activeWearables||{};
+      return !Object.values(aw).includes(w.key);
+    });
+    if(!items.length&&!wears.length){cont.innerHTML='<div style="color:var(--dim);padding:20px;text-align:center">No items to sell</div>';return}
+    let html='<div style="margin-bottom:8px;font-size:10px;color:var(--dim)">5% listing fee &middot; 10% sale tax &middot; Max 3 listings &middot; 24h expiry</div>';
+    // Equipment / Materials
+    if(items.length){
+      html+=items.map(i=>{
       const def=itemData[i.id]||{};
       const isStack=i.qty&&i.qty>1;
       const inputId='sell-price-'+(i.uid||i.id);
@@ -30516,7 +30523,19 @@ function renderMarket(){
         +qtyInput
         +'<input type="number" id="'+inputId+'" placeholder="Price" min="1" style="width:70px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:3px 6px;font-size:11px">'
         +'<button class="btn btn-gold" style="font-size:9px;padding:3px 8px;margin-left:4px" onclick="doSellItem(\''+( i.uid||'')+'\',\''+i.id+'\','+( i.qty||1)+',\''+inputId+'\',\''+(isStack?qtyId:'')+'\')">Sell</button></div>';
-    }).join('');
+      }).join('');
+    }
+    // Wearables
+    if(wears.length){
+      html+='<div style="margin:12px 0 6px;font-size:11px;color:var(--gold);font-weight:700">WEARABLES</div>';
+      html+=wears.map(w=>{
+        const inputId='sell-price-wear-'+w.key;
+        return '<div class="market-listing"><div class="ml-icon">'+(w.icon||'🎭')+'</div><div class="ml-info"><div class="ml-name" style="color:'+(RARITY_COLORS[w.rarity]||'#ccc')+'">'+(w.name||w.key)+'</div><div class="ml-seller">'+w.slot+' wearable</div></div>'
+          +'<input type="number" id="'+inputId+'" placeholder="Price" min="1" style="width:70px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:3px 6px;font-size:11px">'
+          +'<button class="btn btn-gold" style="font-size:9px;padding:3px 8px;margin-left:4px" onclick="doSellWearable(\''+w.key+'\',\''+inputId+'\')">Sell</button></div>';
+      }).join('');
+    }
+    cont.innerHTML=html;
   } else if(activeMarketTab==='history'){
     cont.innerHTML='<div style="color:var(--dim);padding:20px;text-align:center">Loading trade history...</div>';
     fetch(location.origin+'/api/trade-log').then(r=>r.json()).then(log=>{
@@ -30553,6 +30572,12 @@ function doSellItem(uid,itemId,qty,inputId,qtyInputId){
     send('rpg_market_sell_material',{itemId,qty:String(sellQty),price:String(price)});
   }
   setTimeout(fetchMarket,500);
+}
+function doSellWearable(key,inputId){
+  const price=parseInt(document.getElementById(inputId).value);
+  if(!price||price<1){logMsg('Enter a valid price','dmg');return}
+  send('rpg_market_sell_wearable',{key,price:String(price)});
+  setTimeout(()=>{refreshWearables();fetchMarket()},500);
 }
 
 // ── Player-Owned Stall Functions ──
