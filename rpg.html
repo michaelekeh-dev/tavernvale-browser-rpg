@@ -6069,9 +6069,24 @@ function update(dt){
       }
     }
   }
-  // Interpolate other players
+  // Interpolate other players + animate walking
   for(const op of otherPlayers){
-    if(op.targetX!=null){op.x+=(op.targetX-op.x)*.12;op.y+=(op.targetY-op.y)*.12}
+    if(op.targetX!=null){
+      const dx=op.targetX-op.x, dy=op.targetY-op.y;
+      const dist=Math.abs(dx)+Math.abs(dy);
+      op.x+=dx*.12;op.y+=dy*.12;
+      // Track movement for walk animation
+      if(dist>0.5){
+        op._isMoving=true;
+        op._walkTimer=(op._walkTimer||0)+dt;
+        if(op._walkTimer>150){op._walkFrame=((op._walkFrame||0)+1)%4;op._walkTimer=0}
+        op._idleTimer=0;
+      } else {
+        op._isMoving=false;
+        op._walkFrame=0;op._walkTimer=0;
+        op._idleTimer=(op._idleTimer||0)+dt;
+      }
+    }
   }
   // Ground loot animation
   for(const gl of groundLoot){gl.age+=dt;gl.y-=.02*dt;gl.alpha=Math.max(0,1-gl.age/2000)}
@@ -20443,7 +20458,7 @@ function drawPixelChar(c,sx,sy,S,a,eq,dir,wf,swing,name,nameColor){
   const outfit=a.outfit||'tshirt';
   const isFemale=(a.gender==='female');
   function p(x,y,w,h,col){c.fillStyle=col;c.fillRect(sx+x*S,sy+y*S,w*S,h*S)}
-  const bob=Math.sin(wf*Math.PI/2)*((wf%4!==0)?1.5:0);
+  const bob=wf%4!==0?[0,-2,-0.5,2][wf]:0;
   const offy=-24+bob;
   // Shadow — soft radial gradient
   c.save();
@@ -20956,50 +20971,57 @@ function drawPixelChar(c,sx,sy,S,a,eq,dir,wf,swing,name,nameColor){
     p(bx+9,by+4,2,2,'#ddd');
   }
 
-  // ═══ ARMS (with wristbands, muscle shading) ═══
+  // ═══ ARMS (with wristbands, muscle shading, walk swing) ═══
   const armLen=outfit==='robe'?5:9;
   const armW=isFemale?3:4;
   const armStart=outfit==='tank'?by+4:by+(outfit==='hoodie'?12:8);
+  // Arm swing offsets during walking (opposite to legs for natural motion)
+  let lArmOY=0,rArmOY=0;
+  if(wf%4!==0&&swing<=0){
+    if(wf===1){lArmOY=-2;rArmOY=2;}      // left arm back (up), right arm forward (down)
+    else if(wf===3){lArmOY=2;rArmOY=-2;}  // left arm forward, right arm back
+    else{lArmOY=0;rArmOY=0;}              // passing position
+  }
   if(outfit==='hoodie'){
     // Hoodie sleeves
-    p(bx-armW,armStart,armW,armLen,outfitC);p(bx+20,armStart,armW,armLen,outfitC);
-    p(bx-armW,armStart,armW,1,outfitHi);p(bx-armW+1,armStart,1,armLen,outfitHi);
-    p(bx-armW,armStart+armLen-1,armW,1,outfitShade);
+    p(bx-armW,armStart+lArmOY,armW,armLen,outfitC);p(bx+20,armStart+rArmOY,armW,armLen,outfitC);
+    p(bx-armW,armStart+lArmOY,armW,1,outfitHi);p(bx-armW+1,armStart+lArmOY,1,armLen,outfitHi);
+    p(bx-armW,armStart+lArmOY+armLen-1,armW,1,outfitShade);
   }else if(outfit!=='armor_light'){
     // Skin arms with muscle shading
-    p(bx-armW,armStart,armW,armLen,skin);p(bx+20,armStart,armW,armLen,skin);
+    p(bx-armW,armStart+lArmOY,armW,armLen,skin);p(bx+20,armStart+rArmOY,armW,armLen,skin);
     // Inner arm highlight
-    p(bx-armW+1,armStart,1,armLen,skinHi);p(bx+20,armStart,1,armLen,skinHi);
+    p(bx-armW+1,armStart+lArmOY,1,armLen,skinHi);p(bx+20,armStart+rArmOY,1,armLen,skinHi);
     // Outer arm shadow
-    p(bx-armW,armStart,1,armLen,skinShade);p(bx+20+armW-1,armStart,1,armLen,skinShade);
+    p(bx-armW,armStart+lArmOY,1,armLen,skinShade);p(bx+20+armW-1,armStart+rArmOY,1,armLen,skinShade);
     // Top highlight
-    p(bx-armW,armStart,armW,1,skinHi);
+    p(bx-armW,armStart+lArmOY,armW,1,skinHi);
     // Elbow shadow
-    p(bx-armW,armStart+Math.floor(armLen*0.6),armW,1,skinShade);
-    p(bx+20,armStart+Math.floor(armLen*0.6),armW,1,skinShade);
+    p(bx-armW,armStart+lArmOY+Math.floor(armLen*0.6),armW,1,skinShade);
+    p(bx+20,armStart+rArmOY+Math.floor(armLen*0.6),armW,1,skinShade);
     // Wristbands
-    p(bx-armW,armStart+armLen-2,armW,2,darkerC(skin,60));
-    p(bx-armW,armStart+armLen-2,armW,1,darkerC(skin,40));
-    p(bx+20,armStart+armLen-2,armW,2,darkerC(skin,60));
-    p(bx+20,armStart+armLen-2,armW,1,darkerC(skin,40));
+    p(bx-armW,armStart+lArmOY+armLen-2,armW,2,darkerC(skin,60));
+    p(bx-armW,armStart+lArmOY+armLen-2,armW,1,darkerC(skin,40));
+    p(bx+20,armStart+rArmOY+armLen-2,armW,2,darkerC(skin,60));
+    p(bx+20,armStart+rArmOY+armLen-2,armW,1,darkerC(skin,40));
   }else{
     // Armor arm guards
-    p(bx-armW,by+9,armW,7,skin);p(bx+20,by+9,armW,7,skin);
-    p(bx-armW+1,by+9,1,7,skinHi);
+    p(bx-armW,by+9+lArmOY,armW,7,skin);p(bx+20,by+9+rArmOY,armW,7,skin);
+    p(bx-armW+1,by+9+lArmOY,1,7,skinHi);
     // Gauntlet hint
-    p(bx-armW,by+14,armW,2,'#999');
-    p(bx+20,by+14,armW,2,'#999');
+    p(bx-armW,by+14+lArmOY,armW,2,'#999');
+    p(bx+20,by+14+rArmOY,armW,2,'#999');
   }
   // ── Hands (detailed with fingers) ──
   const handY=armStart+armLen;
   // Left hand
-  p(bx-armW-1,handY,armW+1,2,skin);p(bx-armW-1,handY+2,armW,1,skin);
-  p(bx-armW-1,handY,1,1,skinHi);
-  p(bx-armW-1,handY+1,armW+1,1,skinShade);
+  p(bx-armW-1,handY+lArmOY,armW+1,2,skin);p(bx-armW-1,handY+lArmOY+2,armW,1,skin);
+  p(bx-armW-1,handY+lArmOY,1,1,skinHi);
+  p(bx-armW-1,handY+lArmOY+1,armW+1,1,skinShade);
   // Right hand
-  p(bx+20,handY,armW+1,2,skin);p(bx+20+1,handY+2,armW,1,skin);
-  p(bx+20+armW,handY,1,1,skinHi);
-  p(bx+20,handY+1,armW+1,1,skinShade);
+  p(bx+20,handY+rArmOY,armW+1,2,skin);p(bx+20+1,handY+rArmOY+2,armW,1,skin);
+  p(bx+20+armW,handY+rArmOY,1,1,skinHi);
+  p(bx+20,handY+rArmOY+1,armW+1,1,skinShade);
   // ═══ WEAPON rendering with type-specific shapes ═══
   if(eq.weapon||miningTarget||attackTarget){
     const _wMythic=(eq.weapon&&eq.weapon.rarity==='mythic');
@@ -21910,37 +21932,49 @@ function drawPixelChar(c,sx,sy,S,a,eq,dir,wf,swing,name,nameColor){
     p(bx+20,handY-2,armW+1,1,acC);
   }
 
-  // ═══ LEGS (wider, with knee + seam detail, 3-shade pants) ═══
+  // ═══ LEGS (wider, with knee + seam detail, 3-shade pants, 4-frame walk cycle) ═══
   const ly=by+(outfit==='robe'?20:16);
   const isWalking=wf%4!==0;
   const pantC='#2c3e50',pantHi='#3a5068',pantSh='#1e2d3d',pantDeep='#162230';
   const bootC='#1a1a2e',bootHi='#2a2a3e',bootSh='#111118',bootSole='#0d0d15';
   if(isWalking){
-    if(wf%2===0){
-      const stride=3;
-      // Front leg (wider: 7px)
-      p(bx+2,ly,7,8,pantC);p(bx+3,ly,3,1,pantHi);p(bx+2,ly+7,1,1,pantSh);
-      // Knee crease
-      p(bx+3,ly+4,4,1,pantSh);
-      // Inner seam highlight
-      p(bx+7,ly+1,1,6,pantSh);
-      // Front boot
-      p(bx+1,ly+8,9,3,bootC);p(bx+2,ly+8,7,1,bootHi);p(bx+1,ly+10,9,1,bootSole);
-      // Boot tongue
-      p(bx+4,ly+8,3,1,'#252535');
-      // Back leg
-      p(bx+11,ly+stride,7,8-stride,pantC);p(bx+12,ly+stride,3,1,pantHi);
-      p(bx+11,ly+stride+2,1,4,pantSh);
-      // Back boot
-      p(bx+10,ly+8,9,3,bootC);p(bx+11,ly+8,7,1,bootHi);p(bx+10,ly+10,9,1,bootSole);
-    }else{
-      // Together step
+    if(wf===1){
+      // Frame 1: Left leg forward, right leg back (full stride)
+      const strideF=4; // front leg extends forward
+      const strideB=3; // back leg trails behind
+      // Left leg (forward)
+      p(bx+1,ly-1,7,9,pantC);p(bx+2,ly-1,3,1,pantHi);
+      p(bx+3,ly+3,4,1,pantSh); // knee bend
+      p(bx+7,ly,1,7,pantSh); // inner seam
+      p(bx,ly+8,9,3,bootC);p(bx+1,ly+8,7,1,bootHi);p(bx,ly+10,9,1,bootSole);
+      p(bx+3,ly+8,3,1,'#252535');
+      // Right leg (back, shorter visible)
+      p(bx+12,ly+strideB,7,8-strideB,pantC);p(bx+13,ly+strideB,3,1,pantHi);
+      p(bx+12,ly+strideB+2,1,3,pantSh);
+      p(bx+11,ly+8,9,3,bootC);p(bx+12,ly+8,7,1,bootHi);p(bx+11,ly+10,9,1,bootSole);
+    }else if(wf===2){
+      // Frame 2: Legs passing (together, body at lowest bob)
       p(bx+3,ly,7,9,pantC);p(bx+4,ly,3,1,pantHi);p(bx+3,ly+8,1,1,pantSh);
       p(bx+4,ly+4,4,1,pantSh);
-      p(bx+3,ly+9,8,3,bootC);p(bx+4,ly+9,6,1,bootHi);p(bx+3,ly+11,8,1,bootSole);
+      p(bx+9,ly+1,1,7,pantDeep); // center gap
+      p(bx+2,ly+9,8,3,bootC);p(bx+3,ly+9,6,1,bootHi);p(bx+2,ly+11,8,1,bootSole);
       p(bx+10,ly,7,9,pantC);p(bx+11,ly,3,1,pantHi);
       p(bx+11,ly+4,4,1,pantSh);
       p(bx+10,ly+9,8,3,bootC);p(bx+11,ly+9,6,1,bootHi);p(bx+10,ly+11,8,1,bootSole);
+    }else{
+      // Frame 3: Right leg forward, left leg back (mirror of frame 1)
+      const strideF=4;
+      const strideB=3;
+      // Right leg (forward)
+      p(bx+12,ly-1,7,9,pantC);p(bx+13,ly-1,3,1,pantHi);
+      p(bx+13,ly+3,4,1,pantSh); // knee bend
+      p(bx+12,ly,1,7,pantSh); // inner seam
+      p(bx+11,ly+8,9,3,bootC);p(bx+12,ly+8,7,1,bootHi);p(bx+11,ly+10,9,1,bootSole);
+      p(bx+14,ly+8,3,1,'#252535');
+      // Left leg (back, shorter visible)
+      p(bx+1,ly+strideB,7,8-strideB,pantC);p(bx+2,ly+strideB,3,1,pantHi);
+      p(bx+7,ly+strideB+2,1,3,pantSh);
+      p(bx,ly+8,9,3,bootC);p(bx+1,ly+8,7,1,bootHi);p(bx,ly+10,9,1,bootSole);
     }
   }else{
     // Standing — two legs with seam and knee detail
@@ -21996,7 +22030,7 @@ function drawCapeBelow(c,sx,sy,S,wf,wear,dir){
   if(!wear||!wear.cape)return;
   dir=dir||'down';
   if(dir==='up'||dir==='menu')return; // these draw on top in drawWearables
-  const bob=Math.sin(wf*Math.PI/2)*((wf%4!==0)?1.5:0);
+  const bob=wf%4!==0?[0,-2,-0.5,2][wf]:0;
   const offy=-24+bob;
   const t=_wearAnimT;
   updateCapePhysics(wf);
@@ -22388,7 +22422,7 @@ function drawCapeBelow(c,sx,sy,S,wf,wear,dir){
 function drawWearables(c,sx,sy,S,wf,wear,dir){
   if(!wear)return;
   dir=dir||'down';
-  const bob=Math.sin(wf*Math.PI/2)*((wf%4!==0)?1.5:0);
+  const bob=wf%4!==0?[0,-2,-0.5,2][wf]:0;
   const offy=-24+bob;
   const t=_wearAnimT;
   updateCapePhysics(wf);
@@ -24356,9 +24390,10 @@ function drawOtherPlayer(p){
     drawWearables(ctx,s.x-12*OS,s.y-12,OS,0,p.activeWearables||{},'down');
   } else {
     const pDir=p.facing||'down';
-    drawCapeBelow(ctx,s.x-12*OS,s.y-12,OS,0,p.activeWearables||{},pDir);
-    drawPixelChar(ctx,s.x-12*OS,s.y-12,OS,p.appearance||{},p.equipped||{},pDir,0,0,'','#88ccff');
-    drawWearables(ctx,s.x-12*OS,s.y-12,OS,0,p.activeWearables||{},pDir);
+    const pWf=p._walkFrame||0;
+    drawCapeBelow(ctx,s.x-12*OS,s.y-12,OS,pWf,p.activeWearables||{},pDir);
+    drawPixelChar(ctx,s.x-12*OS,s.y-12,OS,p.appearance||{},p.equipped||{},pDir,pWf,0,'','#88ccff');
+    drawWearables(ctx,s.x-12*OS,s.y-12,OS,pWf,p.activeWearables||{},pDir);
   }
   ctx.globalAlpha=1;
   // ═══ MYTHIC SPARKLE AURA (other players) ═══
