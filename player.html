@@ -382,25 +382,12 @@
 <div id="login-screen">
   <h1>⚔️ TAVERNVALE RPG</h1>
   <div class="subtitle">Player Portal — kick.com/mikeydamike</div>
-
-  <!-- Phase 1: Enter username -->
-  <div class="login-box" id="login-phase">
+  <div class="login-box">
     <label>Kick Username</label>
     <input type="text" id="login-username" placeholder="Enter your Kick username" autocomplete="off" />
     <div class="hint">Enter the same username you use in Kick chat</div>
     <button class="btn btn-primary btn-full" id="login-btn" onclick="doLogin()">Login</button>
     <div id="login-error" style="color:var(--red);font-size:12px;margin-top:8px;display:none;"></div>
-  </div>
-
-  <!-- Phase 2: Kick chat verification -->
-  <div class="login-box" id="verify-phase" style="display:none;">
-    <h3 style="color:var(--accent);margin:0 0 4px 0;font-size:16px;">🔗 Verify Your Account</h3>
-    <div id="verify-username" style="color:var(--gold);font-size:14px;font-weight:700;margin-bottom:12px;"></div>
-    <p style="color:var(--dim);font-size:13px;margin:0 0 12px 0;">Type this command in <strong style="color:var(--text)">Kick chat</strong>:</p>
-    <div style="background:var(--bg);border:2px solid var(--accent);border-radius:10px;padding:14px;text-align:center;margin-bottom:8px;font-family:monospace;font-size:16px;color:var(--text);">!link <span id="verify-code" style="color:var(--gold);font-size:22px;font-weight:700;">...</span></div>
-    <div style="font-size:11px;color:var(--dim);margin-bottom:10px;">This code is unique to YOUR browser 🔒</div>
-    <div id="verify-status" style="color:var(--dim);font-size:13px;margin-bottom:16px;"><span class="spinner"></span>Generating code...</div>
-    <button class="btn btn-outline btn-full" onclick="cancelLoginVerification()">← Back</button>
   </div>
 </div>
 
@@ -1039,7 +1026,7 @@ function doLogin() {
   document.getElementById('login-error').style.display = 'none';
   username = input;
 
-  // If we have a saved token, try auto-login
+  // If we have a saved token, try auto-login by fetching profile
   const savedToken = localStorage.getItem('mmo_token_' + username);
   if (savedToken) {
     fetch('/api/player/' + encodeURIComponent(username))
@@ -1051,77 +1038,15 @@ function doLogin() {
         enterDashboard();
       })
       .catch(() => {
-        // Saved token invalid or player gone — re-verify
+        // Token invalid or player gone — need to verify
         localStorage.removeItem('mmo_token_' + username);
         authToken = null;
-        startLoginVerification();
+        showLinkModal(); // reuse the exact same link modal
       });
   } else {
-    startLoginVerification();
+    // New user or no token — verify via Kick chat
+    showLinkModal();
   }
-}
-
-function startLoginVerification() {
-  // Switch from username phase to verification phase
-  document.getElementById('login-phase').style.display = 'none';
-  document.getElementById('verify-phase').style.display = '';
-  document.getElementById('verify-username').textContent = username;
-  document.getElementById('verify-code').textContent = '...';
-  document.getElementById('verify-status').innerHTML = '<span class="spinner"></span>Generating code...';
-
-  // Long-poll link endpoint
-  linkAbort = new AbortController();
-  fetch('/api/link', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username }),
-    signal: linkAbort.signal,
-  })
-    .then(r => r.json())
-    .then(data => {
-      if (data.token) {
-        authToken = data.token;
-        localStorage.setItem('mmo_token_' + username, authToken);
-        localStorage.setItem('mmo_last_user', username);
-        document.getElementById('verify-status').innerHTML = '✅ Verified! Loading profile...';
-        // Fetch profile and enter dashboard
-        fetch('/api/player/' + encodeURIComponent(username))
-          .then(r => r.json())
-          .then(profileData => {
-            profile = profileData;
-            enterDashboard();
-          });
-      } else {
-        document.getElementById('verify-status').innerHTML = '❌ ' + (data.error || 'Timed out. Try again.') +
-          '<br><button class="btn btn-primary btn-sm" onclick="startLoginVerification()" style="margin-top:8px;">🔄 Try Again</button>';
-      }
-    })
-    .catch(err => {
-      if (err.name === 'AbortError') return;
-      document.getElementById('verify-status').innerHTML = '❌ Connection error.' +
-        '<br><button class="btn btn-primary btn-sm" onclick="startLoginVerification()" style="margin-top:8px;">🔄 Try Again</button>';
-    });
-
-  // Fetch code to display
-  setTimeout(() => {
-    fetch('/api/link/code/' + encodeURIComponent(username))
-      .then(r => r.json())
-      .then(data => {
-        if (data.code) {
-          document.getElementById('verify-code').textContent = data.code;
-          document.getElementById('verify-status').innerHTML = '<span class="spinner"></span>Waiting for you to type <b>!link ' + data.code + '</b> in Kick chat...';
-        }
-      });
-  }, 300);
-}
-
-function cancelLoginVerification() {
-  if (linkAbort) { linkAbort.abort(); linkAbort = null; }
-  username = '';
-  // Switch back to username phase
-  document.getElementById('verify-phase').style.display = 'none';
-  document.getElementById('login-phase').style.display = '';
-  document.getElementById('login-btn').disabled = false;
 }
 
 document.getElementById('login-username').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
@@ -1139,8 +1064,6 @@ function doLogout() {
   if (linkAbort) { linkAbort.abort(); linkAbort = null; }
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('dashboard').style.display = 'none';
-  document.getElementById('login-phase').style.display = '';
-  document.getElementById('verify-phase').style.display = 'none';
   document.getElementById('login-btn').disabled = false;
   document.getElementById('login-username').value = '';
 }
@@ -2729,10 +2652,21 @@ function showLinkModal() {
       if (data.token) {
         authToken = data.token;
         localStorage.setItem('mmo_token_' + username, authToken);
+        localStorage.setItem('mmo_last_user', username);
         statusEl.className = 'status success';
         statusEl.textContent = '✅ Account linked successfully!';
-        updateAuthBadge();
-        setTimeout(() => { hideLinkModal(); renderAll(); }, 1500);
+        // If still on login screen, fetch profile and enter dashboard
+        if (document.getElementById('login-screen').style.display !== 'none') {
+          setTimeout(() => {
+            hideLinkModal();
+            fetch('/api/player/' + encodeURIComponent(username))
+              .then(r => r.json())
+              .then(data => { profile = data; enterDashboard(); });
+          }, 1000);
+        } else {
+          updateAuthBadge();
+          setTimeout(() => { hideLinkModal(); renderAll(); }, 1500);
+        }
       } else {
         statusEl.className = 'status error';
         statusEl.textContent = '❌ ' + (data.error || 'Timed out. Try again.');
