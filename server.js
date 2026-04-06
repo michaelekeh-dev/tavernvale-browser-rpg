@@ -192,7 +192,7 @@ const pendingLinks = new Map(); // username -> { resolve, timer }
 
 app.get('/api/player/:username', (req, res) => {
   const profile = game.getPlayerProfile(req.params.username.toLowerCase());
-  if (!profile) return res.status(404).json({ error: 'Player not found. Attack a boss first!' });
+  if (!profile) return res.status(404).json({ error: 'Player not found. Verify your account first!' });
   res.json(profile);
 });
 
@@ -395,7 +395,11 @@ app.post('/api/gift', requireAuth, (req, res) => {
 app.post('/api/link', (req, res) => {
   const username = (req.body.username || '').toLowerCase().trim();
   if (!username) return res.status(400).json({ error: 'Username required' });
-  if (!game.getPlayerProfile(username)) return res.status(404).json({ error: 'Player not found. Attack a boss on stream first!' });
+  if (!/^[a-z0-9_]+$/.test(username) || username.length < 3 || username.length > 20) return res.status(400).json({ error: 'Invalid username.' });
+  // Auto-create player if they don't exist yet (no boss kill required)
+  const isNew = !game.players[username];
+  game.player(username);
+  if (isNew) game.saveData();
   // Generate a PIN code the user must type in Kick chat
   const code = game.generateLinkCode(username);
   // Cancel any existing pending link long-poll for this user
