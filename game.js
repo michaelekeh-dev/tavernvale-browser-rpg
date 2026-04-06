@@ -7323,6 +7323,13 @@ class Game {
     const WORLD_BOUND = MAP_W * TILE_SIZE;
     x = Math.max(0, Math.min(WORLD_BOUND, x));
     y = Math.max(0, Math.min(WORLD_BOUND, y));
+    // Server-side speed check — reject teleport hacks (max ~12px/tick with buffs, allow generous margin)
+    if (!rp.fly) {
+      const dx = x - (rp.x || 0), dy = y - (rp.y || 0);
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const MAX_MOVE = 320; // generous cap: ~8 tiles per message (allows lag bursts)
+      if (dist > MAX_MOVE) return;
+    }
     const dir = ['up','down','left','right'].includes(facing) ? facing : 'down';
     // Check if in party dungeon instance
     const dungInst = this.rpgDungeonInstances[rp.zone];

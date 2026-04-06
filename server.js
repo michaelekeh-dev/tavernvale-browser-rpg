@@ -658,15 +658,19 @@ app.get('/api/gambling-status', (req, res) => {
 app.post('/api/admin/announce', requireAdminAuth, (req, res) => {
   const message = (req.body.message || '').trim();
   if (!message) return res.json({ error: 'No message provided' });
-  broadcast('announcement', { message, timestamp: Date.now() });
+  broadcast('announcement', { message: escHtml(message), timestamp: Date.now() });
   res.json({ success: true });
 });
 
 // ═══════════════════════════════════════════
 // WebSocket Server (overlay communication)
 // ═══════════════════════════════════════════
-const wss = new WebSocket.Server({ server });
+const wss = new WebSocket.Server({ server, maxPayload: 8 * 1024 }); // 8KB max message size
 const portalClients = new Set(); // track portal WS connections
+
+// ── Per-IP WS connection rate limiting ──
+const ipConnections = new Map(); // ip -> Set of ws
+const MAX_CONNS_PER_IP = 6;
 
 function broadcast(type, data) {
   const msg = JSON.stringify({ type, data });
@@ -772,7 +776,7 @@ function initDiscordBot(token, chatChannelId) {
       if (msg.channel.id !== chatChannelId) return;
       // Bridge Discord message to portal chat
       const displayName = msg.member?.displayName || msg.author.username;
-      const chatMsg = game.addChatMessage(displayName, msg.content.slice(0, 300), 'discord');
+      const chatMsg = game.addChatMessage(escHtml(displayName), escHtml(msg.content.slice(0, 300)), 'discord');
       broadcastToPortal('chat_message', chatMsg);
     });
 
@@ -850,8 +854,26 @@ let kickConnected = false;
 let activeChatroomId = null;
 let kickWs = null;
 
+// ── HTML-escape helper for server-side sanitization ──
+function escHtml(s) {
+  if (typeof s !== 'string') return '';
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 // Overlay connections
-wss.on('connection', (ws) => {
+wss.on('connection', (ws, req) => {
+  // Per-IP connection limit
+  const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress || 'unknown';
+  ws._ip = ip;
+  if (!ipConnections.has(ip)) ipConnections.set(ip, new Set());
+  const conns = ipConnections.get(ip);
+  if (conns.size >= MAX_CONNS_PER_IP) {
+    ws.close(1008, 'Too many connections');
+    return;
+  }
+  conns.add(ws);
+  ws.on('close', () => { const s = ipConnections.get(ip); if (s) { s.delete(ws); if (s.size === 0) ipConnections.delete(ip); } });
+
   console.log('🖥️  Overlay connected');
   ws.send(JSON.stringify({ type: 'state_sync', data: game.getFullState() }));
 
@@ -971,7 +993,7 @@ wss.on('connection', (ws) => {
         }
         const text = msg.message.trim().slice(0, 300);
         if (!text) return;
-        const chatMsg = game.addChatMessage(ws.portalUser, text, 'portal');
+        const chatMsg = game.addChatMessage(escHtml(ws.portalUser), escHtml(text), 'portal');
         broadcastToPortal('chat_message', chatMsg);
         // Send to Discord chat channel if bot is connected
         if (discordChatSend) discordChatSend(`� **${ws.portalUser}**: ${text}`);
@@ -995,9 +1017,10 @@ wss.on('connection', (ws) => {
           ws.send(JSON.stringify({ type: 'rpg_error', data: { error: 'Invalid token. Link your account first.' } }));
           return;
         }
+        // rpgJoin first — only set ws state AFTER success
+        const joinData = game.rpgJoin(u);
         ws.isRPG = true;
         ws.rpgUser = u;
-        const joinData = game.rpgJoin(u);
         if (game.rpgPlayers[u]) game.rpgPlayers[u].ws = ws;
         ws.send(JSON.stringify({ type: 'rpg_joined', data: joinData }));
         game.rpgBroadcastAll({ type: 'rpg_online_count', data: { count: game.rpgGetOnlineCount() } });
@@ -1374,7 +1397,7 @@ wss.on('connection', (ws) => {
       if (msg.type === 'rpg_chat_send' && ws.isRPG && ws.rpgUser && msg.message) {
         const text = msg.message.trim().slice(0, 200);
         if (text) {
-          const chatMsg = { username: ws.rpgUser, message: text, time: Date.now() };
+          const chatMsg = { username: escHtml(ws.rpgUser), message: escHtml(text), time: Date.now() };
           game.rpgBroadcastAll({ type: 'rpg_chat_message', data: chatMsg });
         }
       }
@@ -1836,4 +1859,4 @@ function gracefulShutdown() { if (discordBot) discordBot.destroy(); game.shutdow
 process.on('SIGINT', gracefulShutdown);
 process.on('SIGTERM', gracefulShutdown);
 process.on('uncaughtException', (err) => { console.error('Uncaught exception:', err); game.shutdown(); process.exit(1); });
-process.on('unhandledRejection', (reason) => { console.error('Unhandled rejection:', reason); });
+process.on('unhandledRejection', (reason) => { console.error('Unhandled rejection:', reason); game.shutdown(); process.exit(1); });
