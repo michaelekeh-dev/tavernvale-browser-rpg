@@ -9690,6 +9690,7 @@ class Game {
                   bossX: boss.x, bossY: boss.y,
                   targetX: nearest.rp.x, targetY: nearest.rp.y,
                   radius: atk.radius || 0, range: atk.range || 0, width: atk.width || 0,
+                  sweepAngle: atk.sweepAngle || 0,
                 }});
               }
             }
@@ -9836,6 +9837,21 @@ class Game {
           while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
           hit = Math.abs(angleDiff) < (atk.sweepAngle || 2.4) / 2;
         }
+      } else if (atk.type === 'tail_sweep') {
+        // Arc sweep behind/around boss — player hit if within range AND within sweep arc
+        const dx = px - boss.x, dy = py - boss.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < (atk.range || 180)) {
+          const sx = atk.snapX || px, sy = atk.snapY || py;
+          // Sweep direction is OPPOSITE to the target (tail swings away from where boss faces)
+          const faceAngle = Math.atan2(sy - boss.y, sx - boss.x);
+          const sweepCenter = faceAngle + Math.PI; // behind boss
+          const playerAngle = Math.atan2(dy, dx);
+          let angleDiff = playerAngle - sweepCenter;
+          while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+          while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+          hit = Math.abs(angleDiff) < (atk.sweepAngle || 3.0) / 2;
+        }
       } else if (atk.type === 'head_lunge') {
         // Narrow fast lunge — tighter than line, longer range
         const sx = atk.snapX || px, sy = atk.snapY || py;
@@ -9862,7 +9878,7 @@ class Game {
         }
       }
     }
-    this.rpgBroadcastInstance(instId, { type: 'rpg_boss_attack_land', data: { attack: atk.name, type: atk.type, bossX: boss.x, bossY: boss.y, radius: atk.radius || 0, range: atk.range || 0, width: atk.width || 0 } });
+    this.rpgBroadcastInstance(instId, { type: 'rpg_boss_attack_land', data: { attack: atk.name, type: atk.type, bossX: boss.x, bossY: boss.y, radius: atk.radius || 0, range: atk.range || 0, width: atk.width || 0, sweepAngle: atk.sweepAngle || 0, targetX: atk.snapX || boss.x, targetY: atk.snapY || boss.y } });
   }
 
   rpgDungeonBossSummon(instId, boss, atk) {
@@ -10601,7 +10617,7 @@ const PARTY_DUNGEON_CONFIG = {
     attacks: [
       { name: 'Dragon Claw',         type: 'aoe',          dmg: 14, radius: 100, telegraphTime: 1200, cooldown: 5000 },
       { name: 'Shadow Breath',       type: 'line',         dmg: 12, range: 260,  width: 60, telegraphTime: 1400, cooldown: 6000 },
-      { name: 'Tail Sweep',          type: 'aoe',          dmg: 18, radius: 150, telegraphTime: 1500, cooldown: 8000 },
+      { name: 'Tail Sweep',          type: 'tail_sweep',   dmg: 18, range: 180, sweepAngle: 3.0, telegraphTime: 1500, cooldown: 8000 },
       { name: 'Abyssal Flames',      type: 'aoe',          dmg: 22, radius: 200, telegraphTime: 2500, cooldown: 14000, maxHpPct: 0.7 },
       { name: 'Summon Dragonkin',    type: 'summon',        count: 1, cooldown: 30000 },
       { name: 'Inferno Nova',        type: 'aoe',          dmg: 28, radius: 250, telegraphTime: 3000, cooldown: 22000, maxHpPct: 0.45 },

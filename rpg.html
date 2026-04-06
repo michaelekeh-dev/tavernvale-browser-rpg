@@ -2538,9 +2538,9 @@ function handleMessage(msg){
     }
     // Boss messages
     case'rpg_boss_move':if(boss){boss.x=d.x;boss.y=d.y;boss.phase=d.phase}break;
-    case'rpg_boss_attack_start':bossTelegraph={attack:d.attack,type:d.type,timer:d.telegraphTime,maxTimer:d.telegraphTime,bossX:d.bossX,bossY:d.bossY,targetX:d.targetX,targetY:d.targetY,radius:d.radius,range:d.range,width:d.width};break;
+    case'rpg_boss_attack_start':bossTelegraph={attack:d.attack,type:d.type,timer:d.telegraphTime,maxTimer:d.telegraphTime,bossX:d.bossX,bossY:d.bossY,targetX:d.targetX,targetY:d.targetY,radius:d.radius,range:d.range,width:d.width,sweepAngle:d.sweepAngle||0};if(boss)boss._currentAttack=d.attack;break;
     case'rpg_boss_telegraph':if(bossTelegraph){bossTelegraph.timer=d.timer;bossTelegraph.bossX=d.bossX;bossTelegraph.bossY=d.bossY}break;
-    case'rpg_boss_attack_land':onBossAttackLand(d);break;
+    case'rpg_boss_attack_land':onBossAttackLand(d);if(boss)boss._currentAttack=null;break;
     case'rpg_boss_hit':onBossHit(d);break;
     case'rpg_boss_attack_result':onBossAttackResult(d);break;
     case'rpg_boss_died':onBossDied(d);break;
@@ -3792,26 +3792,46 @@ function onBossAttackLand(d){
   }
 
   if(d.attack==='Tail Sweep'){
-    // Wide sweeping arc — dust and debris flying sideways
+    // Animated tail whip — arc-based sweep with physical tail trail
     const isInfernal=boss&&boss.hp/boss.maxHP<=0.45;
-    const sweepAngle=Math.atan2(d.targetY-d.bossY,d.targetX-d.bossX);
+    const faceAngle=Math.atan2(d.targetY-d.bossY,d.targetX-d.bossX);
+    const sweepCenter=faceAngle+Math.PI; // tail swings behind
+    const sweepArc=d.sweepAngle||3.0;
+    const range=d.range||180;
     const col=isInfernal?'#ff4400':'#8833cc';
-    // Sweeping arc particles
-    for(let i=0;i<20;i++){
-      const a=sweepAngle+(Math.random()-0.5)*2.5;
-      const dist=40+Math.random()*d.radius*0.8;
-      const sp=2+Math.random()*3;
+    const accent=isInfernal?'#ffaa00':'#cc66ff';
+    // Tail whip arc — animated sweep effect showing the tail physically sweeping
+    bossImpactEffects.push({type:'tail_whip',x:d.bossX,y:d.bossY,
+      sweepCenter,sweepArc,range,col,accent,isInfernal,
+      life:800,maxLife:800});
+    // Dense debris particles flung outward along the arc
+    for(let i=0;i<35;i++){
+      const a=sweepCenter-sweepArc/2+Math.random()*sweepArc;
+      const dist=30+Math.random()*range*0.9;
+      const sp=3+Math.random()*4;
+      const tangent=a+Math.PI/2*(Math.random()>0.5?1:-1);
       particles.push({x:d.bossX+Math.cos(a)*dist*0.3,y:d.bossY+Math.sin(a)*dist*0.3,
-        vx:Math.cos(a)*sp,vy:-1+Math.sin(a)*sp*0.5,
-        color:isInfernal?['#ff4400','#ff8800','#aa2200'][Math.floor(Math.random()*3)]:['#6622aa','#aa44dd','#cc66ff'][Math.floor(Math.random()*3)],
-        life:500+Math.random()*400,maxLife:900});
+        vx:Math.cos(a)*sp*0.7+Math.cos(tangent)*sp*0.3,
+        vy:-2-Math.random()*3+Math.sin(a)*sp*0.4,
+        color:isInfernal?['#ff4400','#ff8800','#aa2200','#ffcc00'][Math.floor(Math.random()*4)]:['#6622aa','#aa44dd','#cc66ff','#fff'][Math.floor(Math.random()*4)],
+        life:500+Math.random()*500,maxLife:1000});
     }
-    // Slash arc effect
-    bossImpactEffects.push({type:'slash_arc',x:d.bossX,y:d.bossY,angle:sweepAngle,life:600,maxLife:600});
-    // Wide shockwave
-    bossImpactEffects.push({type:'shockwave',x:d.bossX,y:d.bossY,radius:d.radius,color:col,life:500,maxLife:500});
-    shakeTimer=Math.max(shakeTimer,8);
-    // Fall through to generic aoe for ground crack/extra particles
+    // Ground crack along the arc path
+    const crackLines=[];
+    for(let i=0;i<5;i++){
+      const ca=sweepCenter-sweepArc/2+sweepArc*(i/5)+Math.random()*0.3;
+      const cd=range*0.4+Math.random()*range*0.4;
+      const cx=Math.cos(ca)*cd,cy=Math.sin(ca)*cd;
+      const line=[0,0];let lx=0,ly=0;
+      for(let j=0;j<3;j++){lx+=Math.cos(ca+(Math.random()-.5)*0.6)*12;ly+=Math.sin(ca+(Math.random()-.5)*0.6)*12;line.push(lx,ly);}
+      crackLines.push(line);
+    }
+    bossImpactEffects.push({type:'groundcrack',x:d.bossX,y:d.bossY,lines:crackLines,life:2500,maxLife:2500});
+    // Arc shockwave
+    bossImpactEffects.push({type:'arc_shockwave',x:d.bossX,y:d.bossY,
+      sweepCenter,sweepArc,radius:range,color:col,life:600,maxLife:600});
+    shakeTimer=Math.max(shakeTimer,12);
+    return; // Don't fall through to generic
   }
 
   if(d.attack==='Dragon Claw'){
@@ -3871,6 +3891,105 @@ function onBossAttackLand(d){
       color:isInfernal?'rgba(255,60,10,0.15)':'rgba(100,20,160,0.12)',life:400,maxLife:400});
     shakeTimer=Math.max(shakeTimer,6);
     // Fall through to generic line handling
+  }
+
+  if(d.attack==='Fire Breath Sweep'){
+    // Sweeping fire breath — burning cone with lingering flames
+    const isInfernal=boss&&boss.hp/boss.maxHP<=0.45;
+    const faceAngle=Math.atan2(d.targetY-d.bossY,d.targetX-d.bossX);
+    const sweepArc=d.sweepAngle||2.8;
+    const range=d.range||280;
+    const col=isInfernal?'#ff2200':'#aa33dd';
+    const accent=isInfernal?'#ffcc00':'#dd88ff';
+    // Fire stream particles across the cone
+    for(let i=0;i<45;i++){
+      const a=faceAngle-sweepArc/2+Math.random()*sweepArc;
+      const dist=40+Math.random()*range*0.8;
+      const sp=2+Math.random()*3;
+      particles.push({x:d.bossX+Math.cos(a)*dist*0.2,y:d.bossY+Math.sin(a)*dist*0.2,
+        vx:Math.cos(a)*sp,vy:-1.5-Math.random()*2.5+Math.sin(a)*sp*0.3,
+        color:isInfernal?['#ff2200','#ff6600','#ffaa00','#fff'][Math.floor(Math.random()*4)]:['#6622aa','#aa44dd','#cc88ff','#fff'][Math.floor(Math.random()*4)],
+        life:600+Math.random()*500,maxLife:1100});
+    }
+    // Scorch zone  
+    bossImpactEffects.push({type:'dragon_scorch',x:d.bossX+Math.cos(faceAngle)*range*0.4,y:d.bossY+Math.sin(faceAngle)*range*0.4,radius:range*0.5,color:col,life:4000,maxLife:4000});
+    bossImpactEffects.push({type:'dragon_roar_flash',x:0,y:0,
+      color:isInfernal?'rgba(255,80,10,0.12)':'rgba(120,30,180,0.1)',life:500,maxLife:500});
+    shakeTimer=Math.max(shakeTimer,10);
+    return;
+  }
+
+  if(d.attack==='Devouring Maw'){
+    // Massive jaw-snap — crushing bite with debris
+    const isInfernal=boss&&boss.hp/boss.maxHP<=0.45;
+    const angle=Math.atan2(d.targetY-d.bossY,d.targetX-d.bossX);
+    const range=d.range||200;
+    const col=isInfernal?'#ff3300':'#7722bb';
+    const accent=isInfernal?'#ffcc00':'#cc66ff';
+    // Jaw snap shockwave at target area
+    bossImpactEffects.push({type:'shockwave',x:d.targetX,y:d.targetY,radius:60,color:col,life:400,maxLife:400});
+    // Fang slash marks converging (upper + lower jaw)
+    for(let side=-1;side<=1;side+=2){
+      const slashAngle=angle+side*0.4;
+      bossImpactEffects.push({type:'slash_arc',x:d.targetX+Math.sin(angle)*side*15,y:d.targetY-Math.cos(angle)*side*15,angle:slashAngle,life:500,maxLife:500});
+    }
+    // Debris flung from the bite point
+    for(let i=0;i<20;i++){
+      const a=Math.random()*Math.PI*2;
+      const sp=2+Math.random()*4;
+      particles.push({x:d.targetX,y:d.targetY,vx:Math.cos(a)*sp,vy:-3-Math.random()*4+Math.sin(a)*sp*0.3,
+        color:[col,accent,'#888','#aaa'][Math.floor(Math.random()*4)],
+        life:400+Math.random()*400,maxLife:800});
+    }
+    // Ground crack at bite point
+    const crackLines=[];
+    for(let i=0;i<4;i++){
+      const ca=Math.random()*Math.PI*2;
+      const line=[0,0];let lx=0,ly=0;
+      for(let j=0;j<3;j++){lx+=Math.cos(ca+(Math.random()-.5)*0.8)*10;ly+=Math.sin(ca+(Math.random()-.5)*0.8)*10;line.push(lx,ly);}
+      crackLines.push(line);
+    }
+    bossImpactEffects.push({type:'groundcrack',x:d.targetX,y:d.targetY,lines:crackLines,life:2500,maxLife:2500});
+    bossImpactEffects.push({type:'dragon_roar_flash',x:0,y:0,
+      color:isInfernal?'rgba(255,40,0,0.12)':'rgba(80,20,140,0.1)',life:300,maxLife:300});
+    shakeTimer=Math.max(shakeTimer,8);
+    return;
+  }
+
+  if(d.attack==='Wing Tempest'){
+    // Massive wind blast — concentric shockwaves + debris blown outward
+    const isInfernal=boss&&boss.hp/boss.maxHP<=0.45;
+    const r=d.radius||220;
+    const col=isInfernal?'#ff6600':'#8866cc';
+    const accent=isInfernal?'#ffaa44':'#aaccff';
+    // Triple expanding shockwaves at staggered sizes
+    bossImpactEffects.push({type:'shockwave',x:d.bossX,y:d.bossY,radius:r*1.0,color:col,life:700,maxLife:700});
+    bossImpactEffects.push({type:'shockwave',x:d.bossX,y:d.bossY,radius:r*0.65,color:accent,life:500,maxLife:500});
+    bossImpactEffects.push({type:'shockwave',x:d.bossX,y:d.bossY,radius:r*0.3,color:'#fff',life:350,maxLife:350});
+    // Debris blown radially outward — lots of particles
+    for(let i=0;i<40;i++){
+      const a=Math.random()*Math.PI*2;
+      const startDist=20+Math.random()*30;
+      const sp=3+Math.random()*5;
+      particles.push({x:d.bossX+Math.cos(a)*startDist,y:d.bossY+Math.sin(a)*startDist,
+        vx:Math.cos(a)*sp,vy:-2-Math.random()*3+Math.sin(a)*sp*0.3,
+        color:[accent,'#ddd','#bbb','#999'][Math.floor(Math.random()*4)],
+        life:600+Math.random()*500,maxLife:1100});
+    }
+    // Wind streak lines  
+    for(let i=0;i<8;i++){
+      const wa=(i/8)*Math.PI*2;
+      for(let j=0;j<4;j++){
+        const dist=40+j*30+Math.random()*20;
+        particles.push({x:d.bossX+Math.cos(wa)*dist,y:d.bossY+Math.sin(wa)*dist,
+          vx:Math.cos(wa)*2,vy:-1+Math.sin(wa)*1,
+          color:accent,life:300+Math.random()*200,maxLife:500});
+      }
+    }
+    bossImpactEffects.push({type:'dragon_roar_flash',x:0,y:0,
+      color:isInfernal?'rgba(255,100,30,0.1)':'rgba(80,100,160,0.08)',life:400,maxLife:400});
+    shakeTimer=Math.max(shakeTimer,12);
+    return;
   }
 
   // ── DASH STRIKE ── goblin zooms forward, sword slash + shockwave
@@ -15562,13 +15681,42 @@ function drawDragonBoss(b){
   if(doFlash){ctx.save();ctx.globalAlpha=1}
 
   // ═══════════════════════════════════════
-  //  TAILS — drawn behind body
+  //  TAILS — drawn behind body (reacts to Tail Sweep attack)
   // ═══════════════════════════════════════
+  const isTailSweeping=b._currentAttack==='Tail Sweep';
+  // Track sweep start time for animation progress
+  if(isTailSweeping&&!b._tailSweepStart) b._tailSweepStart=t;
+  if(!isTailSweeping&&b._tailSweepStart) b._tailSweepStart=0;
   const numTails=stage2?2:1;
   for(let ti=0;ti<numTails;ti++){
     const tOff=numTails===2?(ti===0?-0.25:0.25):0;
-    const tailSway=Math.sin(t*0.0025+ti*Math.PI)*12*S;
-    const tailSway2=Math.sin(t*0.004+ti*Math.PI+1)*8*S;
+    let tailSway,tailSway2;
+    if(isTailSweeping){
+      // Animated whip: coil back then sweep violently
+      const elapsed=t-(b._tailSweepStart||t);
+      const telegraphT=1500; // matches telegraphTime
+      const prog=Math.min(elapsed/telegraphT,1.0);
+      if(prog<0.4){
+        // Phase 1: coil back — tail curls tight
+        const coil=prog/0.4;
+        tailSway=-35*S*coil*coil;
+        tailSway2=-20*S*coil;
+      } else if(prog<0.75){
+        // Phase 2: whip forward — explosive sweep
+        const whip=(prog-0.4)/0.35;
+        const ease=Math.sin(whip*Math.PI);
+        tailSway=-35*S*(1-whip)+60*S*ease;
+        tailSway2=-20*S*(1-whip)+40*S*ease;
+      } else {
+        // Phase 3: follow through — tail extends out
+        const follow=(prog-0.75)/0.25;
+        tailSway=60*S*(1-follow*0.3)+Math.sin(t*0.015)*8*S;
+        tailSway2=40*S*(1-follow*0.5);
+      }
+    } else {
+      tailSway=Math.sin(t*0.0025+ti*Math.PI)*12*S;
+      tailSway2=Math.sin(t*0.004+ti*Math.PI+1)*8*S;
+    }
     const segments=6;
     ctx.strokeStyle=pal.tail;ctx.lineWidth=5*S;ctx.lineCap='round';
     const tailPts=[];
@@ -15580,17 +15728,36 @@ function drawDragonBoss(b){
     }
     // Draw thick-to-thin tail
     for(let i=0;i<tailPts.length-1;i++){
-      const w=(1-i/(tailPts.length-1))*5*S+1;
+      const w=(1-i/(tailPts.length-1))*(isTailSweeping?7:5)*S+1;
       const f=i/(tailPts.length-1);
-      ctx.strokeStyle=f<0.3?pal.tail:f<0.6?pal.tailMid:pal.tailEnd;
+      if(isTailSweeping){
+        // Glowing energized tail during sweep
+        const glow=0.6+Math.sin(t*0.015+i*0.5)*0.3;
+        ctx.strokeStyle=stage2?'rgba(255,'+(120+Math.floor(f*100))+',20,'+glow+')':'rgba(180,80,255,'+glow+')';
+        ctx.shadowColor=stage2?'#ff4400':'#aa44ff';ctx.shadowBlur=8*S;
+      } else {
+        ctx.strokeStyle=f<0.3?pal.tail:f<0.6?pal.tailMid:pal.tailEnd;
+        ctx.shadowBlur=0;
+      }
       ctx.lineWidth=w;
       ctx.beginPath();ctx.moveTo(tailPts[i].x,tailPts[i].y);ctx.lineTo(tailPts[i+1].x,tailPts[i+1].y);ctx.stroke();
     }
+    ctx.shadowBlur=0;
     // Tail tip — glowing
     const last=tailPts[tailPts.length-1];
-    const tipPulse=0.5+Math.sin(t*0.008+ti*2)*0.3;
+    const tipPulse=isTailSweeping?(0.8+Math.sin(t*0.02)*0.2):(0.5+Math.sin(t*0.008+ti*2)*0.3);
+    const tipSize=isTailSweeping?5:3;
     ctx.fillStyle=stage2?'rgba(255,80,10,'+tipPulse+')':'rgba(140,60,220,'+tipPulse+')';
-    ctx.beginPath();ctx.arc(last.x,last.y,3*S,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(last.x,last.y,tipSize*S,0,Math.PI*2);ctx.fill();
+    // Sweeping sparks during tail attack
+    if(isTailSweeping){
+      for(let sp=0;sp<6;sp++){
+        const fa=Math.random()*Math.PI*2;
+        const sparkDist=3+Math.random()*6;
+        ctx.fillStyle=stage2?'rgba(255,'+(150+Math.floor(Math.random()*105))+',30,'+(0.5+Math.random()*0.4)+')':'rgba(200,120,255,'+(0.4+Math.random()*0.4)+')';
+        ctx.beginPath();ctx.arc(last.x+Math.cos(fa)*sparkDist*S,last.y+Math.sin(fa)*sparkDist*S-Math.random()*3*S,(1+Math.random()*1.5)*S,0,Math.PI*2);ctx.fill();
+      }
+    }
     // Stage 2 tail fire
     if(stage2){
       for(let sp=0;sp<3;sp++){
@@ -15602,12 +15769,40 @@ function drawDragonBoss(b){
   }
 
   // ═══════════════════════════════════════
-  //  WINGS — behind body, animated flap
+  //  WINGS — behind body, animated flap (reacts to Wing Tempest)
   // ═══════════════════════════════════════
-  const wingFlap=Math.sin(t*0.004)*0.35;
-  const wingFlapSlow=Math.sin(t*0.002)*0.2;
-  const wingSpan=stage2?70:55;
-  const wingH=stage2?45:35;
+  const isWingBuffet=b._currentAttack==='Wing Tempest';
+  if(isWingBuffet&&!b._wingBuffetStart) b._wingBuffetStart=t;
+  if(!isWingBuffet&&b._wingBuffetStart) b._wingBuffetStart=0;
+  let wingFlap,wingFlapSlow;
+  let wingSpan=stage2?70:55;
+  let wingH=stage2?45:35;
+  if(isWingBuffet){
+    const elapsed=t-(b._wingBuffetStart||t);
+    const telegraphT=2000;
+    const prog=Math.min(elapsed/telegraphT,1.0);
+    if(prog<0.3){
+      // Phase 1: wings pull back/up, gathering power
+      const pull=prog/0.3;
+      wingFlap=-0.8*pull; wingFlapSlow=-0.4*pull;
+      wingSpan*=(1+0.15*pull); wingH*=(1+0.2*pull);
+    } else if(prog<0.6){
+      // Phase 2: violent downward slam
+      const slam=(prog-0.3)/0.3;
+      const ease=Math.sin(slam*Math.PI);
+      wingFlap=-0.8+1.8*ease; wingFlapSlow=-0.4+1.0*ease;
+      wingSpan*=(1.15-0.1*slam); wingH*=1.2;
+    } else {
+      // Phase 3: rapid fluttering — generating tempest wind
+      const flutter=(prog-0.6)/0.4;
+      wingFlap=Math.sin(t*0.025)*0.6*(1-flutter*0.3);
+      wingFlapSlow=Math.sin(t*0.018)*0.5*(1-flutter*0.3);
+      wingSpan*=(1.05+Math.sin(t*0.02)*0.05); wingH*=(1.1+Math.sin(t*0.02)*0.05);
+    }
+  } else {
+    wingFlap=Math.sin(t*0.004)*0.35;
+    wingFlapSlow=Math.sin(t*0.002)*0.2;
+  }
   // Wing bones + membrane (left)
   ctx.save();
   ctx.translate(mx-8*S,my-12*S+bodyBob*S);
@@ -15649,6 +15844,26 @@ function drawDragonBoss(b){
   ctx.beginPath();ctx.arc(wingSpan*S*0.6,-wingH*S*0.7-wingFlap*30*S,2*S,0,Math.PI*2);ctx.fill();
   ctx.beginPath();ctx.arc(wingSpan*S,-wingH*S*0.3-wingFlap*40*S,1.5*S,0,Math.PI*2);ctx.fill();
   ctx.restore();
+
+  // Wing Tempest wind gusts
+  if(isWingBuffet){
+    const elapsed=t-(b._wingBuffetStart||t);
+    const prog=Math.min(elapsed/2000,1.0);
+    if(prog>0.3){
+      const intensity=prog<0.6?((prog-0.3)/0.3):1;
+      for(let w=0;w<Math.floor(6*intensity);w++){
+        const wAngle=Math.random()*Math.PI*2;
+        const wDist=30+Math.random()*60;
+        const wx=mx+Math.cos(wAngle)*wDist*S;
+        const wy=my+Math.sin(wAngle)*wDist*S*0.5;
+        const wLen=8+Math.random()*12;
+        ctx.save();ctx.globalAlpha=0.2+Math.random()*0.25;
+        ctx.strokeStyle=stage2?'#ff884480':'#aaddff80';ctx.lineWidth=1.5*S;
+        ctx.beginPath();ctx.moveTo(wx,wy);ctx.lineTo(wx+Math.cos(wAngle)*wLen*S,wy+Math.sin(wAngle)*wLen*S*0.5);ctx.stroke();
+        ctx.restore();
+      }
+    }
+  }
 
   // ═══════════════════════════════════════
   //  BODY — main torso, muscular
@@ -15735,17 +15950,67 @@ function drawDragonBoss(b){
     }
   }
 
+  // Attack state for head reactions
+  const isBreathAttack=b._currentAttack==='Shadow Breath'||b._currentAttack==='Fire Breath Sweep';
+  const isHeadLunge=b._currentAttack==='Devouring Maw';
+  const isDragonClaw=b._currentAttack==='Dragon Claw';
+  if((isBreathAttack||isHeadLunge)&&!b._headAttackStart) b._headAttackStart=t;
+  if(!isBreathAttack&&!isHeadLunge&&b._headAttackStart) b._headAttackStart=0;
+
   for(let hi=0;hi<numHeads;hi++){
     const hc=headConfigs[hi];
     const hs=hc.headScale*S;
     const sway2=Math.sin(t*hc.swaySpd+hi*1.5)*hc.swayAmt;
-    const ang=hc.angOff+sway2;
-    const nLen=hc.neckLen*S;
+    let ang=hc.angOff+sway2;
+    let nLen=hc.neckLen*S;
+    let neckStretch=0; // extra forward extension
+
+    // Head reactions to attacks
+    if(isHeadLunge){
+      // Devouring Maw: all heads lunge forward aggressively
+      const elapsed=t-(b._headAttackStart||t);
+      const prog=Math.min(elapsed/2200,1.0);
+      if(prog<0.4){
+        // Rearing back
+        const rear=prog/0.4;
+        neckStretch=-8*rear;
+        nLen*=(1-0.1*rear);
+      } else if(prog<0.65){
+        // Snap forward — explosive lunge
+        const snap=(prog-0.4)/0.25;
+        const ease=Math.sin(snap*Math.PI*0.5);
+        neckStretch=-8+28*ease;
+        nLen*=(0.9+0.25*ease);
+        ang+=(hi===1?0:hi===0?-0.15:0.15)*ease;
+      } else {
+        // Hold extended
+        const hold=(prog-0.65)/0.35;
+        neckStretch=20*(1-hold*0.6);
+        nLen*=(1.15-0.1*hold);
+      }
+    } else if(isBreathAttack&&hi===1){
+      // Center head rears back then thrusts forward for breath
+      const elapsed=t-(b._headAttackStart||t);
+      const telegraphT=b._currentAttack==='Fire Breath Sweep'?2800:1400;
+      const prog=Math.min(elapsed/telegraphT,1.0);
+      if(prog<0.35){
+        const rear=prog/0.35;
+        neckStretch=-6*rear;
+        ang-=0.1*rear;
+      } else if(prog<0.55){
+        const thrust=(prog-0.35)/0.2;
+        neckStretch=-6+20*thrust;
+        ang=-0.1+0.15*thrust;
+      } else {
+        neckStretch=14+Math.sin(t*0.01)*2;
+        ang+=0.05+Math.sin(t*0.008)*0.03;
+      }
+    }
 
     // Neck — segmented bezier curve
     const neckBase={x:mx,y:by2-12*S};
     const neckMid={x:mx+Math.sin(ang)*nLen*0.5,y:by2-12*S-nLen*0.55+Math.sin(t*0.003+hi*2)*2*S};
-    const headPos={x:mx+Math.sin(ang)*nLen*0.85,y:by2-12*S-nLen*0.9+breathe*S*0.5};
+    const headPos={x:mx+Math.sin(ang)*nLen*0.85+neckStretch*S*Math.sin(ang+0.01),y:by2-12*S-nLen*0.9+breathe*S*0.5-neckStretch*S*0.3};
 
     // Draw neck — thick segmented line
     ctx.strokeStyle=pal.neck;ctx.lineWidth=5*hs;ctx.lineCap='round';
@@ -15778,14 +16043,24 @@ function drawDragonBoss(b){
     // Snout
     ctx.fillStyle=pal.headDark;
     ctx.beginPath();ctx.ellipse(0,5*hs,6*hs,4*hs,0,0,Math.PI);ctx.fill();
-    // Jaw
-    const jawOpen=(hi===3&&fireSweepActive)?4:2+Math.sin(t*0.004+hi*1.3)*0.8;
+    // Jaw — opens wider during breath/lunge attacks
+    let jawOpen=(hi===3&&fireSweepActive)?4:2+Math.sin(t*0.004+hi*1.3)*0.8;
+    if(isHeadLunge){
+      const elapsed=t-(b._headAttackStart||t);
+      const prog=Math.min(elapsed/2200,1.0);
+      jawOpen=prog<0.4?2+2*prog/0.4:prog<0.65?4+3*((prog-0.4)/0.25):5*(1-(prog-0.65)/0.35*0.4);
+    } else if(isBreathAttack&&hi===1){
+      const elapsed=t-(b._headAttackStart||t);
+      const telegraphT=b._currentAttack==='Fire Breath Sweep'?2800:1400;
+      const prog=Math.min(elapsed/telegraphT,1.0);
+      jawOpen=prog<0.35?2+1*prog/0.35:3+4*(prog-0.35)/0.65;
+    }
     ctx.fillStyle=pal.mouth;
     ctx.beginPath();ctx.ellipse(0,5*hs+jawOpen*hs,5*hs,jawOpen*hs*0.6,0,0,Math.PI);ctx.fill();
 
     // Fire inside mouth (stage 2 or attacking)
-    if(stage2||b.phase==='attacking'){
-      const mGlow=0.4+Math.sin(t*0.01+hi)*0.2;
+    if(stage2||b.phase==='attacking'||isBreathAttack||isHeadLunge){
+      const mGlow=isBreathAttack?(0.6+Math.sin(t*0.015)*0.3):(0.4+Math.sin(t*0.01+hi)*0.2);
       ctx.fillStyle=pal.mouthGlow+mGlow+')';
       ctx.beginPath();ctx.ellipse(0,5*hs+jawOpen*hs*0.3,3.5*hs,jawOpen*hs*0.4,0,0,Math.PI);ctx.fill();
     }
@@ -18413,6 +18688,318 @@ function drawDragonTelegraph(){
     }
 
     ctx.restore();
+  } else if(bt.type==='tail_sweep'){
+    // ── TAIL SWEEP TELEGRAPH — arc danger zone behind dragon ──
+    const bs=worldToScreen(boss.x,boss.y);
+    const range=(bt.range||180)*ISO_S;
+    const sweepAngle=bt.sweepAngle||3.0;
+    // Tail sweeps away from target (opposite direction boss faces)
+    const faceAngle=Math.atan2((bt.targetY||boss.y)-boss.y,(bt.targetX||boss.x)-boss.x);
+    const sweepCenter=faceAngle+Math.PI;
+    const stage2=boss&&boss.hp/boss.maxHP<=0.45;
+    const baseCol=stage2?[255,60,10]:[140,30,200];
+    const accentCol=stage2?[255,180,40]:[200,100,255];
+
+    ctx.save();
+
+    // Phase 1: Tail coils — energy gathering at base
+    if(progress<0.35){
+      const p1=progress/0.35;
+      ctx.globalAlpha=p1*0.3;
+      const tgG=ctx.createRadialGradient(bs.x,bs.y,0,bs.x,bs.y,30*ISO_S);
+      tgG.addColorStop(0,`rgba(${baseCol[0]},${baseCol[1]},${baseCol[2]},0.5)`);
+      tgG.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle=tgG;
+      ctx.beginPath();ctx.arc(bs.x,bs.y,30*ISO_S,0,Math.PI*2);ctx.fill();
+      for(let side=-1;side<=1;side+=2){
+        const edgeA=sweepCenter+side*(sweepAngle/2)*p1;
+        const edgeX=bs.x+Math.cos(edgeA)*range*0.3*p1;
+        const edgeY=bs.y+Math.sin(edgeA)*range*0.3*p1;
+        ctx.globalAlpha=p1*0.5;
+        ctx.fillStyle=`rgba(${accentCol[0]},${accentCol[1]},${accentCol[2]},0.6)`;
+        ctx.beginPath();ctx.arc(edgeX,edgeY,3+p1*2,0,Math.PI*2);ctx.fill();
+      }
+    }
+
+    // Phase 2: Arc danger zone appears and expands
+    if(progress>=0.2){
+      const p2=Math.min(1,(progress-0.2)/0.5);
+      const arcRange=range*p2;
+      ctx.globalAlpha=p2*0.12+Math.sin(t*0.008)*0.04;
+      ctx.fillStyle=`rgba(${baseCol[0]},${baseCol[1]},${baseCol[2]},0.35)`;
+      ctx.beginPath();ctx.moveTo(bs.x,bs.y);
+      ctx.arc(bs.x,bs.y,arcRange,sweepCenter-sweepAngle/2,sweepCenter+sweepAngle/2);
+      ctx.closePath();ctx.fill();
+      ctx.globalAlpha=p2*0.4+Math.sin(t*0.01)*0.15;
+      ctx.strokeStyle=`rgba(${accentCol[0]},${accentCol[1]},${accentCol[2]},0.6)`;
+      ctx.lineWidth=2+p2*2;
+      ctx.beginPath();ctx.arc(bs.x,bs.y,arcRange,sweepCenter-sweepAngle/2,sweepCenter+sweepAngle/2);ctx.stroke();
+      ctx.globalAlpha=p2*0.3;
+      ctx.strokeStyle=`rgba(${baseCol[0]},${baseCol[1]},${baseCol[2]},0.5)`;
+      ctx.lineWidth=2;
+      for(let side=-1;side<=1;side+=2){
+        const edgeA=sweepCenter+side*sweepAngle/2;
+        ctx.beginPath();ctx.moveTo(bs.x,bs.y);
+        ctx.lineTo(bs.x+Math.cos(edgeA)*arcRange,bs.y+Math.sin(edgeA)*arcRange);ctx.stroke();
+      }
+      if(p2>0.3){
+        const dp=Math.min(1,(p2-0.3)/0.7);
+        ctx.globalAlpha=dp*0.5;
+        for(let i=0;i<8;i++){
+          const da=sweepCenter-sweepAngle/2+(i/8)*sweepAngle;
+          const dd=arcRange*(0.4+Math.sin(t*0.005+i*2)*0.3);
+          const dx2=bs.x+Math.cos(da)*dd;
+          const dy2=bs.y+Math.sin(da)*dd;
+          ctx.fillStyle=i%2===0?`rgba(${baseCol[0]},${baseCol[1]},${baseCol[2]},0.5)`:`rgba(${accentCol[0]},${accentCol[1]},${accentCol[2]},0.4)`;
+          ctx.beginPath();ctx.arc(dx2,dy2,2+Math.sin(t*0.008+i)*1,0,Math.PI*2);ctx.fill();
+        }
+      }
+    }
+
+    // Phase 3: Animated sweep line showing incoming tail
+    if(progress>=0.65){
+      const p3=(progress-0.65)/0.35;
+      const currentA=sweepCenter-sweepAngle/2+sweepAngle*p3;
+      ctx.globalAlpha=0.6+p3*0.3;
+      ctx.strokeStyle=`rgba(${accentCol[0]},${accentCol[1]},${accentCol[2]},0.8)`;
+      ctx.lineWidth=4+Math.sin(t*0.02)*2;
+      ctx.beginPath();ctx.moveTo(bs.x,bs.y);
+      ctx.lineTo(bs.x+Math.cos(currentA)*range,bs.y+Math.sin(currentA)*range);ctx.stroke();
+      const tipX=bs.x+Math.cos(currentA)*range*0.8;
+      const tipY=bs.y+Math.sin(currentA)*range*0.8;
+      const tipGlow=ctx.createRadialGradient(tipX,tipY,0,tipX,tipY,12);
+      tipGlow.addColorStop(0,`rgba(${accentCol[0]},${accentCol[1]},${accentCol[2]},0.8)`);
+      tipGlow.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle=tipGlow;ctx.beginPath();ctx.arc(tipX,tipY,12,0,Math.PI*2);ctx.fill();
+    }
+
+    ctx.restore();
+  } else if(bt.type==='breath_sweep'){
+    // ── FIRE BREATH SWEEP — cone-shaped sweeping breath telegraph ──
+    const bs=worldToScreen(boss.x,boss.y);
+    const range=(bt.range||280)*ISO_S;
+    const sweepAngle=bt.sweepAngle||2.8;
+    const faceAngle=Math.atan2((bt.targetY||boss.y)-boss.y,(bt.targetX||boss.x)-boss.x);
+    ctx.save();
+
+    // Phase 1: Mouth charges with infernal energy
+    if(progress<0.3){
+      const p1=progress/0.3;
+      ctx.globalAlpha=p1*0.5;
+      const mG=ctx.createRadialGradient(bs.x,bs.y-20*ISO_S,0,bs.x,bs.y-20*ISO_S,25+p1*15);
+      mG.addColorStop(0,`rgba(${accentCol[0]},${accentCol[1]},${accentCol[2]},0.8)`);
+      mG.addColorStop(0.5,`rgba(${baseCol[0]},${baseCol[1]},${baseCol[2]},0.4)`);
+      mG.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle=mG;ctx.beginPath();ctx.arc(bs.x,bs.y-20*ISO_S,25+p1*15,0,Math.PI*2);ctx.fill();
+      // Embers converging to mouth
+      for(let i=0;i<8;i++){
+        const ea=(i/8)*Math.PI*2+t*0.006;
+        const ed=(1-p1)*60+15;
+        ctx.fillStyle=`rgba(${accentCol[0]},${accentCol[1]},${accentCol[2]},${p1*0.6})`;
+        ctx.beginPath();ctx.arc(bs.x+Math.cos(ea)*ed,bs.y-20*ISO_S+Math.sin(ea)*ed*0.5,2+p1,0,Math.PI*2);ctx.fill();
+      }
+    }
+
+    // Phase 2: Cone danger zone — sweeping arc appears
+    if(progress>=0.2){
+      const p2=Math.min(1,(progress-0.2)/0.5);
+      const coneRange=range*p2;
+      // Filled cone
+      ctx.globalAlpha=p2*0.1+Math.sin(t*0.008)*0.04;
+      ctx.fillStyle=`rgba(${baseCol[0]},${baseCol[1]},${baseCol[2]},0.3)`;
+      ctx.beginPath();ctx.moveTo(bs.x,bs.y);
+      ctx.arc(bs.x,bs.y,coneRange,faceAngle-sweepAngle/2,faceAngle+sweepAngle/2);
+      ctx.closePath();ctx.fill();
+      // Cone edge lines
+      ctx.globalAlpha=p2*0.4;
+      ctx.strokeStyle=`rgba(${accentCol[0]},${accentCol[1]},${accentCol[2]},0.6)`;
+      ctx.lineWidth=2;
+      for(let side=-1;side<=1;side+=2){
+        const edgeA=faceAngle+side*sweepAngle/2;
+        ctx.beginPath();ctx.moveTo(bs.x,bs.y);
+        ctx.lineTo(bs.x+Math.cos(edgeA)*coneRange,bs.y+Math.sin(edgeA)*coneRange);ctx.stroke();
+      }
+      // Arc outline
+      ctx.lineWidth=2+p2*2;
+      ctx.beginPath();ctx.arc(bs.x,bs.y,coneRange,faceAngle-sweepAngle/2,faceAngle+sweepAngle/2);ctx.stroke();
+      // Heat shimmer particles inside cone
+      if(p2>0.3){
+        ctx.globalAlpha=(p2-0.3)*0.5;
+        for(let i=0;i<10;i++){
+          const pa=faceAngle-sweepAngle/2+(i/10)*sweepAngle;
+          const pd=coneRange*(0.3+Math.sin(t*0.005+i*2)*0.3);
+          ctx.fillStyle=i%2===0?`rgba(${baseCol[0]},${baseCol[1]},${baseCol[2]},0.5)`:`rgba(${accentCol[0]},${accentCol[1]},${accentCol[2]},0.4)`;
+          ctx.beginPath();ctx.arc(bs.x+Math.cos(pa)*pd,bs.y+Math.sin(pa)*pd,2+Math.sin(t*0.01+i)*1.5,0,Math.PI*2);ctx.fill();
+        }
+      }
+    }
+
+    // Phase 3: Sweeping indicator line
+    if(progress>=0.6){
+      const p3=(progress-0.6)/0.4;
+      const sweepA=faceAngle-sweepAngle/2+sweepAngle*p3;
+      ctx.globalAlpha=0.5+p3*0.4;
+      ctx.strokeStyle=`rgba(255,220,80,0.8)`;
+      ctx.lineWidth=3+Math.sin(t*0.018)*2;
+      ctx.beginPath();ctx.moveTo(bs.x,bs.y);ctx.lineTo(bs.x+Math.cos(sweepA)*range,bs.y+Math.sin(sweepA)*range);ctx.stroke();
+    }
+    ctx.restore();
+
+  } else if(bt.type==='head_lunge'){
+    // ── DEVOURING MAW — wide lunge line telegraph ──
+    const bs=worldToScreen(boss.x,boss.y);
+    const range=(bt.range||200)*ISO_S;
+    const width=(bt.width||90)*ISO_S;
+    const tx=bt.targetX||boss.x,ty=bt.targetY||boss.y;
+    const ts=worldToScreen(tx,ty);
+    const dx=ts.x-bs.x,dy=ts.y-bs.y;
+    const len=Math.sqrt(dx*dx+dy*dy)||1;
+    const nx=dx/len,ny=dy/len;
+    const perpX=-ny,perpY=nx;
+    ctx.save();
+
+    // Phase 1: Dragon rears back — danger flicker at target
+    if(progress<0.35){
+      const p1=progress/0.35;
+      // Target zone pulsing circle
+      ctx.globalAlpha=p1*0.3+Math.sin(t*0.01)*0.15;
+      ctx.strokeStyle=`rgba(${baseCol[0]},${baseCol[1]},${baseCol[2]},0.7)`;
+      ctx.lineWidth=3;
+      ctx.beginPath();ctx.arc(ts.x,ts.y,width*0.3*p1,0,Math.PI*2);ctx.stroke();
+      // Jaw silhouette growing at boss position
+      ctx.globalAlpha=p1*0.2;
+      ctx.fillStyle=`rgba(${baseCol[0]},${baseCol[1]},${baseCol[2]},0.3)`;
+      ctx.beginPath();
+      ctx.moveTo(bs.x+perpX*width*0.15*p1,bs.y+perpY*width*0.15*p1);
+      ctx.lineTo(bs.x-perpX*width*0.15*p1,bs.y-perpY*width*0.15*p1);
+      ctx.lineTo(bs.x+nx*range*0.2*p1,bs.y+ny*range*0.2*p1);
+      ctx.closePath();ctx.fill();
+    }
+
+    // Phase 2: Lunge corridor — V-shaped jaws opening
+    if(progress>=0.25){
+      const p2=Math.min(1,(progress-0.25)/0.5);
+      const corridorLen=range*p2;
+      const jawWidth=width*p2;
+      // V-shaped corridor (narrower at boss, wider at target)
+      ctx.globalAlpha=p2*0.12+Math.sin(t*0.008)*0.04;
+      ctx.fillStyle=`rgba(${baseCol[0]},${baseCol[1]},${baseCol[2]},0.3)`;
+      ctx.beginPath();
+      ctx.moveTo(bs.x+perpX*jawWidth*0.1,bs.y+perpY*jawWidth*0.1);
+      ctx.lineTo(bs.x-perpX*jawWidth*0.1,bs.y-perpY*jawWidth*0.1);
+      ctx.lineTo(bs.x+nx*corridorLen-perpX*jawWidth*0.5,bs.y+ny*corridorLen-perpY*jawWidth*0.5);
+      ctx.lineTo(bs.x+nx*corridorLen+perpX*jawWidth*0.5,bs.y+ny*corridorLen+perpY*jawWidth*0.5);
+      ctx.closePath();ctx.fill();
+      // Jaw edges  
+      ctx.globalAlpha=p2*0.5;
+      ctx.strokeStyle=`rgba(${accentCol[0]},${accentCol[1]},${accentCol[2]},0.6)`;
+      ctx.lineWidth=2+p2;
+      ctx.beginPath();ctx.moveTo(bs.x+perpX*jawWidth*0.1,bs.y+perpY*jawWidth*0.1);
+      ctx.lineTo(bs.x+nx*corridorLen+perpX*jawWidth*0.5,bs.y+ny*corridorLen+perpY*jawWidth*0.5);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(bs.x-perpX*jawWidth*0.1,bs.y-perpY*jawWidth*0.1);
+      ctx.lineTo(bs.x+nx*corridorLen-perpX*jawWidth*0.5,bs.y+ny*corridorLen-perpY*jawWidth*0.5);ctx.stroke();
+      // Fang markers along edges
+      if(p2>0.4){
+        ctx.globalAlpha=(p2-0.4)*0.6;
+        for(let f=0;f<4;f++){
+          const ff=(f+1)/5;
+          const fx2=bs.x+nx*corridorLen*ff;
+          const fy2=bs.y+ny*corridorLen*ff;
+          const jw2=jawWidth*(0.1+ff*0.4);
+          ctx.fillStyle=`rgba(${accentCol[0]},${accentCol[1]},${accentCol[2]},0.5)`;
+          ctx.beginPath();ctx.arc(fx2+perpX*jw2,fy2+perpY*jw2,2,0,Math.PI*2);ctx.fill();
+          ctx.beginPath();ctx.arc(fx2-perpX*jw2,fy2-perpY*jw2,2,0,Math.PI*2);ctx.fill();
+        }
+      }
+    }
+
+    // Phase 3: Lunge indicator — fast-approaching jaw shadow
+    if(progress>=0.7){
+      const p3=(progress-0.7)/0.3;
+      const lungePos=range*p3;
+      const jawW2=width*(0.1+p3*0.4);
+      ctx.globalAlpha=0.3+p3*0.4;
+      ctx.strokeStyle=`rgba(${accentCol[0]},${accentCol[1]},${accentCol[2]},0.9)`;
+      ctx.lineWidth=3+Math.sin(t*0.02)*2;
+      // Upper jaw line
+      ctx.beginPath();
+      ctx.moveTo(bs.x+nx*lungePos+perpX*jawW2,bs.y+ny*lungePos+perpY*jawW2);
+      ctx.lineTo(bs.x+nx*(lungePos+15),bs.y+ny*(lungePos+15));
+      ctx.lineTo(bs.x+nx*lungePos-perpX*jawW2,bs.y+ny*lungePos-perpY*jawW2);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+  } else if(bt.type==='wing_buffet'){
+    // ── WING TEMPEST — expanding ring telegraph ──
+    const bs=worldToScreen(boss.x,boss.y);
+    const r=(bt.radius||220)*ISO_S;
+    ctx.save();
+
+    // Phase 1: Wind gathering — debris spiraling inward
+    if(progress<0.3){
+      const p1=progress/0.3;
+      for(let i=0;i<10;i++){
+        const wa=(i/10)*Math.PI*2+t*0.005*(i%2?1:-1);
+        const wd=r*(1-p1*0.6)+Math.sin(t*0.004+i)*20;
+        const wx=bs.x+Math.cos(wa)*wd;
+        const wy=bs.y+Math.sin(wa)*wd*0.5;
+        ctx.globalAlpha=p1*0.4;
+        ctx.strokeStyle=`rgba(${accentCol[0]},${accentCol[1]},${accentCol[2]},0.5)`;
+        ctx.lineWidth=1.5;
+        const wLen2=6+p1*6;
+        ctx.beginPath();ctx.moveTo(wx,wy);ctx.lineTo(wx-Math.cos(wa)*wLen2,wy-Math.sin(wa)*wLen2*0.5);ctx.stroke();
+      }
+      // Central updraft glow
+      ctx.globalAlpha=p1*0.25;
+      const cg=ctx.createRadialGradient(bs.x,bs.y,0,bs.x,bs.y,40);
+      cg.addColorStop(0,`rgba(${accentCol[0]},${accentCol[1]},${accentCol[2]},0.5)`);
+      cg.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle=cg;ctx.beginPath();ctx.arc(bs.x,bs.y,40,0,Math.PI*2);ctx.fill();
+    }
+
+    // Phase 2: Concentric rings expanding — danger zone
+    if(progress>=0.2){
+      const p2=Math.min(1,(progress-0.2)/0.5);
+      // Multiple expanding rings
+      for(let ring=0;ring<3;ring++){
+        const ringP=(p2+ring*0.2)%1;
+        const ringR=r*ringP;
+        ctx.globalAlpha=(1-ringP)*p2*0.25;
+        ctx.strokeStyle=`rgba(${baseCol[0]},${baseCol[1]},${baseCol[2]},${(1-ringP)*0.5})`;
+        ctx.lineWidth=2+ring;
+        ctx.beginPath();ctx.arc(bs.x,bs.y,ringR,0,Math.PI*2);ctx.stroke();
+      }
+      // Filled danger circle growing
+      ctx.globalAlpha=p2*0.08+Math.sin(t*0.008)*0.03;
+      ctx.fillStyle=`rgba(${baseCol[0]},${baseCol[1]},${baseCol[2]},0.2)`;
+      ctx.beginPath();ctx.arc(bs.x,bs.y,r*p2,0,Math.PI*2);ctx.fill();
+      // Wind streak lines radiating outward
+      if(p2>0.3){
+        ctx.globalAlpha=(p2-0.3)*0.4;
+        for(let i=0;i<12;i++){
+          const sa=(i/12)*Math.PI*2+t*0.003;
+          const sd1=r*0.15;
+          const sd2=r*p2*0.8;
+          ctx.strokeStyle=`rgba(${accentCol[0]},${accentCol[1]},${accentCol[2]},0.35)`;
+          ctx.lineWidth=1.5;
+          ctx.beginPath();
+          ctx.moveTo(bs.x+Math.cos(sa)*sd1,bs.y+Math.sin(sa)*sd1*0.5);
+          ctx.lineTo(bs.x+Math.cos(sa)*sd2,bs.y+Math.sin(sa)*sd2*0.5);
+          ctx.stroke();
+        }
+      }
+    }
+
+    // Phase 3: Warning ring pulses at full radius
+    if(progress>=0.6){
+      const p3=(progress-0.6)/0.4;
+      ctx.globalAlpha=0.3+p3*0.5+Math.sin(t*0.015)*0.15;
+      ctx.strokeStyle=`rgba(${accentCol[0]},${accentCol[1]},${accentCol[2]},${0.5+p3*0.4})`;
+      ctx.lineWidth=3+Math.sin(t*0.012)*2;
+      ctx.beginPath();ctx.arc(bs.x,bs.y,r,0,Math.PI*2);ctx.stroke();
+    }
+    ctx.restore();
   }
 }
 
@@ -19067,6 +19654,91 @@ function drawBossImpactEffects(){
           ctx.fillStyle=(i%2===0)?e.color:e.accentColor;
           ctx.beginPath();ctx.arc(fx,fy-Math.abs(Math.sin(t2*0.005+i))*4,sz,0,Math.PI*2);ctx.fill();
         }
+      }
+      ctx.restore();
+
+    } else if(e.type==='tail_whip'){
+      // Animated tail physically sweeping across an arc
+      ctx.save();
+      const prog2=1-e.life/e.maxLife; // 0→1
+      const range2=e.range*ISO_S;
+      const sweepCenter2=e.sweepCenter;
+      const sweepArc2=e.sweepArc;
+      // The tail sweeps from one edge to the other
+      const sweepProg=Math.min(1,prog2*2.5); // sweeps fast in first 40% of lifetime
+      const currentAngle=sweepCenter2-sweepArc2/2+sweepArc2*sweepProg;
+      // Trail — previously swept area
+      if(sweepProg>0.05){
+        ctx.globalAlpha=(1-prog2)*0.2;
+        ctx.fillStyle=e.isInfernal?'rgba(255,60,10,0.15)':'rgba(100,30,160,0.15)';
+        ctx.beginPath();ctx.moveTo(s.x,s.y);
+        ctx.arc(s.x,s.y,range2,sweepCenter2-sweepArc2/2,currentAngle);
+        ctx.closePath();ctx.fill();
+      }
+      // Tail body — thick curved line
+      if(sweepProg<1){
+        const tailLen=range2*0.85;
+        const tw=8*ISO_S;
+        ctx.globalAlpha=(1-prog2)*0.9;
+        // Multiple segments for thickness tapering
+        for(let seg=0;seg<6;seg++){
+          const segF=seg/6;
+          const segD=tailLen*segF;
+          const nextD=tailLen*(seg+1)/6;
+          const sx2=s.x+Math.cos(currentAngle)*segD;
+          const sy2=s.y+Math.sin(currentAngle)*segD;
+          const ex2=s.x+Math.cos(currentAngle)*nextD;
+          const ey2=s.y+Math.sin(currentAngle)*nextD;
+          const w2=tw*(1-segF*0.7);
+          ctx.strokeStyle=segF<0.3?e.col:segF<0.7?(e.isInfernal?'#5a1a08':'#2a0e30'):(e.isInfernal?'#3a0806':'#1a0820');
+          ctx.lineWidth=w2;ctx.lineCap='round';
+          ctx.beginPath();ctx.moveTo(sx2,sy2);ctx.lineTo(ex2,ey2);ctx.stroke();
+        }
+        // Glowing tip
+        const tipX2=s.x+Math.cos(currentAngle)*tailLen;
+        const tipY2=s.y+Math.sin(currentAngle)*tailLen;
+        const tipG=ctx.createRadialGradient(tipX2,tipY2,0,tipX2,tipY2,10*ISO_S);
+        tipG.addColorStop(0,e.accent);tipG.addColorStop(1,'rgba(0,0,0,0)');
+        ctx.globalAlpha=(1-prog2)*0.8;
+        ctx.fillStyle=tipG;ctx.beginPath();ctx.arc(tipX2,tipY2,10*ISO_S,0,Math.PI*2);ctx.fill();
+        // Sparks from tip
+        ctx.fillStyle=e.accent;
+        for(let sp=0;sp<4;sp++){
+          const sa=currentAngle+Math.PI/2*(Math.random()-.5)*2;
+          const sd=Math.random()*8*ISO_S;
+          ctx.globalAlpha=(1-prog2)*0.6;
+          ctx.beginPath();ctx.arc(tipX2+Math.cos(sa)*sd,tipY2+Math.sin(sa)*sd,1.5*ISO_S,0,Math.PI*2);ctx.fill();
+        }
+      }
+      // Dust kicked up along swept path (later in animation)
+      if(prog2>0.3){
+        const dustA=(prog2-0.3)/0.7;
+        ctx.globalAlpha=dustA*(1-prog2)*0.4;
+        for(let i=0;i<6;i++){
+          const da2=sweepCenter2-sweepArc2/2+(i/6)*sweepArc2*Math.min(1,sweepProg);
+          const dd2=range2*(0.5+Math.random()*0.4);
+          ctx.fillStyle=e.isInfernal?'#8a5a3a':'#6a4a6a';
+          ctx.beginPath();ctx.arc(s.x+Math.cos(da2)*dd2,s.y+Math.sin(da2)*dd2,3+Math.random()*3,0,Math.PI*2);ctx.fill();
+        }
+      }
+      ctx.restore();
+    } else if(e.type==='arc_shockwave'){
+      // Arc-shaped shockwave (not full circle)
+      ctx.save();
+      const prog2=1-e.life/e.maxLife;
+      ctx.globalAlpha=(1-prog2)*0.5;
+      ctx.strokeStyle=e.color||'#ff4400';
+      ctx.lineWidth=(1-prog2)*5+1;
+      const r2=e.radius*ISO_S*(0.3+prog2*0.7);
+      ctx.beginPath();
+      ctx.arc(s.x,s.y,r2,e.sweepCenter-e.sweepArc/2,e.sweepCenter+e.sweepArc/2);
+      ctx.stroke();
+      // Inner glow arc
+      if(prog2<0.5){
+        ctx.globalAlpha=(1-prog2*2)*0.2;
+        ctx.strokeStyle='#fff';ctx.lineWidth=2;
+        ctx.beginPath();ctx.arc(s.x,s.y,r2*0.7,e.sweepCenter-e.sweepArc/2,e.sweepCenter+e.sweepArc/2);
+        ctx.stroke();
       }
       ctx.restore();
 
