@@ -1965,6 +1965,7 @@ let duelQueueCount=0;
 let duelOpponentHP=0,duelOpponentMaxHP=0,duelMyHP=0,duelMyMaxHP=0;
 let duelResultMsg=null,duelResultTimer=0;
 let duelChallenge=null; // {challengeId, from, timer}
+let crowdChantInterval=null; // crowd chanting loop for arena
 
 // World Event state
 let activeWorldEvent=null; // {type, name, desc, endsAt, multipliers}
@@ -2187,6 +2188,117 @@ function playCombatSoundSynth(type){
       o2.type='triangle';o2.frequency.setValueAtTime(600,t+.05);o2.frequency.exponentialRampToValueAtTime(1000,t+.15);
       g2.gain.setValueAtTime(.08,t+.05);g2.gain.exponentialRampToValueAtTime(.001,t+.2);
       o2.connect(g2);g2.connect(audioCtx.destination);o2.start(t+.05);o2.stop(t+.2);
+    }
+  }catch{}
+}
+
+// ═══════════════════════════════════════
+// Arena Crowd Chanting System
+// ═══════════════════════════════════════
+function synthCrowdChant(pattern){
+  // Synthesize crowd chanting using layered oscillators
+  // pattern: 'hoo' (low boom), 'rah' (sharp burst), 'ooh' (rising)
+  if(!audioCtx)return;
+  try{
+    const t=audioCtx.currentTime;
+    const masterGain=audioCtx.createGain();
+    masterGain.gain.setValueAtTime(0.06,t);
+    masterGain.connect(audioCtx.destination);
+    // Layer multiple slightly detuned voices for crowd feel
+    const voiceCount=6;
+    for(let v=0;v<voiceCount;v++){
+      const detune=(v-voiceCount/2)*15+Math.random()*10;
+      const timeOff=Math.random()*0.04; // slight timing variation
+      const o=audioCtx.createOscillator();
+      const g=audioCtx.createGain();
+      const f=audioCtx.createBiquadFilter();
+      f.type='lowpass';f.frequency.value=800;f.Q.value=0.5;
+      if(pattern==='hoo'){
+        o.type='sine';
+        o.frequency.setValueAtTime(100+detune,t+timeOff);
+        o.frequency.exponentialRampToValueAtTime(80+detune*0.5,t+timeOff+0.25);
+        g.gain.setValueAtTime(0.01,t+timeOff);
+        g.gain.linearRampToValueAtTime(0.035,t+timeOff+0.06);
+        g.gain.exponentialRampToValueAtTime(0.001,t+timeOff+0.3);
+        o.connect(f);f.connect(g);g.connect(masterGain);
+        o.start(t+timeOff);o.stop(t+timeOff+0.3);
+      } else if(pattern==='rah'){
+        o.type='sawtooth';
+        o.frequency.setValueAtTime(160+detune,t+timeOff);
+        o.frequency.exponentialRampToValueAtTime(100+detune*0.5,t+timeOff+0.15);
+        f.frequency.value=1200;
+        g.gain.setValueAtTime(0.01,t+timeOff);
+        g.gain.linearRampToValueAtTime(0.04,t+timeOff+0.03);
+        g.gain.exponentialRampToValueAtTime(0.001,t+timeOff+0.2);
+        o.connect(f);f.connect(g);g.connect(masterGain);
+        o.start(t+timeOff);o.stop(t+timeOff+0.2);
+      } else if(pattern==='ooh'){
+        o.type='sine';
+        o.frequency.setValueAtTime(120+detune,t+timeOff);
+        o.frequency.exponentialRampToValueAtTime(200+detune,t+timeOff+0.3);
+        g.gain.setValueAtTime(0.01,t+timeOff);
+        g.gain.linearRampToValueAtTime(0.03,t+timeOff+0.1);
+        g.gain.exponentialRampToValueAtTime(0.001,t+timeOff+0.35);
+        o.connect(f);f.connect(g);g.connect(masterGain);
+        o.start(t+timeOff);o.stop(t+timeOff+0.35);
+      }
+    }
+    // Add white noise burst for crowd texture
+    const noiseDur=pattern==='rah'?0.15:0.25;
+    const buf=audioCtx.createBuffer(1,Math.floor(audioCtx.sampleRate*noiseDur),audioCtx.sampleRate);
+    const nd=buf.getChannelData(0);for(let i=0;i<nd.length;i++)nd[i]=(Math.random()*2-1)*0.3;
+    const ns=audioCtx.createBufferSource();ns.buffer=buf;
+    const ng=audioCtx.createGain();
+    ng.gain.setValueAtTime(0.015,t);ng.gain.exponentialRampToValueAtTime(0.001,t+noiseDur);
+    const nf=audioCtx.createBiquadFilter();nf.type='bandpass';nf.frequency.value=600;nf.Q.value=1;
+    ns.connect(nf);nf.connect(ng);ng.connect(masterGain);
+    ns.start(t);ns.stop(t+noiseDur);
+  }catch{}
+}
+
+function startCrowdChanting(){
+  stopCrowdChanting();
+  // HOO... HOO... RAH! pattern repeating with variation
+  let beatIdx=0;
+  const patterns=[
+    ['hoo',500],['hoo',500],['rah',800],  // HOO HOO RAH!
+    ['hoo',500],['hoo',500],['rah',800],  // HOO HOO RAH!
+    ['ooh',400],['ooh',400],['ooh',400],['rah',1200], // OOH OOH OOH RAH!
+  ];
+  function nextChant(){
+    if(!inDuel){stopCrowdChanting();return}
+    const [snd,delay]=patterns[beatIdx%patterns.length];
+    synthCrowdChant(snd);
+    beatIdx++;
+    crowdChantInterval=setTimeout(nextChant,delay+Math.random()*100);
+  }
+  // Start after a brief delay
+  crowdChantInterval=setTimeout(nextChant,1500);
+}
+
+function stopCrowdChanting(){
+  if(crowdChantInterval){clearTimeout(crowdChantInterval);crowdChantInterval=null}
+}
+
+function crowdReact(type){
+  // Burst of crowd noise on big moments (hit, parry, win)
+  if(!audioCtx||!inDuel)return;
+  try{
+    if(type==='cheer'){
+      // Big cheer — rapid HOO HOO RAH
+      setTimeout(()=>synthCrowdChant('ooh'),0);
+      setTimeout(()=>synthCrowdChant('ooh'),150);
+      setTimeout(()=>synthCrowdChant('rah'),300);
+      setTimeout(()=>synthCrowdChant('rah'),450);
+    } else if(type==='gasp'){
+      // Crowd gasp — quiet ooh
+      synthCrowdChant('ooh');
+    } else if(type==='roar'){
+      // Victory roar — layered cheering
+      for(let i=0;i<3;i++){
+        setTimeout(()=>synthCrowdChant('rah'),i*200);
+        setTimeout(()=>synthCrowdChant('ooh'),i*200+100);
+      }
     }
   }catch{}
 }
@@ -4781,6 +4893,7 @@ function onDuelStart(d){
   if(isMobile){const db=document.getElementById('duel-queue-btn');if(db)db.style.display='inline-block';}
   logMsg('DUEL vs '+d.opponent+' — '+(isMobile?'Hold ATK':'Hold E')+' to attack!','xp');
   updateToolHUD();updateActionInfo();
+  startCrowdChanting();
 }
 
 function onDuelHit(d){
@@ -4799,6 +4912,7 @@ function onDuelHit(d){
     }else{
       floats.push({x:d.dx||px+80,y:d.dy||(py-60),text:'-'+d.dmg,color:d.crit?'#fbbf24':'#ff4444',life:800,big:d.crit});
       particles.push(...Array.from({length:d.crit?8:4},()=>({x:d.dx||px+80,y:d.dy||(py-40),vx:(Math.random()-.5)*3,vy:-Math.random()*2-1,color:'#ff4444',life:400})));
+      if(d.crit)crowdReact('cheer');
     }
   }else{
     // Opponent hit us
@@ -4808,6 +4922,7 @@ function onDuelHit(d){
       floats.push({x:px,y:py-60,text:'PARRY!',color:'#fbbf24',life:1000,big:true});
       particles.push(...Array.from({length:8},()=>({x:px,y:py-40,vx:(Math.random()-.5)*4,vy:-Math.random()*3,color:'#fbbf24',life:500})));
       playCombatSound('parry');
+      crowdReact('gasp');
     }else if(d.blocked){
       floats.push({x:px,y:py-60,text:'-'+d.dmg+' (blocked)',color:'#4488cc',life:800,big:false});
       particles.push(...Array.from({length:3},()=>({x:px,y:py-40,vx:(Math.random()-.5)*2,vy:-Math.random()*2,color:'#4488cc',life:300})));
@@ -4817,12 +4932,16 @@ function onDuelHit(d){
       floats.push({x:px,y:py-60,text:'-'+d.dmg,color:d.crit?'#fbbf24':'#ff4444',life:800,big:d.crit});
       particles.push(...Array.from({length:d.crit?8:4},()=>({x:px,y:py-40,vx:(Math.random()-.5)*3,vy:-Math.random()*2-1,color:'#ff4444',life:400})));
       screenShakeX=(Math.random()-.5)*6;screenShakeY=(Math.random()-.5)*6;shakeTimer=d.crit?8:4;
+      if(d.crit)crowdReact('cheer');
     }
   }
   updateHUD();
 }
 
 function onDuelEnd(d){
+  stopCrowdChanting();
+  if(d.result==='win')crowdReact('roar');
+  else if(d.result==='loss')crowdReact('gasp');
   inDuel=false;duelData=null;
   duelResultMsg={result:d.result,gold:d.gold||0,xp:d.xp||0,
     ratingChange:d.ratingChange,newRating:d.newRating,rank:d.rank,
@@ -4871,20 +4990,42 @@ function showDuelChallengePopup(){
   let el=document.getElementById('duel-challenge-popup');
   if(!el){
     el=document.createElement('div');el.id='duel-challenge-popup';
-    el.style.cssText='position:fixed;top:120px;left:50%;transform:translateX(-50%);z-index:350;background:linear-gradient(135deg,#1a0a0a,#2a1515);border:2px solid #ff4444;border-radius:10px;padding:12px 20px;color:#fff;font-family:"Press Start 2P",monospace;font-size:9px;text-align:center;animation:panelSlideUp .3s ease;box-shadow:0 4px 20px rgba(255,68,68,0.4)';
+    el.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;z-index:350;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);animation:fadeIn .3s ease';
     document.body.appendChild(el);
   }
-  el.innerHTML='⚔️ <span style="color:#ff4444">'+duelChallenge.from+'</span> challenges you to a duel!<br><br>'+
-    '<button onclick="acceptDuelChallenge()" style="margin:0 5px;padding:6px 12px;background:#22c55e;border:none;border-radius:5px;color:#fff;font-family:inherit;font-size:8px;cursor:pointer">✅ Accept</button>'+
-    '<button onclick="declineDuelChallenge()" style="margin:0 5px;padding:6px 12px;background:#ef4444;border:none;border-radius:5px;color:#fff;font-family:inherit;font-size:8px;cursor:pointer">❌ Decline</button>'+
-    '<div id="duel-challenge-timer" style="color:#888;font-size:7px;margin-top:6px">30s</div>';
-  el.style.display='block';
+  const from=duelChallenge.from;
+  el.innerHTML=`
+    <div style="background:linear-gradient(180deg,#1a0505 0%,#2a0a0a 40%,#1a0505 100%);border:3px solid #cc2222;border-radius:16px;padding:0;width:340px;max-width:90vw;text-align:center;font-family:'Press Start 2P',monospace;box-shadow:0 0 60px rgba(255,40,40,0.4),inset 0 0 30px rgba(255,40,40,0.1);overflow:hidden;animation:panelSlideUp .4s ease">
+      <div style="background:linear-gradient(90deg,transparent,rgba(200,30,30,0.3),transparent);padding:14px 10px 10px;border-bottom:1px solid rgba(200,30,30,0.3)">
+        <div style="font-size:28px;margin-bottom:4px">⚔️</div>
+        <div style="color:#ff6644;font-size:11px;letter-spacing:2px;text-transform:uppercase">DUEL CHALLENGE</div>
+      </div>
+      <div style="padding:18px 16px 10px">
+        <div style="color:#888;font-size:8px;margin-bottom:6px">A warrior approaches...</div>
+        <div style="color:#ff4444;font-size:14px;margin-bottom:4px;text-shadow:0 0 10px rgba(255,68,68,0.6)">${from}</div>
+        <div style="color:#ccc;font-size:9px;margin-bottom:16px">has challenged you to a <span style="color:#fbbf24">1v1 duel!</span></div>
+        <div style="color:#666;font-size:7px;margin-bottom:14px;line-height:1.6">Fight for glory, gold & arena tokens<br>in the Colosseum arena</div>
+        <div style="display:flex;gap:12px;justify-content:center;margin-bottom:14px">
+          <button onclick="acceptDuelChallenge()" style="flex:1;max-width:130px;padding:10px 8px;background:linear-gradient(180deg,#22aa44,#188833);border:2px solid #33cc55;border-radius:8px;color:#fff;font-family:inherit;font-size:9px;cursor:pointer;text-shadow:0 1px 3px rgba(0,0,0,0.5);transition:all .15s;letter-spacing:1px" onmouseover="this.style.background='linear-gradient(180deg,#33cc55,#22aa44)';this.style.transform='scale(1.05)'" onmouseout="this.style.background='linear-gradient(180deg,#22aa44,#188833)';this.style.transform='scale(1)'">⚔️ ACCEPT</button>
+          <button onclick="declineDuelChallenge()" style="flex:1;max-width:130px;padding:10px 8px;background:linear-gradient(180deg,#661818,#441010);border:2px solid #882222;border-radius:8px;color:#aa6666;font-family:inherit;font-size:9px;cursor:pointer;transition:all .15s;letter-spacing:1px" onmouseover="this.style.background='linear-gradient(180deg,#882222,#661818)';this.style.transform='scale(1.05)'" onmouseout="this.style.background='linear-gradient(180deg,#661818,#441010)';this.style.transform='scale(1)'">✋ DECLINE</button>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:center;gap:6px">
+          <div style="width:100px;height:4px;background:#222;border-radius:2px;overflow:hidden">
+            <div id="duel-challenge-bar" style="height:100%;background:linear-gradient(90deg,#ff4444,#ff8844);width:100%;transition:width 1s linear;border-radius:2px"></div>
+          </div>
+          <div id="duel-challenge-timer" style="color:#ff6644;font-size:8px;min-width:24px">30s</div>
+        </div>
+      </div>
+    </div>`;
+  el.style.display='flex';
   if(duelChallenge._iv)clearInterval(duelChallenge._iv);
   duelChallenge._iv=setInterval(()=>{
     if(!duelChallenge){hideDuelChallengePopup();return}
     duelChallenge.timer--;
     const tel=document.getElementById('duel-challenge-timer');
+    const bar=document.getElementById('duel-challenge-bar');
     if(tel)tel.textContent=duelChallenge.timer+'s';
+    if(bar)bar.style.width=(duelChallenge.timer/30*100)+'%';
     if(duelChallenge.timer<=0){duelChallenge=null;hideDuelChallengePopup()}
   },1000);
 }
@@ -4983,102 +5124,228 @@ function renderColosseumBG(){
   const t=Date.now();
   const S=ISO_S;
   const CX=600,CY=600,AR=280; // arena center + radius in world coords
-
-  // Full screen dark fill
-  ctx.fillStyle=th.bg;ctx.fillRect(0,0,W,H);
-
-  // Outer wall ring (beyond arena)
   const cen=worldToScreen(CX,CY);
-  const wallR=(AR+70)*S;
-  ctx.fillStyle=th.wallCol;ctx.beginPath();ctx.arc(cen.x,cen.y,wallR,0,Math.PI*2);ctx.fill();
-  // Wall top highlight
-  ctx.fillStyle=th.wallTop;ctx.beginPath();ctx.arc(cen.x,cen.y-4*S,wallR,Math.PI,Math.PI*2);ctx.fill();
+  const floorR=AR*S;
 
-  // Crowd silhouettes in stands
+  // Full screen dark fill with vignette
+  ctx.fillStyle=th.bg;ctx.fillRect(0,0,W,H);
+  // Atmospheric vignette gradient
+  const vig=ctx.createRadialGradient(W/2,H/2,Math.min(W,H)*0.2,W/2,H/2,Math.max(W,H)*0.7);
+  vig.addColorStop(0,'rgba(0,0,0,0)');vig.addColorStop(0.7,'rgba(0,0,0,0.15)');vig.addColorStop(1,'rgba(0,0,0,0.5)');
+  ctx.fillStyle=vig;ctx.fillRect(0,0,W,H);
+
+  // ══ OUTER WALL / STANDS STRUCTURE ══
+  const wallR=(AR+90)*S;
+  const standR=(AR+50)*S;
+  // Deep outer wall
+  ctx.fillStyle=th.wallCol;ctx.beginPath();ctx.arc(cen.x,cen.y,wallR,0,Math.PI*2);ctx.fill();
+  // Stone wall texture — horizontal brick lines
+  ctx.save();ctx.globalAlpha=0.15;ctx.strokeStyle=th.wallTop;ctx.lineWidth=1;
+  for(let ring=0;ring<6;ring++){
+    const rr=standR+ring*7*S;
+    ctx.beginPath();ctx.arc(cen.x,cen.y,rr,0,Math.PI*2);ctx.stroke();
+  }
+  ctx.restore();
+  // Stepped seating tiers (3 levels)
+  for(let tier=2;tier>=0;tier--){
+    const tierR=standR+tier*14*S;
+    const tierBright=tier*15;
+    ctx.fillStyle=`rgb(${parseInt(th.wallCol.slice(1,3),16)+tierBright},${parseInt(th.wallCol.slice(3,5),16)+tierBright},${parseInt(th.wallCol.slice(5,7),16)+tierBright})`;
+    ctx.beginPath();ctx.arc(cen.x,cen.y-(tier*3)*S,tierR,0,Math.PI*2);ctx.fill();
+    // Tier edge highlight
+    ctx.strokeStyle=th.wallTop;ctx.lineWidth=1;ctx.globalAlpha=0.3;
+    ctx.beginPath();ctx.arc(cen.x,cen.y-(tier*3)*S,tierR,Math.PI,Math.PI*2);ctx.stroke();
+    ctx.globalAlpha=1;
+  }
+
+  // ══ ANIMATED CROWD ══
   if(duelData.decos){
+    // Track chant phase for synchronized crowd wave
+    if(!duelData._chantPhase)duelData._chantPhase=0;
+    const chantCycle=t*0.002; // continuous cycle
+
     for(const d of duelData.decos){
       if(d.type!=='crowd')continue;
       const cs=worldToScreen(d.x,d.y);
-      // Bob animation
-      const bob=Math.sin(t*0.003+d.h*10)*1.5;
-      ctx.fillStyle=th.crowdCol;
+      const crowdIdx=d.h*3.7; // pseudo-random per figure
+      // Crowd wave — some stand up, bob, cheer
+      const wavePhase=Math.sin(chantCycle+crowdIdx*0.4);
+      const isExcited=wavePhase>0.5;
+      const bobH=isExcited?(3+Math.sin(t*0.008+crowdIdx)*2):Math.sin(t*0.003+crowdIdx*10)*1.5;
+      const armRaise=isExcited?(-4-Math.sin(t*0.01+crowdIdx)*2):0;
+      const headSize=(3+d.h*0.15)*S;
+      const bodyH=(d.h-2)*S;
+
+      // Body — slightly brighter shades for variety
+      const bodyBright=Math.floor(crowdIdx*7)%30;
+      ctx.fillStyle=`rgba(${40+bodyBright},${30+bodyBright},${20+bodyBright},0.9)`;
+      ctx.fillRect(cs.x-2.5*S,cs.y-bodyH+bobH,5*S,bodyH);
       // Head
-      ctx.beginPath();ctx.arc(cs.x,cs.y-d.h*S+bob,3*S,0,Math.PI*2);ctx.fill();
-      // Body
-      ctx.fillRect(cs.x-2*S,cs.y-(d.h-3)*S+bob,4*S,(d.h-3)*S);
+      ctx.fillStyle=th.crowdCol;
+      ctx.beginPath();ctx.arc(cs.x,cs.y-bodyH-headSize*0.5+bobH,headSize,0,Math.PI*2);ctx.fill();
+      // Arms
+      if(isExcited){
+        // Arms raised cheering
+        ctx.strokeStyle=th.crowdCol;ctx.lineWidth=1.5*S;ctx.lineCap='round';
+        ctx.beginPath();ctx.moveTo(cs.x-3*S,cs.y-bodyH*0.6+bobH);ctx.lineTo(cs.x-5*S,cs.y-bodyH+armRaise+bobH);ctx.stroke();
+        ctx.beginPath();ctx.moveTo(cs.x+3*S,cs.y-bodyH*0.6+bobH);ctx.lineTo(cs.x+5*S,cs.y-bodyH+armRaise+bobH-1);ctx.stroke();
+      }
+      // Occasional colored accessory (banner, flag, etc.)
+      if(Math.floor(crowdIdx*2.3)%5===0){
+        const flagCol=th.accent;
+        ctx.fillStyle=flagCol;ctx.globalAlpha=0.5;
+        if(isExcited){
+          ctx.fillRect(cs.x+4*S,cs.y-bodyH+armRaise+bobH-3*S,4*S,3*S);
+        }
+        ctx.globalAlpha=1;
+      }
     }
   }
 
-  // Inner arena floor (the fighting area)
-  const floorR=AR*S;
-  ctx.fillStyle=th.floor;ctx.beginPath();ctx.arc(cen.x,cen.y,floorR,0,Math.PI*2);ctx.fill();
-  // Floor texture — concentric rings
+  // ══ ARENA FLOOR ══
+  // Floor base with subtle gradient
+  const floorGrad=ctx.createRadialGradient(cen.x,cen.y,0,cen.x,cen.y,floorR);
+  floorGrad.addColorStop(0,th.floor2||th.floor);
+  floorGrad.addColorStop(0.7,th.floor);
+  floorGrad.addColorStop(1,th.floor);
+  ctx.fillStyle=floorGrad;ctx.beginPath();ctx.arc(cen.x,cen.y,floorR,0,Math.PI*2);ctx.fill();
+  // Floor texture — dirt/stone marks
+  ctx.save();ctx.globalAlpha=0.08;
+  for(let i=0;i<20;i++){
+    const ma=(i/20)*Math.PI*2+0.3;
+    const md=floorR*(0.2+Math.sin(i*5.1)*0.3);
+    const ms=8+Math.sin(i*3.3)*5;
+    ctx.fillStyle=th.edge;
+    ctx.beginPath();ctx.ellipse(cen.x+Math.cos(ma)*md,cen.y+Math.sin(ma)*md*0.6,ms*S,ms*S*0.4,ma*0.3,0,Math.PI*2);ctx.fill();
+  }
+  ctx.restore();
+  // Concentric ring markings (arena lines)
   for(let r=1;r<=4;r++){
     ctx.strokeStyle=th.lines;ctx.lineWidth=1;
     ctx.beginPath();ctx.arc(cen.x,cen.y,floorR*r/5,0,Math.PI*2);ctx.stroke();
   }
-  // Radial lines
-  for(let i=0;i<12;i++){
-    const a=i*Math.PI/6;
-    ctx.strokeStyle=th.lines;ctx.lineWidth=1;
-    ctx.beginPath();ctx.moveTo(cen.x,cen.y);
-    ctx.lineTo(cen.x+Math.cos(a)*floorR,cen.y+Math.sin(a)*floorR);ctx.stroke();
+  // Radial lines — 8 main, like compass
+  for(let i=0;i<8;i++){
+    const a=i*Math.PI/4;
+    ctx.strokeStyle=th.lines;ctx.lineWidth=i%2===0?1.5:0.8;
+    ctx.beginPath();ctx.moveTo(cen.x+Math.cos(a)*floorR*0.15,cen.y+Math.sin(a)*floorR*0.15);
+    ctx.lineTo(cen.x+Math.cos(a)*floorR*0.95,cen.y+Math.sin(a)*floorR*0.95);ctx.stroke();
   }
-  // Center emblem
-  ctx.strokeStyle=th.accent;ctx.lineWidth=2;
-  ctx.beginPath();ctx.arc(cen.x,cen.y,25*S,0,Math.PI*2);ctx.stroke();
-  ctx.strokeStyle=th.edge;ctx.lineWidth=1;
-  ctx.beginPath();ctx.moveTo(cen.x-15*S,cen.y);ctx.lineTo(cen.x+15*S,cen.y);ctx.stroke();
-  ctx.beginPath();ctx.moveTo(cen.x,cen.y-15*S);ctx.lineTo(cen.x,cen.y+15*S);ctx.stroke();
+  // Center emblem — crossed swords
+  ctx.save();
+  const embR=28*S;
+  ctx.strokeStyle=th.accent;ctx.lineWidth=2.5;ctx.globalAlpha=0.5;
+  ctx.beginPath();ctx.arc(cen.x,cen.y,embR,0,Math.PI*2);ctx.stroke();
+  ctx.beginPath();ctx.arc(cen.x,cen.y,embR*0.6,0,Math.PI*2);ctx.stroke();
+  // Crossed swords icon
+  ctx.lineWidth=2;ctx.globalAlpha=0.35;ctx.strokeStyle=th.edge;
+  ctx.beginPath();ctx.moveTo(cen.x-12*S,cen.y+8*S);ctx.lineTo(cen.x+12*S,cen.y-8*S);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cen.x+12*S,cen.y+8*S);ctx.lineTo(cen.x-12*S,cen.y-8*S);ctx.stroke();
+  // Sword guards
+  ctx.lineWidth=3;
+  ctx.beginPath();ctx.moveTo(cen.x-4*S,cen.y+1*S);ctx.lineTo(cen.x+4*S,cen.y+1*S);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cen.x-4*S,cen.y-1*S);ctx.lineTo(cen.x+4*S,cen.y-1*S);ctx.stroke();
+  ctx.restore();
 
-  // Arena edge ring
-  ctx.strokeStyle=th.edge;ctx.lineWidth=3;
+  // Arena edge — thick accent border with inner glow
+  ctx.strokeStyle=th.edge;ctx.lineWidth=4;
   ctx.beginPath();ctx.arc(cen.x,cen.y,floorR,0,Math.PI*2);ctx.stroke();
-  ctx.strokeStyle=th.accent;ctx.lineWidth=1;
-  ctx.beginPath();ctx.arc(cen.x,cen.y,floorR+3,0,Math.PI*2);ctx.stroke();
+  ctx.save();ctx.globalAlpha=0.2;
+  ctx.strokeStyle=th.accent;ctx.lineWidth=8;
+  ctx.beginPath();ctx.arc(cen.x,cen.y,floorR+2,0,Math.PI*2);ctx.stroke();
+  ctx.restore();
 
-  // Pillars
+  // ══ PILLARS (stone columns with detail) ══
   if(duelData.decos){
     for(const d of duelData.decos){
       if(d.type!=='pillar')continue;
       const ps=worldToScreen(d.x,d.y);
-      const pw=6*S,ph=20*S;
+      const pw=7*S,ph=24*S;
       // Pillar shadow
-      ctx.fillStyle='rgba(0,0,0,0.3)';ctx.beginPath();ctx.ellipse(ps.x,ps.y+2*S,pw,3*S,0,0,Math.PI*2);ctx.fill();
-      // Pillar body
-      ctx.fillStyle=th.wallTop;ctx.fillRect(ps.x-pw/2,ps.y-ph,pw,ph);
-      // Pillar cap
-      ctx.fillStyle=th.accent;ctx.fillRect(ps.x-pw/2-2,ps.y-ph-3,pw+4,4);
+      ctx.fillStyle='rgba(0,0,0,0.35)';ctx.beginPath();ctx.ellipse(ps.x,ps.y+2*S,pw*1.2,3.5*S,0,0,Math.PI*2);ctx.fill();
+      // Pillar body — gradient for depth
+      const pGrad=ctx.createLinearGradient(ps.x-pw/2,0,ps.x+pw/2,0);
+      pGrad.addColorStop(0,th.wallCol);pGrad.addColorStop(0.3,th.wallTop);pGrad.addColorStop(0.7,th.wallTop);pGrad.addColorStop(1,th.wallCol);
+      ctx.fillStyle=pGrad;ctx.fillRect(ps.x-pw/2,ps.y-ph,pw,ph);
+      // Pillar cap — ornate
+      ctx.fillStyle=th.accent;
+      ctx.fillRect(ps.x-pw/2-3,ps.y-ph-4,pw+6,5);
+      ctx.fillRect(ps.x-pw/2-1,ps.y-ph-7,pw+2,4);
       // Pillar base
-      ctx.fillStyle=th.wallCol;ctx.fillRect(ps.x-pw/2-1,ps.y-3,pw+2,4);
-    }
-  }
-
-  // Torches with animated flames
-  if(duelData.decos){
-    for(const d of duelData.decos){
-      if(d.type!=='torch')continue;
-      const ts2=worldToScreen(d.x,d.y);
-      // Torch bracket
-      ctx.fillStyle=th.wallCol;ctx.fillRect(ts2.x-1.5*S,ts2.y-8*S,3*S,8*S);
-      // Flame
-      const flicker=Math.sin(t*0.008+d.phase)*2+Math.sin(t*0.013+d.phase*2)*1.5;
-      const fsize=4+Math.sin(t*0.006+d.phase)*1.5;
-      ctx.save();
-      ctx.shadowColor=th.torchCol;ctx.shadowBlur=12*S;
-      ctx.fillStyle=th.torchCol;
-      ctx.beginPath();ctx.arc(ts2.x+flicker*0.3,ts2.y-10*S-Math.abs(flicker)*0.5,fsize*S*0.4,0,Math.PI*2);ctx.fill();
-      ctx.fillStyle='#ffee88';
-      ctx.beginPath();ctx.arc(ts2.x,ts2.y-10*S,fsize*S*0.2,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle=th.wallCol;ctx.fillRect(ps.x-pw/2-2,ps.y-3,pw+4,5);
+      // Vertical groove lines
+      ctx.save();ctx.globalAlpha=0.15;ctx.strokeStyle=th.wallCol;ctx.lineWidth=1;
+      for(let g=-1;g<=1;g++){
+        ctx.beginPath();ctx.moveTo(ps.x+g*2*S,ps.y-ph+2);ctx.lineTo(ps.x+g*2*S,ps.y-2);ctx.stroke();
+      }
       ctx.restore();
     }
   }
 
+  // ══ TORCHES with animated flames + light pools ══
+  if(duelData.decos){
+    for(const d of duelData.decos){
+      if(d.type!=='torch')continue;
+      const ts2=worldToScreen(d.x,d.y);
+      // Light pool on ground
+      ctx.save();ctx.globalAlpha=0.08+Math.sin(t*0.005+d.phase)*0.03;
+      const lightG=ctx.createRadialGradient(ts2.x,ts2.y,0,ts2.x,ts2.y,30*S);
+      lightG.addColorStop(0,th.torchCol);lightG.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle=lightG;ctx.beginPath();ctx.arc(ts2.x,ts2.y,30*S,0,Math.PI*2);ctx.fill();
+      ctx.restore();
+      // Torch bracket + pole
+      ctx.fillStyle=th.wallCol;ctx.fillRect(ts2.x-1.5*S,ts2.y-10*S,3*S,10*S);
+      // Bowl at top
+      ctx.fillStyle=th.wallTop;
+      ctx.beginPath();ctx.ellipse(ts2.x,ts2.y-10*S,3*S,1.5*S,0,0,Math.PI*2);ctx.fill();
+      // Animated multi-layered flame
+      const flicker=Math.sin(t*0.008+d.phase)*2+Math.sin(t*0.013+d.phase*2)*1.5;
+      const fsize=5+Math.sin(t*0.006+d.phase)*2;
+      ctx.save();
+      // Outer glow
+      ctx.globalAlpha=0.15;ctx.shadowColor=th.torchCol;ctx.shadowBlur=20*S;
+      ctx.fillStyle=th.torchCol;
+      ctx.beginPath();ctx.arc(ts2.x+flicker*0.3,ts2.y-13*S,fsize*S*0.6,0,Math.PI*2);ctx.fill();
+      // Mid flame
+      ctx.globalAlpha=0.7;ctx.shadowBlur=10*S;
+      ctx.fillStyle=th.torchCol;
+      ctx.beginPath();
+      ctx.moveTo(ts2.x-3*S,ts2.y-10*S);
+      ctx.quadraticCurveTo(ts2.x+flicker*0.4,ts2.y-13*S-fsize*S*0.5,ts2.x+3*S,ts2.y-10*S);
+      ctx.fill();
+      // Inner bright core
+      ctx.globalAlpha=0.9;ctx.shadowBlur=5*S;
+      ctx.fillStyle='#ffee88';
+      ctx.beginPath();ctx.arc(ts2.x+flicker*0.2,ts2.y-11.5*S,fsize*S*0.2,0,Math.PI*2);ctx.fill();
+      ctx.restore();
+      // Sparks
+      if(Math.random()>0.85){
+        ctx.fillStyle=th.torchCol;ctx.globalAlpha=0.6;
+        ctx.beginPath();ctx.arc(ts2.x+(Math.random()-0.5)*4*S,ts2.y-14*S-Math.random()*5*S,0.8*S,0,Math.PI*2);ctx.fill();
+        ctx.globalAlpha=1;
+      }
+    }
+  }
+
+  // ══ DUST PARTICLES floating in the arena ══
+  ctx.save();
+  for(let i=0;i<12;i++){
+    const angle=t*0.0002+i*0.52;
+    const dist=floorR*(0.3+Math.sin(t*0.001+i*1.7)*0.4);
+    const dx2=cen.x+Math.cos(angle)*dist;
+    const dy2=cen.y+Math.sin(angle)*dist*0.5+Math.sin(t*0.002+i*3)*8;
+    const dustA=0.15+Math.sin(t*0.003+i*2)*0.1;
+    ctx.globalAlpha=dustA;
+    ctx.fillStyle=th.accent;
+    ctx.beginPath();ctx.arc(dx2,dy2,1+Math.sin(t*0.004+i)*0.5,0,Math.PI*2);ctx.fill();
+  }
+  ctx.restore();
+
   // Arena title
-  const titleSize=isMobile?8:14;
+  const titleSize=isMobile?9:16;
   ctx.font='bold '+titleSize+'px "Press Start 2P",monospace';ctx.textAlign='center';
-  ctx.fillStyle=th.accent;ctx.globalAlpha=0.35;
-  const titlePos=worldToScreen(CX,CY-AR-60);
+  ctx.fillStyle=th.accent;ctx.globalAlpha=0.3+Math.sin(t*0.002)*0.08;
+  const titlePos=worldToScreen(CX,CY-AR-70);
   ctx.fillText(th.title,titlePos.x,titlePos.y);
   ctx.globalAlpha=1;
   ctx.textAlign='left';
@@ -5086,47 +5353,98 @@ function renderColosseumBG(){
 
 function renderDuelHUD(){
   if(!inDuel&&!duelResultMsg)return;
-  // Opponent HP bar at top of screen
+  const t=Date.now();
+  // ═══ VS SPLIT SCREEN HUD ═══
   if(inDuel&&duelData){
-    const bw=200,bh=14,bx=W/2-bw/2,by=50;
-    ctx.fillStyle='rgba(0,0,0,0.6)';ctx.fillRect(bx-2,by-18,bw+4,bh+22);
-    ctx.font='bold 9px "Press Start 2P",monospace';ctx.textAlign='center';
-    ctx.fillStyle='#ef4444';ctx.fillText(duelData.opponent,W/2,by-6);
-    ctx.fillStyle='#333';ctx.fillRect(bx,by,bw,bh);
-    const hpPct=Math.max(0,duelOpponentHP/duelOpponentMaxHP);
-    ctx.fillStyle=hpPct>.5?'#ef4444':hpPct>.2?'#ff8800':'#ff2222';
-    ctx.fillRect(bx,by,bw*hpPct,bh);
-    ctx.strokeStyle='#666';ctx.strokeRect(bx,by,bw,bh);
-    ctx.font='bold 8px sans-serif';ctx.fillStyle='#fff';
-    ctx.fillText(duelOpponentHP+'/'+duelOpponentMaxHP,W/2,by+11);
-    // My HP bar
-    const my=by+bh+6;
-    ctx.fillStyle='#333';ctx.fillRect(bx,my,bw,bh);
+    const bw=180,bh=16,gap=60;
+    const leftX=W/2-gap/2-bw,rightX=W/2+gap/2;
+    const by=38;
+
+    // Dark HUD background
+    ctx.fillStyle='rgba(0,0,0,0.75)';
+    ctx.beginPath();
+    ctx.moveTo(leftX-10,by-24);ctx.lineTo(rightX+bw+10,by-24);
+    ctx.lineTo(rightX+bw+10,by+bh+20);ctx.lineTo(leftX-10,by+bh+20);
+    ctx.closePath();ctx.fill();
+    // Accent border bottom
+    ctx.strokeStyle='rgba(255,68,68,0.3)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(leftX-10,by+bh+20);ctx.lineTo(rightX+bw+10,by+bh+20);ctx.stroke();
+
+    // VS badge in center
+    ctx.font='bold 14px "Press Start 2P",monospace';ctx.textAlign='center';
+    const vsPulse=0.8+Math.sin(t*0.004)*0.2;
+    ctx.fillStyle='rgba(255,200,50,'+vsPulse+')';
+    ctx.fillText('VS',W/2,by+12);
+
+    // ─── LEFT: You ───
+    ctx.font='bold 9px "Press Start 2P",monospace';ctx.textAlign='right';
+    ctx.fillStyle='#4ade80';
+    ctx.fillText(username,leftX+bw,by-8);
+    // HP bar (grows right to left)
+    ctx.fillStyle='#1a1a1a';ctx.fillRect(leftX,by,bw,bh);
     const myPct=Math.max(0,duelMyHP/duelMyMaxHP);
-    ctx.fillStyle=myPct>.5?'#4ade80':myPct>.2?'#ffaa00':'#ff4444';
-    ctx.fillRect(bx,my,bw*myPct,bh);
-    ctx.strokeStyle='#666';ctx.strokeRect(bx,my,bw,bh);
-    ctx.fillStyle='#fff';ctx.fillText(duelMyHP+'/'+duelMyMaxHP,W/2,my+11);
-    ctx.font='bold 8px sans-serif';ctx.fillStyle='#4ade80';
-    ctx.fillText(username,W/2,my+bh+10);
-    // Hold E hint
-    ctx.font='bold 10px sans-serif';ctx.fillStyle='rgba(255,255,255,0.5)';
-    ctx.fillText(isMobile?'Hold ATK | BLK to block':'Hold E to attack | Q to block',W/2,my+bh+28);
+    const myCol=myPct>.5?'#4ade80':myPct>.2?'#ffaa00':'#ff4444';
+    // Bar fills from right to left
+    const myBarW=bw*myPct;
+    const myGrad=ctx.createLinearGradient(leftX+bw-myBarW,0,leftX+bw,0);
+    myGrad.addColorStop(0,myCol);myGrad.addColorStop(1,myCol+'88');
+    ctx.fillStyle=myGrad;ctx.fillRect(leftX+bw-myBarW,by,myBarW,bh);
+    // HP text
+    ctx.font='bold 8px sans-serif';ctx.textAlign='center';ctx.fillStyle='#fff';
+    ctx.fillText(duelMyHP+'/'+duelMyMaxHP,leftX+bw/2,by+12);
+    // Border
+    ctx.strokeStyle=myCol+'88';ctx.lineWidth=1.5;ctx.strokeRect(leftX,by,bw,bh);
+
+    // ─── RIGHT: Opponent ───
+    ctx.font='bold 9px "Press Start 2P",monospace';ctx.textAlign='left';
+    ctx.fillStyle='#ef4444';
+    ctx.fillText(duelData.opponent,rightX,by-8);
+    // HP bar (grows left to right)
+    ctx.fillStyle='#1a1a1a';ctx.fillRect(rightX,by,bw,bh);
+    const oppPct=Math.max(0,duelOpponentHP/duelOpponentMaxHP);
+    const oppCol=oppPct>.5?'#ef4444':oppPct>.2?'#ff8800':'#ff2222';
+    const oppBarW=bw*oppPct;
+    const oppGrad=ctx.createLinearGradient(rightX,0,rightX+oppBarW,0);
+    oppGrad.addColorStop(0,oppCol+'88');oppGrad.addColorStop(1,oppCol);
+    ctx.fillStyle=oppGrad;ctx.fillRect(rightX,by,oppBarW,bh);
+    ctx.font='bold 8px sans-serif';ctx.textAlign='center';ctx.fillStyle='#fff';
+    ctx.fillText(duelOpponentHP+'/'+duelOpponentMaxHP,rightX+bw/2,by+12);
+    ctx.strokeStyle=oppCol+'88';ctx.lineWidth=1.5;ctx.strokeRect(rightX,by,bw,bh);
+
+    // Hold E / Q hint
+    ctx.font='bold 9px sans-serif';ctx.textAlign='center';
+    ctx.fillStyle='rgba(255,255,255,0.4)';
+    ctx.fillText(isMobile?'Hold ATK to attack | BLK to block':'Hold E to attack | Q to block',W/2,by+bh+14);
   }
-  // Result banner
+  // ═══ RESULT BANNER ═══
   if(duelResultMsg){
     duelResultTimer-=16;
     const alpha=Math.min(1,duelResultTimer/1000);
+    const scale=duelResultTimer>4500?Math.min(1,(5000-duelResultTimer)/500*0.5+0.5):1;
+    ctx.save();
     ctx.globalAlpha=alpha;
-    ctx.font='bold 22px "Press Start 2P",monospace';ctx.textAlign='center';
-    if(duelResultMsg.result==='win'){ctx.fillStyle='#fbbf24';ctx.fillText('VICTORY!',W/2,H/2-20)}
-    else if(duelResultMsg.result==='loss'){ctx.fillStyle='#ef4444';ctx.fillText('DEFEAT',W/2,H/2-20)}
-    else{ctx.fillStyle='#888';ctx.fillText('DRAW',W/2,H/2-20)}
-    if(duelResultMsg.gold>0){
-      ctx.font='bold 12px sans-serif';ctx.fillStyle='#fbbf24';
-      ctx.fillText('+'+duelResultMsg.gold+'g +'+duelResultMsg.xp+'XP',W/2,H/2+10);
+    // Dark backdrop
+    ctx.fillStyle='rgba(0,0,0,'+alpha*0.4+')';
+    ctx.fillRect(0,H/2-60,W,120);
+    // Result text
+    ctx.font='bold '+Math.floor(24*scale)+'px "Press Start 2P",monospace';ctx.textAlign='center';
+    if(duelResultMsg.result==='win'){
+      ctx.fillStyle='#fbbf24';
+      ctx.shadowColor='#fbbf24';ctx.shadowBlur=20;
+      ctx.fillText('\u2694 VICTORY! \u2694',W/2,H/2-12);
+    } else if(duelResultMsg.result==='loss'){
+      ctx.fillStyle='#ef4444';
+      ctx.shadowColor='#ef4444';ctx.shadowBlur=15;
+      ctx.fillText('DEFEAT',W/2,H/2-12);
+    } else {
+      ctx.fillStyle='#888';ctx.fillText('DRAW',W/2,H/2-12);
     }
-    ctx.globalAlpha=1;
+    ctx.shadowBlur=0;
+    if(duelResultMsg.gold>0||duelResultMsg.xp>0){
+      ctx.font='bold 11px sans-serif';ctx.fillStyle='#fbbf24';
+      ctx.fillText('+'+duelResultMsg.gold+'g  +'+duelResultMsg.xp+'XP',W/2,H/2+14);
+    }
+    ctx.restore();
     if(duelResultTimer<=0){duelResultMsg=null}
   }
 }
@@ -24144,12 +24462,12 @@ function drawOtherPlayer(p){
       ctx.fillRect(s.x-48,ey-10,96,16);
       ctx.fillStyle='#fbbf24';
       ctx.fillText('[E] Trade',s.x,ey+2);
-      // [D] Duel
+      // ⚔ DUEL button
       const dy=ey-26;
       ctx.fillStyle='rgba(0,0,0,0.7)';
       ctx.fillRect(s.x-48,dy-10,96,16);
       ctx.fillStyle='#ef4444';
-      ctx.fillText('[D] Duel',s.x,dy+2);
+      ctx.fillText('⚔ DUEL',s.x,dy+2);
       ctx.globalAlpha=1;
     }
   }
@@ -27152,6 +27470,24 @@ canvas.addEventListener('click',e=>{
   // On mobile, clicks on canvas are handled by touch controls
   if(isMobile)return;
   // Click = interact only (hold E to attack)
+  // Check if click is on a player button (trade/duel)
+  if(!isMobile&&zoneType==='hub'&&!tradeOpen&&!inDuel){
+    const r4=canvas.getBoundingClientRect();
+    const sx4=(e.clientX-r4.left)*(W/r4.width);
+    const sy4=(e.clientY-r4.top)*(H/r4.height);
+    for(const op of otherPlayers){
+      const dist=Math.sqrt((px-op.x)**2+(py-op.y)**2);
+      if(dist<80){
+        const sc=worldToScreen(op.x,op.y);
+        const ey=sc.y-58;
+        // Trade button region
+        if(sx4>=sc.x-48&&sx4<=sc.x+48&&sy4>=ey-12&&sy4<=ey+8){requestTradeWithPlayer(op.username);return}
+        // Duel button region
+        const dly=ey-26;
+        if(sx4>=sc.x-48&&sx4<=sc.x+48&&sy4>=dly-12&&sy4<=dly+8){challengePlayerToDuel(op.username);return}
+      }
+    }
+  }
   interactNearest();
 });
 
