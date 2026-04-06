@@ -1058,6 +1058,12 @@ wss.on('connection', (ws, req) => {
       }
       if (msg.type === 'rpg_move' && ws.isRPG && ws.rpgUser) {
         game.rpgMove(ws.rpgUser, msg.x, msg.y, msg.facing);
+        // Forward move to any admin spectating this player
+        for (const c of wss.clients) {
+          if (c.readyState === WebSocket.OPEN && c._spectating === ws.rpgUser) {
+            c.send(JSON.stringify({ type: 'rpg_spectate_move', data: { username: ws.rpgUser, x: msg.x, y: msg.y, facing: msg.facing } }));
+          }
+        }
       }
       if (msg.type === 'rpg_sit' && ws.isRPG && ws.rpgUser) {
         game.rpgSit(ws.rpgUser, msg.x, msg.y);
@@ -1509,6 +1515,17 @@ wss.on('connection', (ws, req) => {
           case 'give_cosmetic': r = game.rpgAdminGiveCosmetic(ws.rpgUser, msg.cosmeticId); break;
           case 'respawn_all_mobs': r = game.rpgAdminRespawnAllMobs(ws.rpgUser); break;
           case 'set_dmg_mult':  r = game.rpgAdminSetDmgMult(ws.rpgUser, msg.mult); break;
+          case 'set_weight':      r = game.setWeight(ws.rpgUser, msg.value); break;
+          case 'set_weight_goal': r = game.setWeightGoal(ws.rpgUser, msg.value); break;
+          case 'set_weight_start':r = game.setWeightStart(ws.rpgUser, msg.value); break;
+          case 'trigger_challenge': r = game.triggerChallenge(ws.rpgUser, msg.name || null); break;
+          case 'get_online_players': r = game.rpgAdminGetOnlinePlayers(); break;
+          case 'spectate_player': {
+            r = game.rpgAdminSpectatePlayer(ws.rpgUser, msg.target);
+            if (r.success) ws._spectating = msg.target;
+            break;
+          }
+          case 'stop_spectate': ws._spectating = null; r = { success: true }; break;
           default: r = { error: 'unknown_action' };
         }
         ws.send(JSON.stringify({ type: 'rpg_admin_result', data: { action: msg.action, ...r } }));
@@ -1789,6 +1806,28 @@ function handleChatMessage(data) {
     case '!sethp': {
       const val = content.split(' ')[1];
       if (val) game.handleSetHP(username, val);
+      break;
+    }
+    // ── Streamer Widget Commands (admin only) ──
+    case '!weight': {
+      const val = content.split(' ')[1];
+      if (val) { const r = game.setWeight(username, val); if (r.success) console.log(`⚖️ Weight updated to ${val}`); }
+      break;
+    }
+    case '!weightgoal': {
+      const val = content.split(' ')[1];
+      if (val) { const r = game.setWeightGoal(username, val); if (r.success) console.log(`⚖️ Weight goal set to ${val}`); }
+      break;
+    }
+    case '!weightstart': {
+      const val = content.split(' ')[1];
+      if (val) { const r = game.setWeightStart(username, val); if (r.success) console.log(`⚖️ Start weight set to ${val}`); }
+      break;
+    }
+    case '!punishment': {
+      const name = content.split(' ').slice(1).join(' ') || null;
+      const r = game.triggerChallenge(username, name);
+      if (r.success) console.log(`🎯 Challenge triggered: ${r.challenge.name}`);
       break;
     }
     // ── Player Portal Link ──

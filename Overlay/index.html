@@ -223,6 +223,44 @@ body{background:transparent;font-family:'Segoe UI',sans-serif;color:#fff}
 #test-toggle:hover{color:#ffd700;border-color:#ffd700}
 #status-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#ff4444;margin-right:6px}
 #status-dot.connected{background:#44ff44}
+
+/* ── Weight Tracker ── */
+#weight-tracker{position:absolute;bottom:20px;left:20px;z-index:50;width:300px;background:rgba(0,0,0,.88);border:2px solid #ffd700;border-radius:12px;padding:16px;font-family:'Press Start 2P',monospace;display:none}
+#weight-tracker.show{display:block;animation:popIn .5s ease}
+#wt-header{text-align:center;margin-bottom:12px}
+#wt-name{font-size:11px;color:#ffd700;text-shadow:0 0 15px rgba(255,215,0,.4);letter-spacing:2px}
+#wt-subtitle{font-size:7px;color:#888;margin-top:4px;letter-spacing:1px}
+.wt-stats{display:flex;justify-content:space-between;margin:10px 0}
+.wt-stat{text-align:center;flex:1}
+.wt-stat-label{font-size:6px;color:#888;margin-bottom:4px;text-transform:uppercase}
+.wt-stat-value{font-size:12px;color:#fff}
+.wt-stat-value.start{color:#ff6b6b}
+.wt-stat-value.current{color:#ffd700;font-size:14px;text-shadow:0 0 10px rgba(255,215,0,.4)}
+.wt-stat-value.goal{color:#4ade80}
+#wt-bar-wrap{background:rgba(255,255,255,.08);border-radius:8px;height:16px;margin:10px 0;overflow:hidden;position:relative;border:1px solid rgba(255,215,0,.2)}
+#wt-bar{height:100%;background:linear-gradient(90deg,#ff6b6b,#fbbf24,#4ade80);border-radius:8px;transition:width 1.5s cubic-bezier(.4,0,.2,1);width:0%;position:relative}
+#wt-bar::after{content:'';position:absolute;top:0;left:0;right:0;bottom:0;background:linear-gradient(180deg,rgba(255,255,255,.2) 0%,transparent 50%,rgba(0,0,0,.1) 100%);border-radius:8px}
+#wt-bar-pct{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:7px;color:#fff;text-shadow:1px 1px 2px #000;z-index:1}
+#wt-lost{text-align:center;margin-top:8px}
+#wt-lost-label{font-size:6px;color:#888}
+#wt-lost-value{font-size:10px;color:#4ade80;text-shadow:0 0 8px rgba(74,222,128,.4)}
+#wt-lost-value.gained{color:#ff6b6b;text-shadow:0 0 8px rgba(255,107,107,.4)}
+@keyframes weightPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+.wt-updated{animation:weightPulse .6s ease 3}
+
+/* ── Challenge Popup ── */
+#challenge-popup{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:270;display:none;text-align:center;pointer-events:none}
+#challenge-popup.active{display:flex;flex-direction:column;align-items:center;justify-content:center;animation:popIn .5s ease}
+#challenge-emoji{font-size:80px;animation:challengeBounce 1s ease infinite}
+@keyframes challengeBounce{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-15px) scale(1.1)}}
+#challenge-name{font-family:'Press Start 2P',monospace;font-size:20px;color:#ffd700;text-shadow:0 0 30px rgba(255,215,0,.6);margin:16px 0}
+#challenge-tier{font-family:'Press Start 2P',monospace;font-size:10px;padding:6px 16px;border-radius:20px;margin-top:8px}
+#challenge-tier.easy{background:rgba(74,222,128,.2);border:2px solid #4ade80;color:#4ade80}
+#challenge-tier.medium{background:rgba(251,191,36,.2);border:2px solid #fbbf24;color:#fbbf24}
+#challenge-tier.hard{background:rgba(255,68,68,.2);border:2px solid #ff4444;color:#ff4444}
+#challenge-tier.custom{background:rgba(192,132,252,.2);border:2px solid #c084fc;color:#c084fc}
+#challenge-count{font-family:'Press Start 2P',monospace;font-size:8px;color:#888;margin-top:12px}
+#challenge-bg{position:absolute;top:0;left:0;width:100%;height:100%;background:radial-gradient(circle,rgba(255,215,0,.08) 0%,rgba(0,0,0,.85) 70%);z-index:-1}
 </style>
 </head>
 <body>
@@ -326,6 +364,30 @@ body{background:transparent;font-family:'Segoe UI',sans-serif;color:#fff}
 
 <!-- Toasts -->
 <div id="toasts"></div>
+
+<!-- Weight Tracker -->
+<div id="weight-tracker">
+  <div id="wt-header">
+    <div id="wt-name">MIKEYDAMIKE</div>
+    <div id="wt-subtitle">⚖️ WEIGHT JOURNEY ⚖️</div>
+  </div>
+  <div class="wt-stats">
+    <div class="wt-stat"><div class="wt-stat-label">Start</div><div class="wt-stat-value start" id="wt-start">--</div></div>
+    <div class="wt-stat"><div class="wt-stat-label">Current</div><div class="wt-stat-value current" id="wt-current">--</div></div>
+    <div class="wt-stat"><div class="wt-stat-label">Goal</div><div class="wt-stat-value goal" id="wt-goal">--</div></div>
+  </div>
+  <div id="wt-bar-wrap"><div id="wt-bar"></div><div id="wt-bar-pct">0%</div></div>
+  <div id="wt-lost"><div id="wt-lost-label">PROGRESS</div><div id="wt-lost-value">--</div></div>
+</div>
+
+<!-- Challenge Popup -->
+<div id="challenge-popup">
+  <div id="challenge-bg"></div>
+  <div id="challenge-emoji">💪</div>
+  <div id="challenge-name">CHALLENGE!</div>
+  <div id="challenge-tier" class="medium">MEDIUM</div>
+  <div id="challenge-count">Challenges completed: 0</div>
+</div>
 
 <!-- Announcement Banner -->
 <div id="overlay-announce-banner" style="display:none;position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:99999;background:linear-gradient(90deg,#e94560,#c33);color:#fff;padding:14px 30px;font-size:18px;font-weight:700;text-align:center;border-radius:10px;box-shadow:0 4px 20px rgba(233,69,96,.6);max-width:80%;animation:announceFade 8s forwards">
@@ -482,6 +544,9 @@ function handle(type, d) {
     // Cash
     case 'cash_balance': toast(`💵 ${d.username}: ${d.gold} gold = $${d.cashValue} IRL (rate: ${d.rate}g/$1)`, '#44ff44', 6000); break;
     case 'announcement': showAnnouncementBanner(d.message); break;
+    // Streamer widgets
+    case 'weight_update': onWeightUpdate(d); break;
+    case 'challenge_trigger': onChallengeTrigger(d); break;
   }
 }
 
@@ -498,6 +563,8 @@ function onSync(d) {
   } else if (d.state === 'wheel_ready') {
     showWheel();
   }
+  // Init weight tracker from state
+  if (d.weight) onWeightUpdate(d.weight);
 }
 
 function onBossSpawn(d) {
@@ -1845,6 +1912,89 @@ function onPrestige(d) {
 
   setTimeout(() => playSound('wheelLand'), 500);
   setTimeout(() => { ov.classList.remove('active'); }, 5000);
+}
+
+// ═══════════════════════════════════════════
+// Weight Tracker
+// ═══════════════════════════════════════════
+function onWeightUpdate(d) {
+  const tracker = document.getElementById('weight-tracker');
+  // Only show if at least current weight is set
+  if (!d.current || d.current <= 0) { tracker.classList.remove('show'); return; }
+  tracker.classList.add('show');
+
+  const startEl = document.getElementById('wt-start');
+  const currentEl = document.getElementById('wt-current');
+  const goalEl = document.getElementById('wt-goal');
+  const bar = document.getElementById('wt-bar');
+  const barPct = document.getElementById('wt-bar-pct');
+  const lostVal = document.getElementById('wt-lost-value');
+
+  startEl.textContent = d.start ? d.start + ' lbs' : '--';
+  currentEl.textContent = d.current + ' lbs';
+  goalEl.textContent = d.goal ? d.goal + ' lbs' : '--';
+
+  const pct = d.pct || 0;
+  bar.style.width = pct + '%';
+  barPct.textContent = pct + '%';
+
+  if (d.lost && d.lost !== 0) {
+    if (d.lost > 0) {
+      lostVal.textContent = '-' + d.lost + ' lbs lost!';
+      lostVal.className = '';
+    } else {
+      lostVal.textContent = '+' + Math.abs(d.lost) + ' lbs gained';
+      lostVal.className = 'gained';
+    }
+  } else {
+    lostVal.textContent = 'Just getting started!';
+    lostVal.className = '';
+  }
+
+  // Pulse animation on update
+  currentEl.classList.add('wt-updated');
+  setTimeout(() => currentEl.classList.remove('wt-updated'), 2000);
+}
+
+// ═══════════════════════════════════════════
+// Challenge / Punishment System
+// ═══════════════════════════════════════════
+let challengeTimeout = null;
+function onChallengeTrigger(d) {
+  const popup = document.getElementById('challenge-popup');
+  const emoji = document.getElementById('challenge-emoji');
+  const name = document.getElementById('challenge-name');
+  const tier = document.getElementById('challenge-tier');
+  const count = document.getElementById('challenge-count');
+
+  emoji.textContent = d.emoji || '⚡';
+  name.textContent = d.name || 'CHALLENGE!';
+  tier.textContent = (d.tier || 'custom').toUpperCase();
+  tier.className = d.tier || 'custom';
+  count.textContent = 'Challenges completed: ' + (d.total || 0);
+
+  // Show popup
+  popup.classList.add('active');
+  popup.style.display = 'flex';
+
+  // Screen flash
+  const flash = document.createElement('div');
+  flash.className = 'flash';
+  document.body.appendChild(flash);
+  setTimeout(() => flash.remove(), 600);
+
+  playSound('crit');
+
+  // Auto-hide after 8 seconds
+  if (challengeTimeout) clearTimeout(challengeTimeout);
+  challengeTimeout = setTimeout(() => {
+    popup.style.animation = 'popOut .5s ease forwards';
+    setTimeout(() => {
+      popup.classList.remove('active');
+      popup.style.display = 'none';
+      popup.style.animation = '';
+    }, 500);
+  }, 8000);
 }
 </script>
 </body>

@@ -890,6 +890,15 @@ class Game {
     this.duelIdCounter = 1;
     this.duelCooldowns = {}; // username -> timestamp
 
+    // Streamer widgets (weight tracker + challenges)
+    this.streamerData = {
+      weight: { start: 0, current: 0, goal: 0, history: [] },
+      challenges: {
+        completed: 0,
+        log: [] // { name, timestamp }
+      }
+    };
+
     this.loadData();
     this.saveTimer = setInterval(() => this._flushSave(), CONFIG.saveInterval);
     // Expire panel marketplace listings older than 24h (check every 5 min)
@@ -927,6 +936,12 @@ class Game {
         this.housingStreets = d.housingStreets || [];
         this.purchaseLog = d.purchaseLog || [];
         this.marketStalls = d.marketStalls || {};
+        if (d.streamerData) {
+          this.streamerData = {
+            weight: d.streamerData.weight || { start: 0, current: 0, goal: 0, history: [] },
+            challenges: d.streamerData.challenges || { completed: 0, log: [] }
+          };
+        }
       }
     } catch (e) {
       console.error('⚠️ loadData failed:', e.message);
@@ -975,6 +990,7 @@ class Game {
       housingStreets: this.housingStreets || [],
       purchaseLog: this.purchaseLog || [],
       marketStalls: this.marketStalls || {},
+      streamerData: this.streamerData || {},
     }, null, 2);
     const tmpFile = DATA_FILE + '.tmp';
     try {
@@ -2484,8 +2500,91 @@ class Game {
     return { success: true };
   }
 
+  // ── Streamer Widgets ──────────────────────
+  setWeight(username, current) {
+    if (username !== this.admin) return { error: 'not_admin' };
+    const val = parseFloat(current);
+    if (isNaN(val) || val <= 0) return { error: 'invalid' };
+    const old = this.streamerData.weight.current;
+    this.streamerData.weight.current = val;
+    if (!this.streamerData.weight.start) this.streamerData.weight.start = val;
+    this.streamerData.weight.history.push({ weight: val, date: Date.now() });
+    // Keep only last 100 entries
+    if (this.streamerData.weight.history.length > 100) this.streamerData.weight.history = this.streamerData.weight.history.slice(-100);
+    this.saveData();
+    this.emit('weight_update', this.getWeightData());
+    return { success: true, old, current: val };
+  }
+
+  setWeightGoal(username, goal) {
+    if (username !== this.admin) return { error: 'not_admin' };
+    const val = parseFloat(goal);
+    if (isNaN(val) || val <= 0) return { error: 'invalid' };
+    this.streamerData.weight.goal = val;
+    this.saveData();
+    this.emit('weight_update', this.getWeightData());
+    return { success: true, goal: val };
+  }
+
+  setWeightStart(username, start) {
+    if (username !== this.admin) return { error: 'not_admin' };
+    const val = parseFloat(start);
+    if (isNaN(val) || val <= 0) return { error: 'invalid' };
+    this.streamerData.weight.start = val;
+    this.saveData();
+    this.emit('weight_update', this.getWeightData());
+    return { success: true, start: val };
+  }
+
+  getWeightData() {
+    const w = this.streamerData.weight;
+    const lost = w.start && w.current ? Math.round((w.start - w.current) * 10) / 10 : 0;
+    const totalToLose = w.start && w.goal ? w.start - w.goal : 0;
+    const pct = totalToLose > 0 ? Math.min(100, Math.max(0, Math.round((lost / totalToLose) * 100))) : 0;
+    return { start: w.start, current: w.current, goal: w.goal, lost, pct, history: w.history.slice(-10) };
+  }
+
+  triggerChallenge(username, challengeName) {
+    if (username !== this.admin) return { error: 'not_admin' };
+    const PUNISHMENTS = [
+      { name: '10 Push-ups', emoji: '💪', tier: 'easy' },
+      { name: '20 Push-ups', emoji: '💪', tier: 'medium' },
+      { name: '50 Push-ups', emoji: '💪', tier: 'hard' },
+      { name: '30 Squats', emoji: '🦵', tier: 'medium' },
+      { name: '1 Min Plank', emoji: '🧘', tier: 'medium' },
+      { name: '1 Min Wall Sit', emoji: '🧱', tier: 'medium' },
+      { name: '100 Jumping Jacks', emoji: '⭐', tier: 'hard' },
+      { name: 'Take Shirt Off', emoji: '👕', tier: 'easy' },
+      { name: 'Crack an Egg on Head', emoji: '🥚', tier: 'medium' },
+      { name: 'Eat Something Spicy', emoji: '🌶️', tier: 'hard' },
+      { name: 'Ice Bucket Splash', emoji: '🧊', tier: 'hard' },
+      { name: 'Do a Dance', emoji: '💃', tier: 'easy' },
+      { name: 'Bad Accent 5 Min', emoji: '🎭', tier: 'easy' },
+      { name: 'Read Cringe Donations', emoji: '😬', tier: 'easy' },
+      { name: 'Slap Yourself', emoji: '👋', tier: 'easy' },
+      { name: 'Hold Ice Cube 30s', emoji: '🥶', tier: 'medium' },
+      { name: 'Spin Until Dizzy', emoji: '🌀', tier: 'medium' },
+      { name: 'Drink Mystery Liquid', emoji: '🧪', tier: 'hard' },
+      { name: 'Belly Flop on Bed', emoji: '🛏️', tier: 'easy' },
+      { name: 'Let Chat Pick Outfit', emoji: '👗', tier: 'medium' },
+    ];
+    let picked;
+    if (challengeName) {
+      picked = PUNISHMENTS.find(p => p.name.toLowerCase().includes(challengeName.toLowerCase()));
+      if (!picked) picked = { name: challengeName, emoji: '⚡', tier: 'custom' };
+    } else {
+      picked = PUNISHMENTS[Math.floor(Math.random() * PUNISHMENTS.length)];
+    }
+    this.streamerData.challenges.completed++;
+    this.streamerData.challenges.log.push({ name: picked.name, timestamp: Date.now() });
+    if (this.streamerData.challenges.log.length > 50) this.streamerData.challenges.log = this.streamerData.challenges.log.slice(-50);
+    this.saveData();
+    this.emit('challenge_trigger', { ...picked, total: this.streamerData.challenges.completed });
+    return { success: true, challenge: picked };
+  }
+
   getFullState() {
-    return { state: this.state, boss: this.boss, bossNumber: this.bossNumber, leaderboard: this.handleLeaderboard(), wheelRewards: this.wheelRewards, rpgEnabled: this.rpgEnabled, gamblingEnabled: this.gamblingEnabled };
+    return { state: this.state, boss: this.boss, bossNumber: this.bossNumber, leaderboard: this.handleLeaderboard(), wheelRewards: this.wheelRewards, rpgEnabled: this.rpgEnabled, gamblingEnabled: this.gamblingEnabled, weight: this.getWeightData(), challengeCount: this.streamerData.challenges.completed };
   }
 
   spinWheel() {
@@ -8004,6 +8103,55 @@ class Game {
 
   rpgGetOnlineCount() {
     return Object.values(this.rpgPlayers).filter(rp => !rp.disconnected).length;
+  }
+
+  rpgAdminGetOnlinePlayers() {
+    const list = [];
+    for (const [u, rp] of Object.entries(this.rpgPlayers)) {
+      if (rp.disconnected) continue;
+      const p = this.players[u];
+      list.push({
+        username: u,
+        zone: rp.zone,
+        x: Math.round(rp.x),
+        y: Math.round(rp.y),
+        hp: rp.hp,
+        maxHP: rp.maxHP,
+        level: p ? p.level : 1,
+        gold: p ? p.gold : 0,
+        appearance: p ? p.appearance : null,
+        equipped: p ? p.equipped : null,
+        activeWearables: p ? p.activeWearables : null,
+        activeCosmetics: p ? (p.activeCosmetics || null) : null,
+        inDuel: rp.inDuel || null,
+        sitting: rp.sitting || null,
+      });
+    }
+    return { success: true, players: list, count: list.length };
+  }
+
+  rpgAdminSpectatePlayer(adminUser, targetUser) {
+    if (adminUser !== this.admin) return { error: 'not_admin' };
+    const rp = this.rpgPlayers[targetUser];
+    if (!rp || rp.disconnected) return { error: 'player_offline' };
+    const p = this.players[targetUser];
+    const zoneState = this.rpgGetZoneState(rp.zone, targetUser);
+    return {
+      success: true,
+      target: targetUser,
+      zone: rp.zone,
+      x: rp.x,
+      y: rp.y,
+      hp: rp.hp,
+      maxHP: rp.maxHP,
+      level: p ? p.level : 1,
+      gold: p ? p.gold : 0,
+      appearance: p ? p.appearance : null,
+      equipped: p ? p.equipped : null,
+      activeWearables: p ? p.activeWearables : null,
+      activeCosmetics: p ? (p.activeCosmetics || null) : null,
+      zoneState,
+    };
   }
 
   // ═══════════════════════════════════════════

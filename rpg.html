@@ -504,6 +504,31 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;di
 .trade-overlay{backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
 .duel-overlay{backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
 
+/* ── Online Players Panel ── */
+.online-list{max-height:340px;overflow-y:auto;margin-top:8px}
+.online-row{display:flex;align-items:center;gap:10px;padding:8px 10px;margin:4px 0;background:rgba(255,255,255,.04);border:1px solid #333;border-radius:6px;cursor:default;transition:background .15s}
+.online-row:hover{background:rgba(255,215,0,.08);border-color:#ffd700}
+.online-avatar{width:28px;height:28px;border-radius:50%;background:#222;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.online-info{flex:1;min-width:0}
+.online-name{font-weight:700;font-size:13px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.online-detail{font-size:10px;color:#888;margin-top:1px}
+.online-detail span{margin-right:8px}
+.online-hp-bar{width:60px;height:6px;background:#333;border-radius:3px;overflow:hidden;flex-shrink:0}
+.online-hp-fill{height:100%;background:#4ade80;border-radius:3px;transition:width .3s}
+.online-hp-fill.low{background:#ff4444}
+.online-hp-fill.med{background:#fbbf24}
+.online-actions{display:flex;gap:4px;flex-shrink:0}
+.online-actions button{padding:4px 8px;font-size:10px;border-radius:4px;border:1px solid #555;background:#222;color:#fff;cursor:pointer;transition:all .15s}
+.online-actions button:hover{background:#e94560;border-color:#e94560}
+.online-actions button.spectate-btn:hover{background:#3b82f6;border-color:#3b82f6}
+.online-count-badge{display:inline-block;background:#e94560;color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:8px}
+.online-search{width:100%;padding:6px 10px;border:1px solid #555;background:#1a1a2e;color:#eee;border-radius:4px;font-size:12px;box-sizing:border-box}
+/* ── Spectate Mode ── */
+.spectate-banner{position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:600;background:rgba(59,130,246,.9);color:#fff;font-family:'Segoe UI',sans-serif;font-size:13px;font-weight:700;padding:8px 20px;border-radius:20px;display:none;align-items:center;gap:10px;box-shadow:0 4px 20px rgba(59,130,246,.4);pointer-events:auto}
+.spectate-banner.show{display:flex}
+.spectate-banner button{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.4);color:#fff;padding:4px 12px;border-radius:12px;cursor:pointer;font-size:11px}
+.spectate-banner button:hover{background:rgba(255,255,255,.35)}
+
 /* ── World map responsive ── */
 .world-map{max-width:100%;box-sizing:border-box}
 
@@ -937,6 +962,12 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;di
 <div class="drop-toast" id="drop-toast"></div>
 
 <!-- Admin Panel Overlay (mikeydamike only) -->
+<!-- Spectate Banner -->
+<div class="spectate-banner" id="spectate-banner">
+  <span>👁️ Spectating: <b id="spectate-target-name">—</b></span>
+  <button onclick="adminStopSpectate()">✕ Stop</button>
+</div>
+
 <div class="admin-overlay" id="admin-overlay">
   <div class="admin-panel">
     <h1>🛡️ Admin Tools <button class="admin-close" onclick="toggleAdminPanel()">&times; Close</button></h1>
@@ -1040,6 +1071,13 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;di
         <button class="admin-btn" onclick="adminCmd('close_gold_vein')"><span class="btn-icon">🔒</span>Close Gold Vein<span class="btn-label">Lock event zone</span></button>
         <button class="admin-btn" onclick="adminCmd('double_xp')"><span class="btn-icon">⚡</span>Double XP<span class="btn-label">10 min boost</span></button>
       </div>
+    </div>
+    <!-- Online Players -->
+    <div class="admin-section">
+      <h2>👥 Online Players <span class="online-count-badge" id="admin-online-count">0</span></h2>
+      <input class="online-search" id="admin-online-search" placeholder="🔍 Search players..." oninput="adminFilterOnline()">
+      <div style="margin-top:6px;text-align:right"><button class="admin-btn" style="display:inline-block;width:auto;padding:4px 12px;font-size:11px" onclick="adminRefreshOnline()">🔄 Refresh</button></div>
+      <div class="online-list" id="admin-online-list"><div style="color:#666;padding:20px;text-align:center">Click Refresh to load</div></div>
     </div>
     <!-- Log -->
     <div class="admin-section">
@@ -2822,6 +2860,7 @@ function handleMessage(msg){
     case'rpg_disenchant_result':if(d&&d.success){gold=d.gold;logMsg('🔮 Removed '+d.enchant+' from '+d.equipName+' (-50g)','loot');addFloat(px,py-30,'DISENCHANTED','#ff6666',true);updateHUD();refreshInventory()}else if(d){const errMsg=d.error==='no_gold'?'Need '+d.need+'g (have '+d.have+'g)':d.error||'Disenchant failed';logMsg(errMsg,'dmg')}break;
     case'rpg_grizzle_quest_turnin_result':if(d&&d.success){gold=d.totalGold;if(d.miningXP!==undefined){miningXP=d.miningXP;miningXPNeeded=d.miningXPNeeded||miningLevel*30}if(d.miningLeveled){miningLevel=d.miningLevel;logMsg('\u26cf\ufe0f Mining Level UP! Lv '+d.miningLevel,'xp');addFloat(px,py-50,'MINING '+d.miningLevel+'!','#fbbf24',true)}logMsg('\u26cf\ufe0f Quest complete! +'+d.goldReward+'g +'+d.xpReward+'xp','loot');addFloat(px,py-30,'+'+d.goldReward+'g','#fbbf24');updateHUD()}else if(d){logMsg(d.error||'Turn-in failed','dmg')}break;
     case'rpg_admin_result':handleAdminResult(d);break;
+    case'rpg_spectate_move':handleSpectateMove(d);break;
     case'rpg_wipe':
       activeQuests=[];completedQuestIds=[];questKillCounts={};questMineCounts=0;
       grizzleActiveQuests=[];grizzleCompletedQuestIds=[];grizzleQuestMineCounts=0;grizzleQuestMineTypeCounts={};
@@ -31515,6 +31554,8 @@ function initAdminPanel(){
   });
   // Populate item select
   adminCmd('get_game_data');
+  // Refresh online players
+  adminRefreshOnline();
   updateAdminStatus();
 }
 function populateAdminSelects(data){
@@ -31626,6 +31667,9 @@ function handleAdminResult(d){
     case'give_cosmetic':adminLog(`Got cosmetic: ${d.name}`,'ok');break;
     case'respawn_all_mobs':adminLog(`Respawned ${d.respawned} mobs`,'ok');break;
     case'set_dmg_mult':adminDmgMult=d.dmgMult;adminLog(`Damage multiplier set to ${d.dmgMult}x`,'ok');break;
+    case'get_online_players':adminRenderOnline(d.players);adminLog(`Loaded ${d.count} online player(s)`,'info');break;
+    case'spectate_player':handleSpectateResult(d);break;
+    case'stop_spectate':adminLog('Spectate stopped','info');break;
     default:adminLog(JSON.stringify(d),'info');
   }
   updateAdminStatus();
@@ -31649,6 +31693,101 @@ function adminFinishQuests(){
   saveGrizzleQuests();
   if(finished>0){adminLog(`Finished ${finished} quest(s) (Cask + Grizzle), turned in ${toTurnIn.length+toTurnInG.length}`,'ok')}
   else{adminLog('No active quests to finish','err')}
+}
+
+// =============================================
+// Online Players & Spectate
+// =============================================
+let adminOnlineData=[];
+let spectateTarget=null;
+let spectateRefreshTimer=null;
+
+function adminRefreshOnline(){
+  adminCmd('get_online_players');
+}
+function adminRenderOnline(players){
+  adminOnlineData=players||[];
+  document.getElementById('admin-online-count').textContent=adminOnlineData.length;
+  adminFilterOnline();
+}
+function adminFilterOnline(){
+  const q=(document.getElementById('admin-online-search').value||'').toLowerCase();
+  const list=document.getElementById('admin-online-list');
+  const filtered=q?adminOnlineData.filter(p=>p.username.toLowerCase().includes(q)||p.zone.toLowerCase().includes(q)):adminOnlineData;
+  if(!filtered.length){list.innerHTML='<div style="color:#666;padding:20px;text-align:center">No players found</div>';return}
+  list.innerHTML=filtered.map(p=>{
+    const hpPct=p.maxHP?Math.round(p.hp/p.maxHP*100):100;
+    const hpCls=hpPct<=25?'low':hpPct<=50?'med':'';
+    const zoneLabel=(allZones||[]).find(z=>z.id===p.zone);
+    const zoneName=zoneLabel?zoneLabel.name:p.zone;
+    const statusIcon=p.inDuel?'⚔️':p.sitting?'🪑':'🟢';
+    return `<div class="online-row">
+      <div class="online-avatar">${statusIcon}</div>
+      <div class="online-info">
+        <div class="online-name">${escHtml(p.username)}</div>
+        <div class="online-detail">
+          <span>📍 ${escHtml(zoneName)}</span>
+          <span>Lv.${p.level}</span>
+          <span>💰${p.gold}</span>
+        </div>
+      </div>
+      <div class="online-hp-bar"><div class="online-hp-fill ${hpCls}" style="width:${hpPct}%"></div></div>
+      <div class="online-actions">
+        <button class="spectate-btn" onclick="adminSpectate('${escHtml(p.username)}')">👁️</button>
+        <button onclick="adminTeleportTo('${escHtml(p.username)}','${escHtml(p.zone)}',${Math.round(p.x)},${Math.round(p.y)})">📍</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+
+function adminSpectate(target){
+  adminCmd('spectate_player',{target});
+  adminLog(`Spectating ${target}...`,'info');
+}
+function adminStopSpectate(){
+  spectateTarget=null;
+  document.getElementById('spectate-banner').classList.remove('show');
+  adminCmd('stop_spectate');
+  if(spectateRefreshTimer){clearInterval(spectateRefreshTimer);spectateRefreshTimer=null}
+  adminLog('Stopped spectating','info');
+}
+function adminTeleportTo(user,zone,x,y){
+  adminCmd('teleport',{zone});
+  // After zone loads, set position near target
+  setTimeout(()=>{
+    px=x;py=y;cameraX=x-canvas.width/2;cameraY=y-canvas.height/2;
+  },500);
+  adminLog(`Teleported to ${user} in ${zone}`,'ok');
+}
+function handleSpectateResult(d){
+  if(d.error){adminLog(`Spectate failed: ${d.error}`,'err');return}
+  spectateTarget=d.target;
+  document.getElementById('spectate-target-name').textContent=d.target;
+  document.getElementById('spectate-banner').classList.add('show');
+  // If target is in a different zone, teleport there
+  if(d.zone && d.zone!==currentZone){
+    adminCmd('teleport',{zone:d.zone});
+    setTimeout(()=>{
+      px=d.x;py=d.y;cameraX=d.x-canvas.width/2;cameraY=d.y-canvas.height/2;
+    },500);
+  } else {
+    cameraX=d.x-canvas.width/2;cameraY=d.y-canvas.height/2;
+  }
+  adminLog(`Now spectating ${d.target} in ${d.zone} (${Math.round(d.x)},${Math.round(d.y)})`,'ok');
+  // Auto-refresh position every 2s by following their moves
+  if(spectateRefreshTimer)clearInterval(spectateRefreshTimer);
+  spectateRefreshTimer=setInterval(()=>{
+    if(!spectateTarget)return;
+    // Camera follows the target player's last known position from otherPlayers
+    const op=otherPlayers.find(p=>p.username===spectateTarget);
+    if(op){cameraX=op.x-canvas.width/2;cameraY=op.y-canvas.height/2}
+  },100);
+}
+function handleSpectateMove(d){
+  if(!spectateTarget||d.username!==spectateTarget)return;
+  // Update camera to follow
+  cameraX=d.x-canvas.width/2;cameraY=d.y-canvas.height/2;
 }
 
 // =============================================
