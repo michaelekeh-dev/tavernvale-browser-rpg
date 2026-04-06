@@ -400,6 +400,13 @@ app.post('/api/link', (req, res) => {
   const isNew = !game.players[username];
   game.player(username);
   if (isNew) game.saveData();
+  // Test account bypass — skip Kick chat verification
+  if (username === 'tester01') {
+    const token = require('crypto').randomBytes(16).toString('hex');
+    game.linkTokens[username] = { token, created: Date.now() };
+    game.saveData();
+    return res.json({ success: true, token });
+  }
   // Generate a PIN code the user must type in Kick chat
   const code = game.generateLinkCode(username);
   // Cancel any existing pending link long-poll for this user
