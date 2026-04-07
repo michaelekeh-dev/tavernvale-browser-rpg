@@ -2673,6 +2673,9 @@ class Game {
     if (data.level !== undefined) p.level = Math.max(1, data.level);
     if (data.xp !== undefined) p.xp = Math.max(0, data.xp);
     if (data.gold !== undefined) p.gold = Math.max(0, data.gold);
+    if (data.vaultGold !== undefined) p.vaultGold = Math.max(0, data.vaultGold);
+    if (data.prestige !== undefined) p.prestige = Math.max(0, Math.min(10, data.prestige));
+    if (data.miningLevel !== undefined) { if (!p.rpg) p.rpg = {}; p.rpg.miningLevel = Math.max(1, Math.min(100, data.miningLevel)); }
     if (data.totalDamage !== undefined) p.totalDamage = Math.max(0, data.totalDamage);
     if (data.trust !== undefined) { if (!p.rpg) p.rpg = {}; p.rpg.trust = Math.max(0, Math.min(200, data.trust)); }
     this.saveData();
@@ -2711,7 +2714,7 @@ class Game {
     const p = this.players[username];
     return {
       username,
-      level: p.level, xp: p.xp, gold: p.gold, totalDamage: p.totalDamage,
+      level: p.level, xp: p.xp, gold: p.gold, vaultGold: p.vaultGold || 0, totalDamage: p.totalDamage,
       prestige: p.prestige, prestigeBonus: p.prestigeBonus,
       mvpCount: p.mvpCount, bossKills: p.bossKills, gamblesWon: p.gamblesWon,
       tradeCount: p.tradeCount || 0, dodgeCount: p.dodgeCount,
@@ -2720,7 +2723,7 @@ class Game {
       wearables: p.wearables, activeWearables: p.activeWearables,
       cosmetics: p.cosmetics, activeCosmetics: p.activeCosmetics,
       achievements: p.achievements,
-      miningLevel: p.miningLevel || 0, miningXp: p.miningXp || 0,
+      miningLevel: (p.rpg && p.rpg.miningLevel) || 1, miningXp: (p.rpg && p.rpg.miningXP) || 0,
       trust: (p.rpg && p.rpg.trust) || 0,
     };
   }

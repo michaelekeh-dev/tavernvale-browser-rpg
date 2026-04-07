@@ -318,7 +318,7 @@ body{font-family:'Segoe UI',sans-serif;background:#0a0a0f;color:#e0e0e0;min-heig
     <input class="player-search" id="playerSearch" placeholder="Search players..." oninput="filterPlayers()">
     <div class="player-scroll">
       <table class="player-table">
-        <thead><tr><th>Player</th><th>Level</th><th>XP</th><th>Gold</th><th>Trust</th><th>Total DMG</th><th>Items</th><th>Ach</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Player</th><th>Level</th><th>XP</th><th>Gold</th><th>VG</th><th>Trust</th><th>Total DMG</th><th>Items</th><th>Ach</th><th>Actions</th></tr></thead>
         <tbody id="playerBody"></tbody>
       </table>
     </div>
@@ -664,6 +664,9 @@ body{font-family:'Segoe UI',sans-serif;background:#0a0a0f;color:#e0e0e0;min-heig
     <label>Level</label><input type="number" id="editLevel" min="1">
     <label>XP</label><input type="number" id="editXP" min="0">
     <label>Gold</label><input type="number" id="editGold" min="0">
+    <label>Vault Gold</label><input type="number" id="editVG" min="0">
+    <label>Prestige</label><input type="number" id="editPrestige" min="0" max="10">
+    <label>Mining Level</label><input type="number" id="editMining" min="1" max="100">
     <label>Total Damage</label><input type="number" id="editDamage" min="0">
     <label>Trust</label><input type="number" id="editTrust" min="0" max="200">
     <div class="modal-btns">
@@ -1005,6 +1008,7 @@ function renderPlayers() {
     '<td>' + p.level + '</td>' +
     '<td>' + p.xp + '/' + (p.level * 100) + '</td>' +
     '<td style="color:#fbbf24">🪙 ' + p.gold + '</td>' +
+    '<td style="color:#4ade80">💎 ' + (p.vaultGold || 0) + '</td>' +
     '<td style="color:#60a5fa">' + ((p.rpg && p.rpg.trust) || 0) + '</td>' +
     '<td>' + (p.totalDamage || 0).toLocaleString() + '</td>' +
     '<td>' + ((p.inventory || []).length + Object.values(p.equipped || {}).filter(Boolean).length) + '🗡️ ' + (p.cosmetics || []).length + '✨</td>' +
@@ -1022,6 +1026,9 @@ function editPlayer(name) {
   document.getElementById('editLevel').value = p.level;
   document.getElementById('editXP').value = p.xp;
   document.getElementById('editGold').value = p.gold;
+  document.getElementById('editVG').value = p.vaultGold || 0;
+  document.getElementById('editPrestige').value = p.prestige || 0;
+  document.getElementById('editMining').value = (p.rpg && p.rpg.miningLevel) || p.miningLevel || 1;
   document.getElementById('editDamage').value = p.totalDamage;
   document.getElementById('editTrust').value = (p.rpg && p.rpg.trust) || 0;
   document.getElementById('editModal').classList.add('active');
@@ -1039,6 +1046,9 @@ function savePlayer() {
       level: parseInt(document.getElementById('editLevel').value) || 1,
       xp: parseInt(document.getElementById('editXP').value) || 0,
       gold: parseInt(document.getElementById('editGold').value) || 0,
+      vaultGold: parseInt(document.getElementById('editVG').value) || 0,
+      prestige: parseInt(document.getElementById('editPrestige').value) || 0,
+      miningLevel: parseInt(document.getElementById('editMining').value) || 1,
       totalDamage: parseInt(document.getElementById('editDamage').value) || 0,
       trust: parseInt(document.getElementById('editTrust').value) || 0,
     }
@@ -1643,6 +1653,7 @@ function renderInspect(data) {
     stat('Username', p.username) + stat('Level', p.level) +
     stat('XP', p.xp + '/' + (p.level * 100)) +
     stat('Gold', '<span style="color:#fbbf24">' + p.gold.toLocaleString() + 'g</span>') +
+    stat('Vault Gold', '<span style="color:#4ade80">💎 ' + (p.vaultGold || 0).toLocaleString() + ' VG</span> <span style="color:#888;font-size:10px">($' + ((p.vaultGold || 0) / (p.goldPerDollar || 5000)).toFixed(2) + ')</span>') +
     stat('Prestige', p.prestige + (p.prestigeBonus ? ' (+' + (p.prestigeBonus * 100).toFixed(0) + '%)' : '')) +
     stat('Mining Level', (p.miningLevel || 0) + ' (' + (p.miningXp || 0) + ' xp)') +
     stat('Trust', '<span style="color:#60a5fa">' + (p.trust || 0) + '</span>') +
